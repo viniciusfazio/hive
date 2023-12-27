@@ -1,2 +1,2 @@
-# hive
+# Hive
 Hive game online
