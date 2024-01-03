@@ -133,6 +133,10 @@ class Hive {
         }
       }
     });
+    // redesenha última peça jogada, para borda não ficar por baixo
+    pecas.filter(peca => peca.id === Hive.ultimaId).forEach(peca => {
+      peca.draw(ctx, width, height);
+    });
     // caso tenha peças acima, desenha elas
     if (pecasAcima.length > 0) {
       Hive.#drawPecas(ctx, width, height, emHud, pecasAcima, z + 1);
@@ -177,10 +181,14 @@ class Hive {
       if (pecaHover.destinos !== null && pecaHover.destinos.length > 0) {
         Hive.hoverId = hoverId;
       }
+      if (Hive.hoverId === null) {
+        return;
+      }
     }
     Hive.draw();
   }
   static click(mouseX, mouseY) {
+    Hive.hover(mouseX, mouseY);
     if (Hive.hoverId === null) {
       // clicou em jogada inválida
        Hive.selectedId = null;
@@ -277,7 +285,7 @@ class Camera {
   }
 }
 class Peca {
-  static RAIO = 20;
+  static RAIO = 18;
   static #OFFSET_LEVEL = 3;
 
   // guarda o último id usado, para criar novos ids
@@ -288,6 +296,9 @@ class Peca {
 
   x;
   y;
+  fromX;
+  fromY;
+  transicao;
   z;
   emHud;
   tipo;
@@ -300,6 +311,7 @@ class Peca {
     this.x = x;
     this.y = y;
     this.z = z;
+    this.transicao = 0;
     this.emHud = emHud;
     if (emHud) {
       // posiciona para poder comparar se tem mais de uma peça do mesmo tipo no hud
@@ -311,11 +323,32 @@ class Peca {
     this.destinos = destinos;
   }
   play(destinoId) {
+    const canvas = document.getElementById("hive");
     const destino = this.destinos.find(peca => destinoId === peca.id);
+    const [x, y] = this.#getPosicao(canvas.width, canvas.height);
+    this.fromX = x;
+    this.fromY = y;
+    this.transicao = 1;
     this.x = destino.x;
     this.y = destino.y;
     this.z = destino.z;
     this.emHud = false;
+    Peca.transicao();
+  }
+  static transicao() {
+    let fezTransicao = false;
+    Hive.pecas.forEach(peca => {
+      if (peca.transicao > 1e-3) {
+        fezTransicao = true;
+        peca.transicao /= 2;
+      } else {
+        peca.transicao = 0;
+      }
+    });
+    Hive.draw();
+    if (fezTransicao) {
+      setTimeout(Peca.transicao, 20);
+    }
   }
   draw(ctx, width, height) {
     if (this.id === Hive.selectedId) {
@@ -359,7 +392,11 @@ class Peca {
     }
   }
   #draw(ctx, width, height, estilo = []) {
-    const [x, y] = this.#getPosicao(width, height);
+    let [x, y] = this.#getPosicao(width, height);
+    if (this.transicao > 0) {
+      x = x + (this.fromX - x) * this.transicao;
+      y = y + (this.fromY - y) * this.transicao;
+    }
     const raio = Peca.RAIO * (this.emHud ? 1 : Camera.scale);
     const path = Peca.#getPath(this.emHud);
 
