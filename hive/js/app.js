@@ -60,6 +60,7 @@ function jogadasLadybug(peca, repetido = false) {
       const [passoX, passoY] = caminho[p];
       for (const [x, y, z, , , z1, , , z2] of Peca.aoRedorComVizinhos(passoX, passoY)) {
         if (p < 2) {
+          // move somente sobre peças
           const casaOcupada = (px !== x || py !== y) && z >= 0;
           const semGate = Math.max(peca.z, z) >= Math.min(z1, z2);
           const inexplorado = !caminho.find(([cx, cy]) => cx === x && cy === y);
@@ -70,6 +71,7 @@ function jogadasLadybug(peca, repetido = false) {
             novosCaminhos.push(novoCaminho);
           }
         } else {
+          // move somente em casas vazias
           const casaLivre = z < 0;
           const semGate = Math.max(peca.z, z) >= Math.min(z1, z2);
           if (casaLivre && semGate) {
@@ -98,10 +100,10 @@ function jogadasGrasshopper(peca, repetido = false) {
   }
 }
 function jogadasPillbug(peca, repetido = false) {
-  // movimentos de rainha
   let livres = [];
   let vitimas = [];
   for (const [x, y, z, , , z1, , , z2] of Peca.aoRedorComVizinhos(peca.x, peca.y)) {
+    // procura vítimas e casas livres para mover outras peças
     const casaLivre = z < 0;
     const semGate = Math.max(peca.z, z) >= Math.min(z1, z2);
     const casaVitima = z === 0;
@@ -112,13 +114,14 @@ function jogadasPillbug(peca, repetido = false) {
         vitimas.push([x, y]);
       }
     }
+    // movimentos de rainha
     const vizinhoVazio = z1 < 0 || z2 < 0;
     const vizinhoOcupado = z1 >= 0 || z2 >= 0;
     if (casaLivre && vizinhoVazio && vizinhoOcupado) {
       peca.insereDestino(repetido, new Peca(peca.cor, peca.tipo, 0, false, x, y, null))
     }
   }
-  // movimentos de remoção de peça
+  // move outras peças
   vitimas.forEach(([x, y]) => {
     const vitima = Peca.getPecaNoFundo(x, y);
     if (vitima.id !== Hive.ultimaId && Peca.checaOneHive(vitima.x, vitima.y)) {
@@ -162,8 +165,8 @@ function jogadasSpider(peca, repetido = false) {
 function jogadasBeetle(peca, repetido = false) {
   for (const [x, y, z, , , z1, , , z2] of Peca.aoRedorComVizinhos(peca.x, peca.y)) {
     const semGate = Math.max(peca.z, z) >= Math.min(z1, z2);
-    const vizinhoOcupado = z1 >= 0 || z2 >= 0;
-    if (semGate && vizinhoOcupado) {
+    const ocupado = z1 >= 0 || z2 >= 0 || z >= 0;
+    if (semGate && ocupado) {
       peca.insereDestino(repetido, new Peca(peca.cor, peca.tipo, z + 1, false, x, y, null));
     }
   }
@@ -427,6 +430,9 @@ class Hive {
   static #limpaMarcacoes() {
     Hive.selectedId = null;
     Hive.hoverId = null;
+    Hive.pecas.forEach(peca => {
+      peca.destinos = [];
+    });
   }
   static #proximaRodada() {
     Hive.#limpaMarcacoes();
@@ -435,9 +441,6 @@ class Hive {
   }
   static #updateJogadas() {
     let total = 0;
-    Hive.pecas.forEach(peca => {
-      peca.destinos = [];
-    });
     Hive.pecas.forEach(peca => {
       peca.updateJogadas(Hive.rodada);
       total += peca.destinos.length;
@@ -520,7 +523,7 @@ class Camera {
 }
 class Peca {
   static RAIO = 18;
-  static #OFFSET_LEVEL = 3;
+  static #OFFSET_LEVEL = 4;
 
   // guarda o último id usado, para criar novos ids
   static #id = 0;
