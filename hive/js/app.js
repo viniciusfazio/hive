@@ -404,6 +404,7 @@ class Hive {
     if (Hive.selectedId === Hive.hoverId && Peca.getPecaPorId(Hive.selectedId).tipo.nome === TipoPeca.pass.nome) {
       // pulou a vez
       Hive.pecas = Hive.pecas.filter(peca => Hive.selectedId !== peca.id);
+      Hive.ultimaId = null;
       Hive.#proximaRodada();
     } else if (Peca.getPecaPorId(Hive.hoverId)) {
       // selecionou outra peça em vez de jogar
@@ -785,6 +786,12 @@ class Peca {
     return !Hive.pecas.find(peca => !peca.emHud && peca.x === this.x && peca.y === this.y && peca.z > this.z);
   }
   static checaOneHive(checaX, checaY) {
+    // só pode quebrar colméia se tiver no fundo a peça
+    const peca = Peca.getPecaNoTopo(checaX, checaY);
+    if (!peca || peca.z > 0) {
+      return  true;
+    }
+
     // verifica o que tem ao redor da peça
     let ocupado = [];
     let pecasAoRedor = [];
