@@ -1,48 +1,100 @@
 
+function jogadasQueen(peca) {
+  const xyz = Peca.xyzAoRedor(peca.x, peca.y);
+  for (let i = 1; i <= 6; i++) {
+    const [x, y, z] = xyz[i % 6];
+    if (z < 0 && (xyz[i - 1][2] < 0 || xyz[(i + 1) % 6][2] < 0)) {
+      peca.destinos.push(new Peca(peca.cor, peca.tipo, 0, false, x, y, null));
+    }
+  }
+}
+function jogadasAnt(peca) {
+  peca.destinos.push(new Peca(peca.cor, peca.tipo, 0, false, peca.tipo.posicao, peca.tipo.posicao, null));
+}
+function jogadasMosquito(peca) {
+  peca.destinos.push(new Peca(peca.cor, peca.tipo, 0, false, peca.tipo.posicao, peca.tipo.posicao, null));
+}
+function jogadasLadybug(peca) {
+  peca.destinos.push(new Peca(peca.cor, peca.tipo, 0, false, peca.tipo.posicao, peca.tipo.posicao, null));
+}
+function jogadasGrasshopper(peca) {
+  peca.destinos.push(new Peca(peca.cor, peca.tipo, 0, false, peca.tipo.posicao, peca.tipo.posicao, null));
+}
+function jogadasPillbug(peca) {
+  peca.destinos.push(new Peca(peca.cor, peca.tipo, 0, false, peca.tipo.posicao, peca.tipo.posicao, null));
+}
+function jogadasSpider(peca) {
+  peca.destinos.push(new Peca(peca.cor, peca.tipo, 0, false, peca.tipo.posicao, peca.tipo.posicao, null));
+}
+function jogadasBeetle(peca) {
+  const xyz = Peca.xyzAoRedor(peca.x, peca.y);
+  for (let i = 1; i <= 6; i++) {
+    const [x, y, z] = xyz[i % 6];
+    const z1 = xyz[i - 1][2];
+    const z2 = xyz[(i + 1) % 6][2];
+    if (Math.max(peca.z, z) >= Math.min(z1, z2)) {
+      peca.destinos.push(new Peca(peca.cor, peca.tipo, z + 1, false, x, y, null));
+    }
+  }
+}
+
 const CorPeca = {
   branco: "rgb(140, 140, 140)",
   preto: "rgb(50, 50, 50)",
 }
 const TipoPeca = {
+  pass: {
+    nome: "pass",
+    posicao: 0,
+    quantidade: 0,
+  },
   queen: {
     nome: "queen",
     posicao: 1,
     quantidade: 1,
+    jogadas: jogadasQueen,
   },
   ant: {
     nome: "ant",
     posicao: 2,
     quantidade: 3,
+    jogadas: jogadasAnt,
   },
   mosquito: {
     nome: "mosquito",
     posicao: 3,
     quantidade: 1,
+    jogadas: jogadasMosquito,
   },
   ladybug: {
     nome: "ladybug",
     posicao: 4,
     quantidade: 1,
+    jogadas: jogadasLadybug,
   },
   grasshopper: {
     nome: "grasshopper",
     posicao: 5,
     quantidade: 3,
+    jogadas: jogadasGrasshopper,
   },
   pillbug: {
     nome: "pillbug",
     posicao: 6,
     quantidade: 1,
+    jogadas: jogadasPillbug,
   },
   spider: {
     nome: "spider",
     posicao: 7,
     quantidade: 2,
+    jogadas: jogadasSpider,
   },
   beetle: {
     nome: "beetle",
     posicao: 8,
     quantidade: 2,
+    jogadas: jogadasBeetle,
   },
 };
 
@@ -69,7 +121,7 @@ class Hive {
 
   static init(corJogadorEmbaixo) {
     Hive.corJogadorEmbaixo = corJogadorEmbaixo;
-    Hive.#rodada = 0;
+    Hive.#rodada = 1;
     Hive.#frame = 0;
     Hive.pecas = [];
     Hive.ultimaId = null;
@@ -81,6 +133,8 @@ class Hive {
         }
       }
     }
+    Hive.selectedId = null;
+    Hive.hoverId = null;
     Hive.#updateJogadas();
   }
   static draw() {
@@ -133,10 +187,6 @@ class Hive {
         }
       }
     });
-    // redesenha última peça jogada, para borda não ficar por baixo
-    pecas.filter(peca => peca.id === Hive.ultimaId).forEach(peca => {
-      peca.draw(ctx, width, height);
-    });
     // caso tenha peças acima, desenha elas
     if (pecasAcima.length > 0) {
       Hive.#drawPecas(ctx, width, height, emHud, pecasAcima, z + 1);
@@ -147,15 +197,19 @@ class Hive {
     const ctx = canvas.getContext("2d");
 
     // obtém a peça em cima do mouse
-    let pecaHover = Hive.pecas.find(peca => peca.isOver(ctx, canvas.width, canvas.height, mouseX, mouseY)) ?? null;
+    let pecaHover = null;
+    let destinos = [];
+    if (Hive.selectedId !== null) {
+      destinos = Hive.pecas.find(peca => peca.id === Hive.selectedId).destinos;
+      pecaHover = destinos.find(peca => peca.isOver(ctx, canvas.width, canvas.height, mouseX, mouseY)) ?? null;
+    }
     if (pecaHover === null) {
-      if (Hive.selectedId !== null) {
-        const destinos = Hive.pecas.find(peca => peca.id === Hive.selectedId).destinos;
-        pecaHover = destinos.find(peca => peca.isOver(ctx, canvas.width, canvas.height, mouseX, mouseY)) ?? null;
-      }
-    } else {
-      // caso tenha selecionado uma peça embaixo de outra, seleciona a peça de cima
-      Hive.pecas.forEach(peca => {
+      pecaHover = Hive.pecas.find(peca => peca.isOver(ctx, canvas.width, canvas.height, mouseX, mouseY)) ?? null;
+    }
+
+    // caso tenha selecionado uma peça embaixo de outra, seleciona a peça de cima
+    if (pecaHover !== null) {
+      Hive.pecas.concat(destinos).forEach(peca => {
         if (peca.x === pecaHover.x && peca.y === pecaHover.y && peca.z > pecaHover.z) {
           pecaHover = peca;
         }
@@ -191,31 +245,61 @@ class Hive {
     Hive.hover(mouseX, mouseY);
     if (Hive.hoverId === null) {
       // clicou em jogada inválida
-       Hive.selectedId = null;
+      if (Hive.selectedId !== null && Hive.pecas.find(peca => peca.id === Hive.selectedId).tipo.nome !== TipoPeca.pass.nome) {
+        Hive.selectedId = null;
+      }
     } else if (Hive.selectedId === null) {
       // selecionou um peça
       Hive.selectedId = Hive.hoverId;
       Hive.hoverId = null;
     } else {
       // verifica se selecionou um destino ou outra peça
-      if (Hive.pecas.find(peca => peca.id === Hive.hoverId)) {
+      if (Hive.pecas.find(peca => peca.id === Hive.selectedId).tipo.nome === TipoPeca.pass.nome && Hive.selectedId === Hive.hoverId) {
+        // pulou a vez
+        Hive.pecas = Hive.pecas.filter(peca => Hive.selectedId !== peca.id);
+        Hive.ultimaId = null;
+        Hive.selectedId = null;
+        Hive.hoverId = null;
+        Hive.#rodada++;
+        Hive.#updateJogadas();
+      } else if (Hive.pecas.find(peca => peca.id === Hive.hoverId)) {
+        // selecionou outra peça
         Hive.selectedId = Hive.hoverId;
         Hive.hoverId = null;
       } else {
-        Hive.pecas.find(peca => Hive.selectedId === peca.id).play(Hive.hoverId);
+        if (Hive.pecas.find(peca => Hive.selectedId === peca.id).play(Hive.hoverId)) {
+          // jogou e o jogo terminou
+          Hive.ultimaId = null;
+          Hive.selectedId = null;
+          Hive.hoverId = null;
+          alert((Hive.#rodada % 2 === 1 ? "Brancas" : "Pretas") + " venceram!");
+          Camera.recenter();
+        } else {
+          // jogada feita, próxima rodada
+          Hive.ultimaId = null;
+          Hive.selectedId = null;
+          Hive.hoverId = null;
+          Hive.#rodada++;
+          Hive.#updateJogadas();
+        }
         Hive.ultimaId = Hive.selectedId;
-        Hive.#updateJogadas();
       }
     }
     Hive.draw();
   }
   static #updateJogadas() {
-    Hive.selectedId = null;
-    Hive.hoverId = null;
-    Hive.#rodada++;
+    let total = 0;
     Hive.pecas.forEach(peca => {
       peca.updateJogadas(Hive.#rodada);
+      total += peca.destinos.length;
     });
+    if (total === 0) {
+      const cor = Hive.#rodada % 2 === 1 ? CorPeca.branco : CorPeca.preto;
+      const peca = new Peca(cor, TipoPeca.pass, 0);
+      peca.destinos.push(peca);
+      Hive.pecas.push(peca);
+      Hive.selectedId = peca.id;
+    }
     Camera.recenter();
   }
   static getRetangulo() {
@@ -244,16 +328,17 @@ class Camera {
   static recenter() {
     const canvas = document.getElementById("hive");
     const [minX, maxX, minY, maxY] = Hive.getRetangulo();
+    const raio = Peca.RAIO;
     // reposiciona Camera
-    Camera.#newX = (maxX - minX) / 2;
-    Camera.#newY = (maxY - minY) / 2;
     const qtdX = 2 + maxX - minX;
     const qtdY = 2 + maxY - minY;
-    const maxEmX = canvas.width / (Peca.RAIO * 3) - 1;
-    const maxEmY = canvas.height / (Peca.RAIO * Math.sqrt(3)) - 8;
+    const maxEmX = canvas.width / (raio * 3) - 1;
+    const maxEmY = canvas.height / (raio * Math.sqrt(3)) - 8;
     const scaleX = qtdX <= maxEmX ? 1 : maxEmX / qtdX;
     const scaleY = qtdY <= maxEmY ? 1 : maxEmY / qtdY;
     Camera.#newScale = Math.min(scaleX, scaleY);
+    Camera.#newX = -3 * raio * Camera.#newScale * (maxX + minX) / 2;
+    Camera.#newY = Math.sqrt(3) * raio * Camera.#newScale * (maxY + minY) / 2;
     Camera.#recenterAnimation();
   }
   static #recenterAnimation() {
@@ -333,7 +418,13 @@ class Peca {
     this.y = destino.y;
     this.z = destino.z;
     this.emHud = false;
+    Peca.#id = Math.max.apply(null, Hive.pecas.map(peca => peca.id));
     Peca.transicao();
+    const outraQueen = Hive.pecas.find(peca => peca.tipo.nome === TipoPeca.queen.nome && peca.cor !== this.cor);
+    if (outraQueen.emHud) {
+      return false;
+    }
+    return !Peca.xyzAoRedor(outraQueen.x, outraQueen.y).find(coords => coords[2] < 0);
   }
   static transicao() {
     let fezTransicao = false;
@@ -351,7 +442,13 @@ class Peca {
     }
   }
   draw(ctx, width, height) {
-    if (this.id === Hive.selectedId) {
+    if (this.tipo.nome === TipoPeca.pass.nome) {
+      if (this.id === Hive.hoverId) {
+        this.#draw(ctx, width, height, ["tracejado", "2"]);
+      } else {
+        this.#draw(ctx, width, height, ["tracejado", "4"]);
+      }
+    } else if (this.id === Hive.selectedId) {
       if (Hive.hoverId === null) {
         // peça selecionada (mas não está escolhendo nada)
         this.#draw(ctx, width, height, ["tracejado", "2"]);
@@ -417,11 +514,6 @@ class Peca {
     // desenha o tipo
     ctx.drawImage(document.getElementById(this.tipo.nome), -raio, -raio, 2 * raio, 2 * raio);
 
-    if (estilo.includes("claro")) {
-      ctx.fillStyle = "rgb(255, 255, 255, .25)";
-      ctx.fill(path);
-    }
-
     ctx.globalAlpha = 1;
 
     if (estilo.includes("tracejado")) {
@@ -455,7 +547,7 @@ class Peca {
     const offset = Peca.#OFFSET_LEVEL * scale;
     let x, y;
     if (this.emHud) {
-      const margemX = (width - 9 * raio * 3) / 2;
+      const margemX = (width - Object.keys(TipoPeca).length * raio * 3) / 2;
       x = this.tipo.posicao * raio * 3 + margemX + offset * this.z;
       if (Hive.corJogadorEmbaixo === this.cor) {
         // embaixo
@@ -495,7 +587,7 @@ class Peca {
       return;
     }
     if (rodada === 2) {
-      for (const [x, y] of Peca.#aoRedor(0, 0)) {
+      for (const [x, y] of Peca.aoRedor(0, 0)) {
         this.destinos.push(new Peca(this.cor, this.tipo, 0, false, x, y, null));
       }
       return;
@@ -512,58 +604,132 @@ class Peca {
       return;
     }
 
-    const pecasEmJogo = Hive.pecas.filter(peca => !peca.emHud);
     if (this.emHud) {
-      // adiciona movimentos de colocar peça em jogo
-      pecasEmJogo.forEach(peca => {
-        // para cada peça do jogador...
-        if (peca.cor !== this.cor) {
-          return;
+      this.#jogadasPecasColocadas();
+    } else if (this.#descoberta() && this.#checaOneHive()) {
+      this.tipo.jogadas(this);
+    }
+  }
+  #descoberta() {
+    return !Hive.pecas.find(peca => !peca.emHud && peca.x === this.x && peca.y === this.y && peca.z > this.z);
+  }
+  #checaOneHive() {
+    // verifica o que tem ao redor da peça
+    let ocupado = [];
+    let pecasAoRedor = [];
+    for (const [x, y] of Peca.aoRedor(this.x, this.y)) {
+      const peca = Hive.pecas.find(peca => !peca.emHud && peca.x === x && peca.y === y && peca.z === 0);
+      if (typeof peca === "undefined") {
+        ocupado.push(false);
+      } else {
+        pecasAoRedor.push(peca);
+        ocupado.push(true);
+      }
+    }
+    // somente é possível quebrar a colmeia com 2 a 4 peças ao redor
+    if (pecasAoRedor.length < 2 || pecasAoRedor.length > 4) {
+      return true;
+    }
+    // com 2 a 3 peças ao redor e sem peça isolada, não pode quebrar a colméia.
+    if (pecasAoRedor.length < 4) {
+      let comPecaIsolada = false;
+      for (let i = 1; i <= 6; i++) {
+        if (!ocupado[i - 1] && ocupado[i % 6] && !ocupado[(i + 1) % 6]) {
+          comPecaIsolada = true;
+          break;
         }
-        // procura uma casa vazia ao redor da peça
-        for (const [x, y] of Peca.#aoRedor(peca.x, peca.y)) {
-          // ignora se for a casa vazia já foi registrada como possível destino
-          if (this.destinos.find(peca => peca.x === x && peca.y === y)) {
-            continue;
-          }
-          // ignora se não for casa vazia
-          if (pecasEmJogo.find(peca => peca.x === x && peca.y === y)) {
-            continue;
-          }
-          // olha ao redor da casa vazia encontrada
-          let aceito = true;
-          for (const [x2, y2] of Peca.#aoRedor(x, y)) {
-            // ignora a peça inicial
-            if (peca.x === x2 && peca.y === y2) {
-              continue;
-            }
-            // verifica se ao redor da casa vazia tem alguém de outra cor
-            const p = pecasEmJogo.find(peca => peca.x === x2 && peca.y === y2);
-            if (typeof p !== "undefined" && p.cor !== this.cor) {
-              aceito = false;
-              break;
-            }
-          }
-          // se tudo ok, adiciona possível destino
-          if (aceito) {
-            this.destinos.push(new Peca(this.cor, this.tipo, 0, false, x, y, null));
+      }
+      if (!comPecaIsolada) {
+        return true;
+      }
+    }
+    // tenta "pintar a colmeia com balde de tinta" em uma das pontas. Se todas peças ao redor foram pintadas, tudo ok.
+    let pintados = [this];
+    let pontas = [pecasAoRedor[0]];
+    while (pontas.length > 0) {
+      let novasPontas = [];
+      pontas.forEach(ponta => {
+        if (!pintados.find(pintado => ponta.id === pintado.id)) {
+          pintados.push(ponta);
+          for (const [x, y] of Peca.aoRedor(ponta.x, ponta.y)) {
+            Hive.pecas.forEach(peca => {
+              if (!peca.emHud && peca.x === x && peca.y === y && peca.z === 0) {
+                if (!pintados.find(p => p.id === peca.id)) {
+                  novasPontas.push(peca);
+                }
+              }
+            });
           }
         }
       });
-    } else {
-      // adiciona movimentos
-
+      pontas = novasPontas;
     }
-
-
+    return !pecasAoRedor.find(peca => !pintados.find(pintado => peca.id === pintado.id));
   }
-  static *#aoRedor(x, y) {
+  // adiciona movimentos de colocar peça em jogo
+  #jogadasPecasColocadas() {
+    const pecasEmJogo = Hive.pecas.filter(peca => !peca.emHud);
+    pecasEmJogo.forEach(peca => {
+      // se a peça for de outro jogador, ignora
+      if (peca.cor !== this.cor) {
+        return;
+      }
+      // se tiver peça acima, ignora por enquanto
+      if (pecasEmJogo.find(p => p.x === peca.x && p.y === peca.y && p.z > peca.z)) {
+        return;
+      }
+      // procura uma casa vazia ao redor da peça
+      for (const [x, y] of Peca.aoRedor(peca.x, peca.y)) {
+        // ignora se for a casa vazia já foi registrada como possível destino
+        if (this.destinos.find(peca => peca.x === x && peca.y === y)) {
+          continue;
+        }
+        // ignora se não for casa vazia
+        if (pecasEmJogo.find(peca => peca.x === x && peca.y === y)) {
+          continue;
+        }
+        // olha ao redor da casa vazia encontrada
+        let aceito = true;
+        for (const [x2, y2] of Peca.aoRedor(x, y)) {
+          // ignora a peça inicial
+          if (peca.x === x2 && peca.y === y2) {
+            continue;
+          }
+          // verifica se ao redor da casa vazia tem alguém de outra cor
+          let ps = pecasEmJogo.filter(peca => peca.x === x2 && peca.y === y2).sort((a, b) => b.z - a.z);
+          if (ps.length > 0 && ps[0].cor !== this.cor) { // pega a peça mais alta
+            aceito = false;
+            break;
+          }
+        }
+        // se tudo ok, adiciona possível destino
+        if (aceito) {
+          this.destinos.push(new Peca(this.cor, this.tipo, 0, false, x, y, null));
+        }
+      }
+    });
+  }
+  static *aoRedor(x, y) {
     yield [x - 1, y - 1];
     yield [x, y - 2];
     yield [x + 1, y - 1];
     yield [x + 1, y + 1];
     yield [x, y + 2];
     yield [x - 1, y + 1];
+  }
+  static xyzAoRedor(centroX, centroY) {
+    let xyz = [];
+    for (const [x, y] of Peca.aoRedor(centroX, centroY)) {
+      // ignora casas ocupadas ao redor
+      const pecas = Hive.pecas.filter(peca => !peca.emHud && peca.x === x && peca.y === y);
+      if (pecas.length === 0) {
+        xyz.push([x, y, -1]);
+      } else {
+        const z = Math.max.apply(null, pecas.map(peca => peca.z));
+        xyz.push([x, y, z]);
+      }
+    }
+    return xyz;
   }
 }
 
