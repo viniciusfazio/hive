@@ -1,5 +1,8 @@
 
 function jogadasQueen(peca, repetido = false) {
+  if (!Peca.checaOneHive(peca.x, peca.y)) {
+    return;
+  }
   for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(peca.x, peca.y, peca.x, peca.y)) {
     const casaLivre = z < 0;
     if (casaLivre && semGate(peca.z, z, z1, z2)) {
@@ -8,6 +11,9 @@ function jogadasQueen(peca, repetido = false) {
   }
 }
 function jogadasAnt(peca, repetido = false) {
+  if (!Peca.checaOneHive(peca.x, peca.y)) {
+    return;
+  }
   let pontas = [peca];
   let pintados = [peca];
   // repete o movimento até não ter mais casas
@@ -44,6 +50,9 @@ function jogadasMosquito(peca) {
 }
 // noinspection JSUnusedLocalSymbols
 function jogadasLadybug(peca, repetido = false) {
+  if (!Peca.checaOneHive(peca.x, peca.y)) {
+    return;
+  }
   let caminhos = [[[peca.x, peca.y, peca.z]]];
   // faz exatemante 3 movimentos
   for (let p = 0; p < 3; p++) {
@@ -63,15 +72,12 @@ function jogadasLadybug(peca, repetido = false) {
             novosCaminhos.push(novoCaminho);
           }
         } else {
-          console.log(caminho);
           // move somente em casas vazias
           const casaLivre = z < 0;
           if (casaLivre && semGate(passoZ + 1, z, z1, z2)) {
-            console.log("Aceito: x " + x + " y " + y + " passoz " + passoZ + " z " + z);
             // confere se é repetido para garantir
             peca.insereDestino(true, x, y, 0);
           } else {
-            console.log("Recusado: x " + x + " y " + y + " passoz " + passoZ + " z " + z);
           }
         }
       }
@@ -80,6 +86,9 @@ function jogadasLadybug(peca, repetido = false) {
   }
 }
 function jogadasGrasshopper(peca, repetido = false) {
+  if (!Peca.checaOneHive(peca.x, peca.y)) {
+    return;
+  }
   // olha em todas direções
   for (const [dx, dy] of Peca.aoRedor(0, 0)) {
     // se tem alguma peça para ser pulada, procura o buraco
@@ -95,6 +104,7 @@ function jogadasGrasshopper(peca, repetido = false) {
   }
 }
 function jogadasPillbug(peca, repetido = false) {
+  const podeMover = Peca.checaOneHive(peca.x, peca.y);
   let livres = [];
   let vitimas = [];
   for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(peca.x, peca.y, peca.x, peca.y)) {
@@ -107,7 +117,7 @@ function jogadasPillbug(peca, repetido = false) {
       vitimas.push([x, y]);
     }
     // movimentos de rainha
-    if (casaLivre && semGate(peca.z, z, z1, z2)) {
+    if (podeMover && casaLivre && semGate(peca.z, z, z1, z2)) {
       peca.insereDestino(repetido, x, y, 0);
     }
   }
@@ -123,6 +133,9 @@ function jogadasPillbug(peca, repetido = false) {
 }
 // noinspection JSUnusedLocalSymbols
 function jogadasSpider(peca, repetido = false) {
+  if (!Peca.checaOneHive(peca.x, peca.y)) {
+    return;
+  }
   let caminhos = [[[peca.x, peca.y]]];
   // faz exatemante 3 movimentos
   for (let p = 0; p < 3; p++) {
@@ -150,6 +163,9 @@ function jogadasSpider(peca, repetido = false) {
   }
 }
 function jogadasBeetle(peca, repetido = false) {
+  if (!Peca.checaOneHive(peca.x, peca.y)) {
+    return;
+  }
   for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(peca.x, peca.y, peca.x, peca.y)) {
     if (semGate(peca.z, z, z1, z2)) {
       peca.insereDestino(repetido, x, y, z + 1);
@@ -289,7 +305,7 @@ class Hive {
 
     // desenha hud
     ctx.fillStyle = "rgb(0, 0, 0, .5)";
-    ctx.fillStyle = "rgb(" + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", .5)"; // DEBUG
+    //ctx.fillStyle = "rgb(" + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", .5)"; // DEBUG
     const height = 6 * Peca.RAIO;
     ctx.fillRect(0, 0, canvas.width, height);
     ctx.fillRect(0, canvas.height - height, canvas.width, height);
@@ -761,7 +777,7 @@ class Peca {
 
     if (this.emHud) {
       this.#jogadasPecasColocadas();
-    } else if (this.#descoberta() && Peca.checaOneHive(this.x, this.y) && this.id !== Hive.ultimaId) {
+    } else if (this.#descoberta() && this.id !== Hive.ultimaId) {
       this.tipo.jogadas(this);
     }
   }
@@ -872,16 +888,15 @@ class Peca {
     });
   }
   insereDestino(repetido, x, y, z) {
+    const peca = new Peca(this.cor, this.tipo, z, this.numero);
+    peca.x = x;
+    peca.y = y;
+    peca.destinos = null;
+    peca.emHud = false;
     if (!repetido || !Peca.temPeca(x, y, this.destinos)) {
-      const peca = new Peca(this.cor, this.tipo, z, this.numero);
-      peca.x = x;
-      peca.y = y;
-      peca.destinos = null;
-      peca.emHud = false;
       this.destinos.push(peca);
-      return peca;
     }
-    return null;
+    return peca;
   }
 
   static *aoRedor(x, y) {
