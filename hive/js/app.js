@@ -299,7 +299,7 @@ class Hive {
 
     // desenha hud
     ctx.fillStyle = "rgb(0, 0, 0, .5)";
-    ctx.fillStyle = "rgb(" + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", .5)"; // DEBUG
+    //ctx.fillStyle = "rgb(" + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", .5)"; // DEBUG
     const height = 6 * Peca.RAIO;
     ctx.fillRect(0, 0, canvas.width, height);
     ctx.fillRect(0, canvas.height - height, canvas.width, height);
