@@ -1,30 +1,24 @@
 
 function jogadasQueen(peca, repetido = false) {
-  for (const [x, y, z, , , z1, , , z2] of Peca.aoRedorComVizinhos(peca.x, peca.y)) {
+  for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(peca.x, peca.y, peca.x, peca.y)) {
     const casaLivre = z < 0;
-    const vizinhoVazio = z1 < 0 || z2 < 0;
-    const vizinhoOcupado = z1 >= 0 || z2 >= 0;
-    if (casaLivre && vizinhoVazio && vizinhoOcupado) {
-      peca.insereDestino(repetido, new Peca(peca.cor, peca.tipo, 0, false, x, y, null))
+    if (casaLivre && semGate(peca.z, z, z1, z2)) {
+      peca.insereDestino(repetido, x, y, 0);
     }
   }
 }
 function jogadasAnt(peca, repetido = false) {
   let pontas = [peca];
   let pintados = [peca];
-  const [px, py] = [peca.x, peca.y];
   // repete o movimento até não ter mais casas
   while (pontas.length > 0) {
     let novasPontas = [];
     pontas.forEach(ponta => {
-      for (const [x, y, z, x1, y1, z1, x2, y2, z2] of Peca.aoRedorComVizinhos(ponta.x, ponta.y)) {
+      for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(ponta.x, ponta.y, peca.x, peca.y)) {
         const casaLivre = z < 0;
-        const vizinhoVazio = z1 < 0 || z2 < 0;
-        const vizinhoOcupado = (px !== x1 || py !== y1) && z1 >= 0 || (px !== x2 || py !== y2) && z2 >= 0;
-        if (casaLivre && vizinhoVazio && vizinhoOcupado) {
+        if (casaLivre && semGate(peca.z, z, z1, z2)) {
           if (!Peca.temPeca(x, y, pintados)) {
-            const p = new Peca(peca.cor, peca.tipo, 0, false, x, y, null);
-            peca.insereDestino(repetido, p);
+            const p = peca.insereDestino(repetido, x, y, 0);
             pintados.push(p);
             novasPontas.push(p);
           }
@@ -50,33 +44,34 @@ function jogadasMosquito(peca) {
 }
 // noinspection JSUnusedLocalSymbols
 function jogadasLadybug(peca, repetido = false) {
-  let caminhos = [[[peca.x, peca.y]]];
-  const [px, py] = [peca.x, peca.y];
+  let caminhos = [[[peca.x, peca.y, peca.z]]];
   // faz exatemante 3 movimentos
   for (let p = 0; p < 3; p++) {
     let novosCaminhos = [];
     // testa todos caminhos possíveis
     caminhos.forEach(caminho => {
-      const [passoX, passoY] = caminho[p];
-      for (const [x, y, z, , , z1, , , z2] of Peca.aoRedorComVizinhos(passoX, passoY)) {
+      const [passoX, passoY, passoZ] = caminho[p];
+      for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(passoX, passoY, peca.x, peca.y)) {
         if (p < 2) {
           // move somente sobre peças
-          const casaOcupada = (px !== x || py !== y) && z >= 0;
-          const semGate = Math.max(peca.z, z) >= Math.min(z1, z2);
-          const inexplorado = !caminho.find(([cx, cy]) => cx === x && cy === y);
-          if (casaOcupada && semGate && inexplorado) {
+          const casaOcupada = z >= 0;
+          const inexplorado = !caminho.find(([cx, cy, cz]) => cx === x && cy === y && cz === z);
+          if (casaOcupada && semGate(passoZ, z, z1, z2) && inexplorado) {
             // é um novo passo válido, que não repete um passo já feitoo
             let novoCaminho = [...caminho];
-            novoCaminho.push([x, y]);
+            novoCaminho.push([x, y, z]);
             novosCaminhos.push(novoCaminho);
           }
         } else {
+          console.log(caminho);
           // move somente em casas vazias
           const casaLivre = z < 0;
-          const semGate = Math.max(peca.z, z) >= Math.min(z1, z2);
-          if (casaLivre && semGate) {
+          if (casaLivre && semGate(passoZ + 1, z, z1, z2)) {
+            console.log("Aceito: x " + x + " y " + y + " passoz " + passoZ + " z " + z);
             // confere se é repetido para garantir
-            peca.insereDestino(true, new Peca(peca.cor, peca.tipo, 0, false, x, y, null));
+            peca.insereDestino(true, x, y, 0);
+          } else {
+            console.log("Recusado: x " + x + " y " + y + " passoz " + passoZ + " z " + z);
           }
         }
       }
@@ -92,7 +87,7 @@ function jogadasGrasshopper(peca, repetido = false) {
       for (let i = 2; i <= Hive.pecas.length; i++) {
         const [x, y] = [peca.x + i * dx, peca.y + i * dy];
         if (!Peca.temPeca(x, y)) { // achou um buraco
-          peca.insereDestino(repetido, new Peca(peca.cor, peca.tipo, 0, false, x, y, null));
+          peca.insereDestino(repetido, x, y, 0);
           break;
         }
       }
@@ -102,23 +97,18 @@ function jogadasGrasshopper(peca, repetido = false) {
 function jogadasPillbug(peca, repetido = false) {
   let livres = [];
   let vitimas = [];
-  for (const [x, y, z, , , z1, , , z2] of Peca.aoRedorComVizinhos(peca.x, peca.y)) {
+  for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(peca.x, peca.y, peca.x, peca.y)) {
     // procura vítimas e casas livres para mover outras peças
     const casaLivre = z < 0;
-    const semGate = Math.max(peca.z, z) >= Math.min(z1, z2);
     const casaVitima = z === 0;
-    if (semGate) {
-      if (casaLivre) {
-        livres.push([x, y]);
-      } else if (casaVitima) {
-        vitimas.push([x, y]);
-      }
+    if (casaLivre && semGate(peca.z + 1, z, z1, z2)) {
+      livres.push([x, y]);
+    } else if (casaVitima && semGate(z, peca.z, z1, z2)) {
+      vitimas.push([x, y]);
     }
     // movimentos de rainha
-    const vizinhoVazio = z1 < 0 || z2 < 0;
-    const vizinhoOcupado = z1 >= 0 || z2 >= 0;
-    if (casaLivre && vizinhoVazio && vizinhoOcupado) {
-      peca.insereDestino(repetido, new Peca(peca.cor, peca.tipo, 0, false, x, y, null))
+    if (casaLivre && semGate(peca.z, z, z1, z2)) {
+      peca.insereDestino(repetido, x, y, 0);
     }
   }
   // move outras peças
@@ -126,7 +116,7 @@ function jogadasPillbug(peca, repetido = false) {
     const vitima = Peca.getPecaNoFundo(x, y);
     if (vitima.id !== Hive.ultimaId && Peca.checaOneHive(vitima.x, vitima.y)) {
       livres.forEach(([tx, ty]) => {
-        vitima.insereDestino(true, new Peca(vitima.cor, vitima.tipo, 0, false, tx, ty, null));
+        vitima.insereDestino(true, tx, ty, 0);
       });
     }
   });
@@ -134,19 +124,16 @@ function jogadasPillbug(peca, repetido = false) {
 // noinspection JSUnusedLocalSymbols
 function jogadasSpider(peca, repetido = false) {
   let caminhos = [[[peca.x, peca.y]]];
-  const [px, py] = [peca.x, peca.y];
   // faz exatemante 3 movimentos
   for (let p = 0; p < 3; p++) {
     let novosCaminhos = [];
     // testa todos os caminhos possíveis
     caminhos.forEach(caminho => {
       const [passoX, passoY] = caminho[p];
-      for (const [x, y, z, x1, y1, z1, x2, y2, z2] of Peca.aoRedorComVizinhos(passoX, passoY)) {
+      for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(passoX, passoY, peca.x, peca.y)) {
         const casaLivre = z < 0;
-        const vizinhoVazio = z1 < 0 || z2 < 0;
-        const vizinhoOcupado = (px !== x1 || py !== y1) && z1 >= 0 || (px !== x2 || py !== y2) && z2 >= 0;
         const inexplorado = !caminho.find(([cx, cy]) => cx === x && cy === y);
-        if (casaLivre && vizinhoVazio && vizinhoOcupado && inexplorado) {
+        if (casaLivre && semGate(peca.z, z, z1, z2, -1) && inexplorado) {
           // é um novo passo válido, que não repete um passo já feito
           if (p < 2) {
             let novoCaminho = [...caminho];
@@ -154,7 +141,7 @@ function jogadasSpider(peca, repetido = false) {
             novosCaminhos.push(novoCaminho);
           } else {
             // confere se é repetido para garantir
-            peca.insereDestino(true, new Peca(peca.cor, peca.tipo, 0, false, x, y, null));
+            peca.insereDestino(true, x, y, 0);
           }
         }
       }
@@ -163,13 +150,15 @@ function jogadasSpider(peca, repetido = false) {
   }
 }
 function jogadasBeetle(peca, repetido = false) {
-  for (const [x, y, z, , , z1, , , z2] of Peca.aoRedorComVizinhos(peca.x, peca.y)) {
-    const semGate = Math.max(peca.z, z) >= Math.min(z1, z2);
-    const ocupado = z1 >= 0 || z2 >= 0 || z >= 0;
-    if (semGate && ocupado) {
-      peca.insereDestino(repetido, new Peca(peca.cor, peca.tipo, z + 1, false, x, y, null));
+  for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(peca.x, peca.y, peca.x, peca.y)) {
+    if (semGate(peca.z, z, z1, z2)) {
+      peca.insereDestino(repetido, x, y, z + 1);
     }
   }
+}
+function semGate(origemZ, destinoZ, z1, z2) {
+  const naColmeia = z1 >= 0 || z2 >= 0 || destinoZ >= 0 || origemZ > 0;
+  return naColmeia && Math.max(origemZ - 1, destinoZ) >= Math.min(z1, z2);
 }
 const CorPeca = {
   branco: "rgb(140, 140, 140)",
@@ -262,7 +251,8 @@ class Hive {
       for (const keyTipo in TipoPeca) {
         const tipo = TipoPeca[keyTipo];
         for (let z = 0; z < tipo.quantidade; z++) {
-          Hive.pecas.push(new Peca(CorPeca[keyCor], tipo, z));
+          const numero = tipo.quantidade === 1 ? 0 : tipo.quantidade - z;
+          Hive.pecas.push(new Peca(CorPeca[keyCor], tipo, z, numero));
         }
       }
     }
@@ -299,7 +289,7 @@ class Hive {
 
     // desenha hud
     ctx.fillStyle = "rgb(0, 0, 0, .5)";
-    //ctx.fillStyle = "rgb(" + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", .5)"; // DEBUG
+    ctx.fillStyle = "rgb(" + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", .5)"; // DEBUG
     const height = 6 * Peca.RAIO;
     ctx.fillRect(0, 0, canvas.width, height);
     ctx.fillRect(0, canvas.height - height, canvas.width, height);
@@ -346,30 +336,26 @@ class Hive {
       pecaHover = Peca.getPecaNoTopo(pecaHover.x, pecaHover.y, Hive.pecas.concat(destinos), pecaHover.emHud);
     }
 
-    // se não mudou a peça sendo selecionada, não precisa redraw
-    if (Hive.hoverId === (pecaHover?.id ?? null)) {
-      return;
-    }
-
-    Hive.hoverId = null;
+    let pecaHoverAprovada = null;
     // alguma peça está sendo selecionada. Verifica se é permitido
     if (pecaHover !== null) {
-      if (Hive.selectedId !== null) {
-        // se está sendo selecionado um destino válido, aceita
-        if (Peca.getPecaPorId(pecaHover.id, Peca.getPecaPorId(Hive.selectedId).destinos)) {
-          Hive.hoverId = pecaHover.id;
-        }
+      // se está sendo selecionado um destino válido, aceita
+      if (Hive.selectedId !== null && Peca.getPecaPorId(pecaHover.id, Peca.getPecaPorId(Hive.selectedId).destinos)) {
+        pecaHoverAprovada = pecaHover;
       }
       // se está sendo selecionada uma peça movível, aceita
-      if (pecaHover.destinos !== null && pecaHover.destinos.length > 0) {
-        Hive.hoverId = pecaHover.id;
-      }
-      // se não foi aceito, não precisa fazer redraw, porque significa que nenhuma peça estava sendo selecionada antes
-      if (Hive.hoverId === null) {
-        return;
+      if (pecaHoverAprovada === null && pecaHover.destinos !== null && pecaHover.destinos.length > 0) {
+        pecaHoverAprovada = pecaHover;
       }
     }
-    Hive.draw();
+    const pecaHoverAprovadaId = pecaHoverAprovada?.id ?? null;
+
+    // se não mudou a peça sendo selecionada, não precisa redraw
+    if (Hive.hoverId !== pecaHoverAprovadaId) {
+      Hive.hoverId = pecaHoverAprovadaId;
+      Hive.draw();
+    }
+
   }
   static click(mouseX, mouseY) {
     // garante um hover, caso o click aconteça sem mousemove
@@ -447,7 +433,7 @@ class Hive {
     });
     if (total === 0) {
       const cor = Hive.rodada % 2 === 1 ? CorPeca.branco : CorPeca.preto;
-      const peca = new Peca(cor, TipoPeca.pass, 0);
+      const peca = new Peca(cor, TipoPeca.pass, 0, 0);
       peca.destinos.push(peca);
       Hive.pecas.push(peca);
       Hive.selectedId = peca.id;
@@ -541,23 +527,22 @@ class Peca {
   tipo;
   cor;
 
+  // para notação
+  numero;
+
   destinos;
 
-  constructor(cor, tipo, z, emHud = true, x = 0, y = 0, destinos = []) {
+  constructor(cor, tipo, z, numero) {
     this.id = ++Peca.#id;
-    this.x = x;
-    this.y = y;
-    this.z = z;
-    this.transicao = 0;
-    this.emHud = emHud;
-    if (emHud) {
-      // posiciona para poder comparar se tem mais de uma peça do mesmo tipo no hud
-      this.x = tipo.posicao;
-      this.y = cor === CorPeca.branco ? 0 : 10;
-    }
+    this.numero = numero;
     this.tipo = tipo;
     this.cor = cor;
-    this.destinos = destinos;
+    this.z = z;
+    this.x = -1000 - tipo.posicao;
+    this.y = cor === CorPeca.branco ? -1000 : -2000;
+    this.transicao = 0;
+    this.emHud = true;
+    this.destinos = [];
   }
   play(destinoId) {
     const canvas = document.getElementById("hive");
@@ -591,7 +576,7 @@ class Peca {
     if (queen.emHud) {
       return false;
     }
-    return !Peca.xyzAoRedor(queen.x, queen.y).find(coords => coords[2] < 0);
+    return !Peca.xyzAoRedor(queen.x, queen.y, queen.x, queen.y).find(coords => coords[2] < 0);
   }
   static transicao() {
     let fezTransicao = false;
@@ -679,7 +664,11 @@ class Peca {
     ctx.stroke(path);
 
     // desenha o tipo
+    if (this.numero > 1) {
+      ctx.rotate((this.numero - 1) * Math.PI / 3);
+    }
     ctx.drawImage(document.getElementById(this.tipo.nome), -raio, -raio, 2 * raio, 2 * raio);
+    ctx.setTransform(1, 0, 0, 1, x, y);
 
     ctx.globalAlpha = 1;
 
@@ -749,12 +738,12 @@ class Peca {
     }
 
     if (rodada === 1) {
-      this.destinos.push(new Peca(this.cor, this.tipo, 0, false, 0, 0, null));
+      this.insereDestino(false, 0, 0, 0);
       return;
     }
     if (rodada === 2) {
       for (const [x, y] of Peca.aoRedor(0, 0)) {
-        this.destinos.push(new Peca(this.cor, this.tipo, 0, false, x, y, null));
+        this.insereDestino(false, x, y, 0);
       }
       return;
     }
@@ -877,15 +866,22 @@ class Peca {
         }
         // se tudo ok, adiciona possível destino
         if (aceito) {
-          this.destinos.push(new Peca(this.cor, this.tipo, 0, false, x, y, null));
+          this.insereDestino(false, x, y, 0);
         }
       }
     });
   }
-  insereDestino(repetido, peca) {
-    if (!repetido || !Peca.temPeca(peca.x, peca.y, this.destinos)) {
+  insereDestino(repetido, x, y, z) {
+    if (!repetido || !Peca.temPeca(x, y, this.destinos)) {
+      const peca = new Peca(this.cor, this.tipo, z, this.numero);
+      peca.x = x;
+      peca.y = y;
+      peca.destinos = null;
+      peca.emHud = false;
       this.destinos.push(peca);
+      return peca;
     }
+    return null;
   }
 
   static *aoRedor(x, y) {
@@ -897,13 +893,15 @@ class Peca {
     yield [x + 1, y + 1];
   }
 
-  static xyzAoRedor(centroX, centroY) {
+  static xyzAoRedor(centroX, centroY, ignoraX, ignoraY) {
     let xyz = [];
     for (const [x, y] of Peca.aoRedor(centroX, centroY)) {
       // ignora casas ocupadas ao redor
       const peca = this.getPecaNoTopo(x, y);
       if (peca === null) {
         xyz.push([x, y, -1]);
+      } else if (x === ignoraX && y === ignoraY) {
+        xyz.push([x, y, peca.z - 1]);
       } else {
         xyz.push([x, y, peca.z]);
       }
@@ -911,15 +909,15 @@ class Peca {
     return xyz;
   }
 
-  static *aoRedorComVizinhos(centroX, centroY) {
-    const xyz = Peca.xyzAoRedor(centroX, centroY);
+  static *aoRedorComVizinhos(centroX, centroY, ignoraX, ignoraY) {
+    const xyz = Peca.xyzAoRedor(centroX, centroY, ignoraX, ignoraY);
     // olha para cada casa ao redor
     for (let i = 1; i <= 6; i++) {
       // olha as peças vizinhas da casa analisada
       const [x, y, z] = xyz[i % 6];
-      const [x1, y1, z1] = xyz[i - 1];
-      const [x2, y2, z2] = xyz[(i + 1) % 6];
-      yield [x, y, z, x1, y1, z1, x2, y2, z2];
+      const z1 = xyz[i - 1][2];
+      const z2 = xyz[(i + 1) % 6][2];
+      yield [x, y, z, z1, z2];
     }
   }
   static getPecaNoTopo(x, y, pecas = null, emHud = false) {
