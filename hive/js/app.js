@@ -256,6 +256,9 @@ class Hive {
   static selectedId;
   // id da casa/peça em que o mouse está em cima
   static hoverId;
+  static dragging;
+  static mouseX;
+  static mouseY;
 
   // marca a quantidade de vezes que a tela foi desenhada (para debugar)
   static #frame;
@@ -276,6 +279,7 @@ class Hive {
       }
     }
     Hive.ultimaId = null;
+    Hive.dragging = false;
     Hive.#limpaMarcacoes();
     Hive.#updateJogadas();
   }
@@ -351,7 +355,7 @@ class Hive {
       destinos = Peca.getPecaPorId(Hive.selectedId).destinos;
       pecaHover = destinos.find(peca => peca.isOver(ctx, canvas.width, canvas.height, mouseX, mouseY)) ?? null;
     }
-    if (pecaHover === null) {
+    if (pecaHover === null && !Hive.dragging) {
       // caso contrário, pode ser que outra peça esteja sendo selecionada
       pecaHover = Hive.pecas.find(peca => peca.isOver(ctx, canvas.width, canvas.height, mouseX, mouseY)) ?? null;
     }
@@ -376,7 +380,7 @@ class Hive {
     const pecaHoverAprovadaId = pecaHoverAprovada?.id ?? null;
 
     // se não mudou a peça sendo selecionada, não precisa redraw
-    if (Hive.hoverId !== pecaHoverAprovadaId) {
+    if (Hive.hoverId !== pecaHoverAprovadaId || Hive.dragging) {
       Hive.hoverId = pecaHoverAprovadaId;
       Hive.draw();
     }
@@ -652,14 +656,21 @@ class Peca {
   draw(ctx, width, height) {
     if (this.tipo.nome === TipoPeca.pass.nome) {
       if (this.id === Hive.hoverId) {
+        // peça de passar a vez sendo selecionada
         this.#draw(ctx, width, height, ["tracejado", "2"]);
       } else {
+        // peça de passar a vez
         this.#draw(ctx, width, height, ["tracejado", "4"]);
       }
     } else if (this.id === Hive.selectedId) {
       if (Hive.hoverId === null) {
         // peça selecionada (mas não está escolhendo nada)
-        this.#draw(ctx, width, height, ["tracejado", "2"]);
+        if (Hive.dragging) {
+          this.#draw(ctx, width, height, ["transparente", "tracejado", "2"]);
+          this.#draw(ctx, width, height, ["tracejado", "2", "hover"]);
+        } else {
+          this.#draw(ctx, width, height, ["tracejado", "2"]);
+        }
       } else {
         if (Peca.getPecaPorId(Hive.hoverId)) {
           // peça selecionada (mas está escolhendo outra peça)
@@ -703,6 +714,10 @@ class Peca {
     if (this.transicao > 0) {
       x = x + (this.fromX - x) * this.transicao;
       y = y + (this.fromY - y) * this.transicao;
+    }
+    if (estilo.includes("hover")) {
+      x = Hive.mouseX;
+      y = Hive.mouseY;
     }
     const raio = Peca.RAIO * (this.emHud ? 1 : Camera.scale);
     const path = Peca.#getPath(this.emHud);
@@ -1031,9 +1046,15 @@ window.onload = () => {
   Hive.init(CorPeca.branco);
   const canvas = document.getElementById("hive");
   canvas.addEventListener('mousemove', function(event) {
+    Hive.dragging = event.buttons % 2 === 1;
+    Hive.mouseX = event.offsetX;
+    Hive.mouseY = event.offsetY;
     Hive.hover(event.offsetX, event.offsetY);
   });
-  canvas.addEventListener('click', function(event) {
+  canvas.addEventListener('mousedown', function(event) {
+    Hive.click(event.offsetX, event.offsetY);
+  });
+  canvas.addEventListener('mouseup', function(event) {
     Hive.click(event.offsetX, event.offsetY);
   });
 }
