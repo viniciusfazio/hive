@@ -185,7 +185,7 @@ const CorPeca = {
 const TipoPeca = {
   pass: {
     nome: "pass", // nome da imagem
-    posicao: 0, // posição no hud
+    posicao: 1, // posição no hud
     quantidade: 0, // quantidade no início do jogo
     // não precisa de jogadas, pois nunca sai do hud
   },
@@ -315,7 +315,7 @@ class Hive {
     // desenha hud
     ctx.fillStyle = "rgb(0, 0, 0, .5)";
     //ctx.fillStyle = "rgb(" + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", " + (Hive.#frame % 256) + ", .5)"; // DEBUG
-    const height = 6 * Peca.RAIO;
+    const height = 6 * Peca.RAIO * Camera.scale;
     ctx.fillRect(0, 0, canvas.width, height);
     ctx.fillRect(0, canvas.height - height, canvas.width, height);
 
@@ -432,7 +432,6 @@ class Hive {
       const resultado = Peca.getPecaPorId(Hive.selectedId).play(Hive.hoverId);
       if (resultado !== null) {
         // jogo terminou
-        Hive.ultimaId = null;
         Hive.#limpaMarcacoes();
         Camera.recenter();
         if (resultado === "") {
@@ -511,13 +510,11 @@ class Camera {
     const [minX, maxX, minY, maxY] = Hive.getRetangulo();
     const raio = Peca.RAIO;
     // reposiciona Camera
-    const qtdX = 2 + maxX - minX;
-    const qtdY = 2 + maxY - minY;
-    const maxEmX = canvas.width / (raio * 3) - 1;
-    const maxEmY = canvas.height / (raio * Math.sqrt(3)) - 8;
-    const scaleX = qtdX <= maxEmX ? 1 : maxEmX / qtdX;
-    const scaleY = qtdY <= maxEmY ? 1 : maxEmY / qtdY;
-    Camera.#newScale = Math.min(scaleX, scaleY);
+    const qtdX = 2 * 2 + maxX - minX; // espaço para 2 peças extras horizontais
+    const qtdY = 6 * 2 + maxY - minY; // espaço para 2 peças extras verticais mais 4 peças extras no hud
+    const maxEmX = canvas.width / (raio * 3);
+    const maxEmY = canvas.height / (raio * Math.sqrt(3));
+    Camera.#newScale = Math.min(maxEmX / qtdX, maxEmY / qtdY, 1);
     Camera.#newX = -3 * raio * Camera.#newScale * (maxX + minX) / 2;
     Camera.#newY = Math.sqrt(3) * raio * Camera.#newScale * (maxY + minY) / 2;
     Camera.#recenterAnimation();
@@ -552,8 +549,8 @@ class Camera {
 }
 
 class Peca {
-  static RAIO = 18;
-  static #OFFSET_LEVEL = 4;
+  static RAIO = 25; // maximo canvas / 30 para caber o HUD
+  static #OFFSET_LEVEL = Peca.RAIO / 4;
 
   // guarda o último id usado, para criar novos ids
   static #id = 0;
@@ -719,8 +716,8 @@ class Peca {
       x = Hive.mouseX;
       y = Hive.mouseY;
     }
-    const raio = Peca.RAIO * (this.emHud ? 1 : Camera.scale);
-    const path = Peca.#getPath(this.emHud);
+    const raio = Peca.RAIO * Camera.scale;
+    const path = Peca.#getPath();
 
     ctx.setTransform(1, 0, 0, 1, x, y);
     if (estilo.includes("transparente")) {
@@ -767,16 +764,15 @@ class Peca {
 
   // verifica se o mouse está sobre uma peça
   isOver(ctx, width, height, mouseX, mouseY) {
-    const path = Peca.#getPath(this.emHud);
+    const path = Peca.#getPath();
     const [x, y] = this.#getPosicao(width, height);
     return ctx.isPointInPath(path, x - mouseX, y - mouseY);
   }
 
   // transforma a posição do jogo em posição na tela
   #getPosicao(width, height) {
-    const scale = this.emHud ? 1 : Camera.scale;
-    const raio= Peca.RAIO * scale;
-    const offset = Peca.#OFFSET_LEVEL * scale;
+    const raio= Peca.RAIO * Camera.scale;
+    const offset = Peca.#OFFSET_LEVEL * Camera.scale;
     let x, y;
     if (this.emHud) {
       const margemX = (width - Object.keys(TipoPeca).length * raio * 3) / 2;
@@ -796,8 +792,8 @@ class Peca {
   }
 
   // obtem o hexagono
-  static #getPath(emHud) {
-    const raio = (emHud ? 1 : Camera.scale) * Peca.RAIO;
+  static #getPath() {
+    const raio = Camera.scale * Peca.RAIO;
     let path = new Path2D();
     path.moveTo(2 * raio, 0);
     path.lineTo(raio, raio * Math.sqrt(3));
