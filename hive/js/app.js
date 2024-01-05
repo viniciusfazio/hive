@@ -195,47 +195,47 @@ const TipoPeca = {
     quantidade: 1,
     jogadas: jogadasQueen,
   },
-  ant: {
-    nome: "ant",
+  beetle: {
+    nome: "beetle",
     posicao: 2,
-    quantidade: 3,
-    jogadas: jogadasAnt,
-  },
-  mosquito: {
-    nome: "mosquito",
-    posicao: 3,
-    quantidade: 1,
-    jogadas: jogadasMosquito,
-  },
-  ladybug: {
-    nome: "ladybug",
-    posicao: 4,
-    quantidade: 1,
-    jogadas: jogadasLadybug,
+    quantidade: 2,
+    jogadas: jogadasBeetle,
   },
   grasshopper: {
     nome: "grasshopper",
-    posicao: 5,
+    posicao: 3,
     quantidade: 3,
     jogadas: jogadasGrasshopper,
   },
-  pillbug: {
-    nome: "pillbug",
-    posicao: 6,
-    quantidade: 1,
-    jogadas: jogadasPillbug,
-  },
   spider: {
     nome: "spider",
-    posicao: 7,
+    posicao: 4,
     quantidade: 2,
     jogadas: jogadasSpider,
   },
-  beetle: {
-    nome: "beetle",
+  ant: {
+    nome: "ant",
+    posicao: 5,
+    quantidade: 3,
+    jogadas: jogadasAnt,
+  },
+  ladybug: {
+    nome: "ladybug",
+    posicao: 6,
+    quantidade: 1,
+    jogadas: jogadasLadybug,
+  },
+  mosquito: {
+    nome: "mosquito",
+    posicao: 7,
+    quantidade: 1,
+    jogadas: jogadasMosquito,
+  },
+  pillbug: {
+    nome: "pillbug",
     posicao: 8,
-    quantidade: 2,
-    jogadas: jogadasBeetle,
+    quantidade: 1,
+    jogadas: jogadasPillbug,
   },
 };
 
