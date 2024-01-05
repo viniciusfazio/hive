@@ -23,7 +23,7 @@ function jogadasAnt(peca, repetido = false) {
       for (const [x, y, z, z1, z2] of Peca.aoRedorComVizinhos(ponta.x, ponta.y, peca.x, peca.y)) {
         const casaLivre = z < 0;
         if (casaLivre && semGate(peca.z, z, z1, z2)) {
-          if (!Peca.temPeca(x, y, pintados)) {
+          if (!pintados.find(p => p.x === x && p.y === y)) {
             const p = peca.insereDestino(repetido, x, y, 0);
             pintados.push(p);
             novasPontas.push(p);
@@ -40,9 +40,9 @@ function jogadasMosquito(peca) {
     TipoPeca.beetle.jogadas(peca);
   } else {
     for (const [x, y] of Peca.aoRedor(peca.x, peca.y)) {
-      const p = Peca.getPecaNoTopo(x, y);
+      const p = Hive.pecasEmJogo.find(p => p.x === x && p.y === y);
       // repete o movimento do que está ao redor com exceção do mosquito
-      if (p !== null && p.tipo.nome !== TipoPeca.mosquito.nome) {
+      if (p && p.tipo.nome !== TipoPeca.mosquito.nome) {
         p.tipo.jogadas(peca, true);
       }
     }
@@ -92,10 +92,10 @@ function jogadasGrasshopper(peca, repetido = false) {
   // olha em todas direções
   for (const [dx, dy] of Peca.aoRedor(0, 0)) {
     // se tem alguma peça para ser pulada, procura o buraco
-    if (Peca.temPeca(peca.x + dx, peca.y + dy)) {
+    if (Hive.pecasEmJogo.find(p => p.x === peca.x + dx && p.y === peca.y + dy)) {
       for (let i = 2; i <= Hive.pecas.length; i++) {
         const [x, y] = [peca.x + i * dx, peca.y + i * dy];
-        if (!Peca.temPeca(x, y)) { // achou um buraco
+        if (!Hive.pecasEmJogo.find(p => p.x === x && p.y === y)) { // achou um buraco
           peca.insereDestino(repetido, x, y, 0);
           break;
         }
@@ -123,7 +123,7 @@ function jogadasPillbug(peca, repetido = false) {
   }
   // move outras peças
   vitimas.forEach(([x, y]) => {
-    const vitima = Peca.getPecaNoFundo(x, y);
+    const vitima = Hive.pecasEmJogo.find(p => p.x === x && p.y === y);
     if (vitima.id !== Hive.ultimaId && Peca.checaOneHive(vitima.x, vitima.y)) {
       livres.forEach(([tx, ty]) => {
         vitima.insereDestino(true, tx, ty, 0);
@@ -178,16 +178,17 @@ function semGate(origemZ, destinoZ, z1, z2) {
   const naColmeia = z1 >= 0 || z2 >= 0 || destinoZ >= 0 || origemZ > 0;
   return naColmeia && Math.max(origemZ - 1, destinoZ) >= Math.min(z1, z2);
 }
+
 const CorPeca = {
   branco: "rgb(140, 140, 140)",
   preto: "rgb(50, 50, 50)",
 }
 const TipoPeca = {
   pass: {
-    nome: "pass", // nome da imagem
-    posicao: 1, // posição no hud
-    quantidade: 0, // quantidade no início do jogo
-    // não precisa de jogadas, pois nunca sai do hud
+    nome: "pass",  // nome da imagem
+    posicao: 1,    // posição no hud
+    quantidade: 1, // quantidade no início do jogo
+    jogadas: null, // função que calcula jogadas - neste caso não precisa
   },
   queen: {
     nome: "queen",
@@ -241,33 +242,34 @@ const TipoPeca = {
 
 class Hive {
   // atributos imutáveis durante a partida
-  static corJogadorEmbaixo;
+  static corJogadorEmbaixo; // cor das peças que aparece no hud debaixo
+  static pecas;             // todas peças (apenas as peças são alteradas, não o array)
 
   // atributo alterados a cada da rodada
-  // id da última peça movida
-  static ultimaId;
-  // rodada, começando em 1. Jogada 1 é do branco, 2 é do preto, etc.
-  static rodada;
-  // todas peças
-  static pecas;
+  static mostrarPasse; // mostra botão de empate
+  static ultimaId;      // id da última peça movida
+  static rodada;        // rodada atual, começando em 1 (branco)
+  static corJogando;    // cor da rodada atual
+  static jogadas;       // todas jogadas feitas desde o início
 
-  // atributos alterados durante a rodada pelo mouse
-  // id da peça selecionada
-  static selectedId;
-  // id da casa/peça em que o mouse está em cima
-  static hoverId;
-  static dragging;
-  static mouseX;
-  static mouseY;
+  // atributo pré-calculados a cada da rodada
+  static pecasEmJogo; // peças em jogo que estão por cima
+  static pecasEmHud;  // peças que podem ser colocadas em jogo que estão por cima
 
-  // marca a quantidade de vezes que a tela foi desenhada (para debugar)
-  static #frame;
+  // atributos alterados durante a rodada
+  static selectedId; // id da peça selecionada
+  static hoverId;    // id da casa/peça em que está sendo selecionada
+  static dragging;   // está fazendo drag no mouse
+  static mouseX;     // posição do mouse durante o drag
+  static mouseY;     // posição do mouse durante o drag
+
+  // atributos alterados a cada vez que a tela é desenhada
+  static #animando   // indica se está acontecendo alguma animacao
+  static #frame;     // marca a quantidade de vezes que a tela foi desenhada (para debugar)
 
   // inicia uma nova partida
   static init(corJogadorEmbaixo) {
     Hive.corJogadorEmbaixo = corJogadorEmbaixo;
-    Hive.rodada = 1;
-    Hive.#frame = 0;
     Hive.pecas = [];
     for (const keyCor in CorPeca) {
       for (const keyTipo in TipoPeca) {
@@ -278,13 +280,26 @@ class Hive {
         }
       }
     }
-    Hive.ultimaId = null;
-    Hive.dragging = false;
-    Hive.#limpaMarcacoes();
-    Hive.#updateJogadas();
+
+    Hive.#frame = 0;
+    Hive.#animando = false;
+    Hive.jogadas = [];
+    Hive.iniciaRodada(1);
   }
 
-  // desenha um frame
+  static anima() {
+    if (!Hive.#animando) {
+      Hive.#anima();
+    }
+  }
+  static #anima() {
+    Hive.#animando = Camera.anima() | Peca.anima();
+    Hive.draw();
+    if (Hive.#animando) {
+      setTimeout(Hive.#anima, 20);
+    }
+  }
+
   static draw() {
     Hive.#frame++;
     const canvas = document.getElementById("hive");
@@ -296,20 +311,15 @@ class Hive {
 
     // desenha peças em jogo
     Hive.#drawPecas(ctx, canvas.width, canvas.height, false, Hive.pecas);
-    if (Hive.selectedId !== null) {
-      const destinos = Peca.getPecaPorId(Hive.hoverId)?.destinos ?? null;
-      if (destinos !== null) {
-        // desenha as jogadas possíveis da nova peça a ser selecionada
-        Hive.#drawPecas(ctx, canvas.width, canvas.height, false, destinos);
-      } else {
-        // peça já selecionada, desenha as jogadas possíveis dela
-        const destinos = Peca.getPecaPorId(Hive.selectedId).destinos;
-        Hive.#drawPecas(ctx, canvas.width, canvas.height, false, destinos);
-      }
-    } else if (Hive.hoverId !== null) {
-      // desenha as jogadas possíveis da peça sob o mouse
-      const destinos = Peca.getPecaPorId(Hive.hoverId).destinos;
+
+    const hoverPeca = Hive.hoverId === null ? null : Hive.pecas.find(p => p.id === Hive.hoverId);
+    if (Hive.selectedId !== null && !hoverPeca) {
+      // peça já selecionada e nenhuma peça sob o mouse, só possivelmente destino
+      const destinos = Hive.pecas.find(p => p.id === Hive.selectedId).destinos;
       Hive.#drawPecas(ctx, canvas.width, canvas.height, false, destinos);
+    } else if (hoverPeca) {
+      // desenha as jogadas possíveis da peça sob o mouse
+      Hive.#drawPecas(ctx, canvas.width, canvas.height, false, hoverPeca.destinos);
     }
 
     // desenha hud
@@ -323,17 +333,14 @@ class Hive {
     Hive.#drawPecas(ctx, canvas.width, canvas.height, true, Hive.pecas);
   }
 
-  // desenha as peças
+
   static #drawPecas(ctx, width, height, emHud, pecas, z = 0) {
     let pecasAcima = [];
-    pecas.forEach(peca => {
-      if (peca.emHud === emHud) {
-        if (peca.z > z) {
-          // se for peça acima, guarda para depois
-          pecasAcima.push(peca);
-        } else {
-          peca.draw(ctx, width, height);
-        }
+    pecas.filter(peca => peca.emHud === emHud).forEach(peca => {
+      if (peca.z > z) {
+        pecasAcima.push(peca); // se for peça acima, guarda para próxima iteração
+      } else {
+        peca.draw(ctx, width, height);
       }
     });
     // caso tenha peças acima, desenha elas
@@ -342,7 +349,6 @@ class Hive {
     }
   }
 
-  // evento de mousemove
   static hover(mouseX, mouseY) {
     const canvas = document.getElementById("hive");
     const ctx = canvas.getContext("2d");
@@ -352,151 +358,169 @@ class Hive {
     let destinos = [];
     if (Hive.selectedId !== null) {
       // peça já foi selecionada, então verifica se um dos destinos possíveis está sendo selecionado
-      destinos = Peca.getPecaPorId(Hive.selectedId).destinos;
+      destinos = Hive.pecas.find(p => p.id === Hive.selectedId).destinos;
       pecaHover = destinos.find(peca => peca.isOver(ctx, canvas.width, canvas.height, mouseX, mouseY)) ?? null;
     }
     if (pecaHover === null && !Hive.dragging) {
-      // caso contrário, pode ser que outra peça esteja sendo selecionada
+      // caso contrário, pode ser que alguma peça esteja sendo selecionada
       pecaHover = Hive.pecas.find(peca => peca.isOver(ctx, canvas.width, canvas.height, mouseX, mouseY)) ?? null;
-    }
-
-    if (pecaHover !== null) {
-      // caso tenha selecionado uma peça embaixo de outra, seleciona a peça de cima
-      pecaHover = Peca.getPecaNoTopo(pecaHover.x, pecaHover.y, Hive.pecas.concat(destinos), pecaHover.emHud);
-    }
-
-    let pecaHoverAprovada = null;
-    // alguma peça está sendo selecionada. Verifica se é permitido
-    if (pecaHover !== null) {
-      // se está sendo selecionado um destino válido, aceita
-      if (Hive.selectedId !== null && Peca.getPecaPorId(pecaHover.id, Peca.getPecaPorId(Hive.selectedId).destinos)) {
-        pecaHoverAprovada = pecaHover;
-      }
-      // se está sendo selecionada uma peça movível, aceita
-      if (pecaHoverAprovada === null && pecaHover.destinos !== null && pecaHover.destinos.length > 0) {
-        pecaHoverAprovada = pecaHover;
+      if (pecaHover !== null) {
+        // verifica se é permitido selecionar essa peça
+        pecaHover = Peca.getPecaNoTopo(pecaHover, Hive.pecas.concat(destinos));
+        if (pecaHover.destinos === null || pecaHover.destinos.length === 0) {
+          pecaHover = null;
+        }
       }
     }
-    const pecaHoverAprovadaId = pecaHoverAprovada?.id ?? null;
+    const pecaHoverId = pecaHover?.id ?? null;
 
-    // se não mudou a peça sendo selecionada, não precisa redraw
-    if (Hive.hoverId !== pecaHoverAprovadaId || Hive.dragging) {
-      Hive.hoverId = pecaHoverAprovadaId;
+    // se mudou a peça sendo selecionada ou está fazendo dragging, faz redraw
+    if (Hive.hoverId !== pecaHoverId || Hive.dragging) {
+      Hive.hoverId = pecaHoverId;
       Hive.draw();
     }
-
   }
 
-  // evento de mouse click
   static click(mouseX, mouseY) {
     // garante um hover, caso o click aconteça sem mousemove
     Hive.hover(mouseX, mouseY);
 
     if (Hive.hoverId === null) {
       // clicou em jogada inválida
-      if (Hive.selectedId !== null && Peca.getPecaPorId(Hive.selectedId).tipo.nome !== TipoPeca.pass.nome) {
+      if (!Hive.mostrarPasse) {
+        // se tem alguma jogada válida, desseleciona a jogada escolhida
         Hive.selectedId = null;
       }
     } else if (Hive.selectedId === null) {
-      // selecionou um peça
+      // selecionou uma peça
       Hive.selectedId = Hive.hoverId;
       if (this.rodada <= 2) {
-        // joga direto
-        const peca = Peca.getPecaPorId(Hive.selectedId);
-        Hive.hoverId = peca.destinos[0].id;
-        Hive.#play();
+        // joga direto porque é a primeira peça a ser jogada
+        const peca = Hive.pecasEmHud.find(p => p.id === Hive.selectedId);
+        Jogada.play(peca, peca.destinos[0]);
       } else {
         // desmarca peça selecionada
         Hive.hoverId = null;
       }
-    } else {
-      // clicou no destino, então joga
-      Hive.#play();
-    }
-    Hive.draw();
-  }
-
-  // executado a cada possível decisão do jogador
-  static #play() {
-    if (Hive.selectedId === Hive.hoverId && Peca.getPecaPorId(Hive.selectedId).tipo.nome === TipoPeca.pass.nome) {
-      // pulou a vez
-      Hive.pecas = Hive.pecas.filter(peca => Hive.selectedId !== peca.id);
-      Hive.ultimaId = null;
-      Hive.#proximaRodada();
-    } else if (Peca.getPecaPorId(Hive.hoverId)) {
+    } else if (Hive.pecas.find(p => p.id === Hive.hoverId)) {
       // selecionou outra peça em vez de jogar
       Hive.selectedId = Hive.hoverId;
       Hive.hoverId = null;
     } else {
-      // fez a jogada
-      const resultado = Peca.getPecaPorId(Hive.selectedId).play(Hive.hoverId);
-      if (resultado !== null) {
-        // jogo terminou
-        Hive.#limpaMarcacoes();
-        Camera.recenter();
-        if (resultado === "") {
-          alert("EMPATE");
-        } else {
-          alert(resultado + " venceram!");
-        }
-      } else {
-        // próxima rodada
-        Hive.ultimaId = Hive.selectedId;
-        Hive.#proximaRodada();
-      }
+      // clicou no destino, então joga
+      const peca = Hive.pecas.find(p => p.id === Hive.selectedId);
+      const destino = peca.destinos.find(p => p.id === Hive.hoverId);
+      Jogada.play(peca, destino);
     }
   }
 
+
   // executado ao fim de cada rodada
-  static #limpaMarcacoes() {
+  static #limpaMouse() {
     Hive.selectedId = null;
     Hive.hoverId = null;
-    Hive.pecas.forEach(peca => {
-      peca.destinos = [];
-    });
+    Hive.dragging = false;
+    Hive.mouseX = 0;
+    Hive.mouseY = 0;
   }
 
-  // vai para próxima rodada
-  static #proximaRodada() {
-    Hive.#limpaMarcacoes();
-    Hive.rodada++;
-    Hive.#updateJogadas();
-  }
 
-  // calcula todas jogadas possíveis
-  static #updateJogadas() {
-    let total = 0;
-    Hive.pecas.forEach(peca => {
-      peca.updateJogadas(Hive.rodada);
-      total += peca.destinos.length;
-    });
-    if (total === 0) {
-      const cor = Hive.rodada % 2 === 1 ? CorPeca.branco : CorPeca.preto;
-      const peca = new Peca(cor, TipoPeca.pass, 0, 0);
-      peca.destinos.push(peca);
-      Hive.pecas.push(peca);
-      Hive.selectedId = peca.id;
+  static iniciaRodada(rodada, resultado = null) {
+    Hive.#limpaMouse();
+    Hive.pecas.forEach(peca => peca.destinos = []);
+    Hive.rodada = rodada;
+    Hive.corJogando = Hive.rodada % 2 === 1 ? CorPeca.branco : CorPeca.preto;
+    Hive.mostrarPasse = false;
+    Hive.pecasEmHud = Hive.pecas.filter(p => p.emHud && Peca.getPecaNoTopo(p, Hive.pecas));
+    Hive.pecasEmJogo = Hive.pecas.filter(p => !p.emHud && Peca.getPecaNoTopo(p, Hive.pecas));
+    Hive.pecasEmHud = Hive.pecasEmHud.filter(p => p.tipo.nome !== TipoPeca.pass.nome);
+
+    if (resultado !== null) {
+      Camera.recenter();
+      if (resultado === "Empate") {
+        alert("EMPATE!!!");
+      } else {
+        alert(resultado + " venceram!");
+      }
+    } else if (Hive.rodada > Hive.jogadas.length) {
+      // pré-calcula jogadas
+      let total = Peca.updateJogadasHud();
+      Hive.pecasEmJogo.filter(p => p.cor === Hive.corJogando).forEach(peca => total += peca.updateJogadas());
+      if (total === 0) {
+        // nenhuma jogada válida, então mostra botão de empate
+        Hive.mostrarPasse = true;
+        Hive.selectedId = Hive.pecas.find(peca => peca.tipo.nome = TipoPeca.pass && peca.cor === Hive.corJogando).id;
+      }
     }
     Camera.recenter();
   }
 
-  // obtém retângulo com todas peças jogadas, para recalcular a câmera
-  static getRetangulo() {
-    let minX = 0;
-    let maxX = 0;
-    let minY = 0;
-    let maxY = 0;
-    Hive.pecas.forEach(peca => {
-      if (!peca.emHud) {
-        minX = Math.min(peca.x, minX);
-        maxX = Math.max(peca.x, maxX);
-        minY = Math.min(peca.y, minY);
-        maxY = Math.max(peca.y, maxY);
+}
+class Jogada {
+  id;
+  passe;
+  x1;
+  y1;
+  z1;
+  emHud1;
+  x2;
+  y2;
+  z2;
+  emHud2;
+  constructor(passe) {
+    this.id = null;
+    this.passe = passe;
+    this.x1 = null;
+    this.y1 = null;
+    this.z1 = null;
+    this.emHud1 = null;
+    this.x2 = null;
+    this.y2 = null;
+    this.z2 = null;
+    this.emHud2 = null;
+  }
+
+  static play(peca, destino) {
+    if (Hive.mostrarPasse) {
+      // pulou a vez
+      Hive.jogadas.push(new Jogada(true));
+    } else {
+      // fez a jogada
+      const jogada = new Jogada(false);
+      jogada.id = peca.id;
+      jogada.x1 = peca.x;
+      jogada.y1 = peca.y;
+      jogada.z1 = peca.z;
+      jogada.emHud1 = peca.emHud;
+      jogada.x2 = destino.x;
+      jogada.y2 = destino.y;
+      jogada.z2 = destino.z;
+      jogada.emHud2 = destino.emHud;
+      Hive.jogadas.push(jogada);
+    }
+    Jogada.replay(Hive.rodada + 1)
+  }
+  static replay(rodada) {
+    rodada = Math.max(1, Math.min(rodada, Hive.jogadas.length + 1));
+    let resultado = null;
+    if (Hive.rodada < rodada) {
+      for (let r = Hive.rodada; r < rodada; r++) {
+        //play
+        const j = Hive.jogadas[r - 1];
+        resultado = Hive.pecas.find(p => p.id === j.id).play(j.x2, j.y2, j.z2, j.emHud2);
       }
-    });
-    return [minX, maxX, minY, maxY];
+    } else {
+      for (let r = Hive.rodada - 1; r >= rodada; r--) {
+        //unplay
+        const j = Hive.jogadas[r - 1];
+        resultado = Hive.pecas.find(p => p.id === j.id).play(j.x1, j.y1, j.z1, j.emHud1);
+      }
+    }
+    Hive.ultimaId = rodada < 2 ? null : Hive.jogadas[rodada - 2].id;
+    Hive.iniciaRodada(rodada, resultado);
   }
 }
+
 
 class Camera {
   static scale = 1;
@@ -507,7 +531,16 @@ class Camera {
   static #newScale = 1;
   static recenter() {
     const canvas = document.getElementById("hive");
-    const [minX, maxX, minY, maxY] = Hive.getRetangulo();
+    let minX = 0;
+    let maxX = 0;
+    let minY = 0;
+    let maxY = 0;
+    Hive.pecasEmJogo.forEach(peca => {
+      minX = Math.min(peca.x, minX);
+      maxX = Math.max(peca.x, maxX);
+      minY = Math.min(peca.y, minY);
+      maxY = Math.max(peca.y, maxY);
+    });
     const raio = Peca.RAIO;
     // reposiciona Camera
     const qtdX = 2 * 2 + maxX - minX; // espaço para 2 peças extras horizontais
@@ -517,34 +550,35 @@ class Camera {
     Camera.#newScale = Math.min(maxEmX / qtdX, maxEmY / qtdY, 1);
     Camera.#newX = -3 * raio * Camera.#newScale * (maxX + minX) / 2;
     Camera.#newY = Math.sqrt(3) * raio * Camera.#newScale * (maxY + minY) / 2;
-    Camera.#recenterAnimation();
+    Hive.anima();
   }
-  static #recenterAnimation() {
+  static anima() {
     const thresholdX = 1;
     const thresholdY = 1;
     const thresholdScale = .01;
     const diffX = Camera.#newX - Camera.x;
     const diffY = Camera.#newY - Camera.y;
     const diffScale = Camera.#newScale - Camera.scale;
+    let continuaAnimando = false;
     if (Math.abs(diffX) <= thresholdX) {
       Camera.x = Camera.#newX;
     } else {
       Camera.x += diffX / 5;
+      continuaAnimando = true;
     }
     if (Math.abs(diffY) <= thresholdY) {
       Camera.y = Camera.#newY;
     } else {
       Camera.y += diffY / 5;
+      continuaAnimando = true;
     }
     if (Math.abs(diffScale) <= thresholdScale) {
       Camera.scale = Camera.#newScale;
     } else {
       Camera.scale += diffScale / 5;
+      continuaAnimando = true;
     }
-    Hive.draw();
-    if (Math.abs(diffX) > thresholdX || Math.abs(diffY) > thresholdY || Math.abs(diffScale) > thresholdScale) {
-      setTimeout(Camera.#recenterAnimation, 20);
-    }
+    return continuaAnimando;
   }
 }
 
@@ -591,23 +625,19 @@ class Peca {
     this.destinos = [];
   }
 
-  // faz as alterações de 1 jogada
-  play(destinoId) {
+  play(x, y, z, emHud) {
     const canvas = document.getElementById("hive");
-    const destino = Peca.getPecaPorId(destinoId, this.destinos);
-    const [x, y] = this.#getPosicao(canvas.width, canvas.height);
-    this.fromX = x;
-    this.fromY = y;
+    const [px, py] = this.#getPosicao(canvas.width, canvas.height);
+    this.fromX = px;
+    this.fromY = py;
     this.transicao = 1;
 
-    this.x = destino.x;
-    this.y = destino.y;
-    this.z = destino.z;
-    this.emHud = false;
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.emHud = emHud;
 
     Peca.#id = Math.max.apply(null, Hive.pecas.map(peca => peca.id));
-
-    Peca.transicao();
 
     const brancoPerdeu = Peca.#rainhaCercada(CorPeca.branco);
     const pretoPerdeu = Peca.#rainhaCercada(CorPeca.preto);
@@ -615,7 +645,7 @@ class Peca {
       return null;
     }
     if (brancoPerdeu && pretoPerdeu) {
-      return "";
+      return "Empate";
     }
     if (brancoPerdeu) {
       return "Pretas";
@@ -625,39 +655,37 @@ class Peca {
 
   // verifica se a rainha está cercada
   static #rainhaCercada(cor) {
-    const queen = Hive.pecas.find(peca => peca.tipo.nome === TipoPeca.queen.nome && peca.cor === cor);
-    if (queen.emHud) {
+    const queen = Hive.pecasEmJogo.find(peca => peca.tipo.nome === TipoPeca.queen.nome && peca.cor === cor);
+    if (!queen) {
       return false;
     }
-    return !Peca.xyzAoRedor(queen.x, queen.y, queen.x, queen.y).find(coords => coords[2] < 0);
+    return !Peca.xyzAoRedor(queen.x, queen.y, queen.x, queen.y).find(([, , z]) => z < 0);
   }
 
   // faz animação da peça sendo jogada
-  static transicao() {
-    let fezTransicao = false;
+  static anima() {
+    let continuaAnimando = false;
     Hive.pecas.forEach(peca => {
       if (peca.transicao > 1e-3) {
-        fezTransicao = true;
-        peca.transicao /= 2;
+        continuaAnimando = true;
+        peca.transicao *= .5;
       } else {
         peca.transicao = 0;
       }
     });
-    Hive.draw();
-    if (fezTransicao) {
-      setTimeout(Peca.transicao, 20);
-    }
+    return continuaAnimando;
   }
 
-  // desenha a peça
   draw(ctx, width, height) {
     if (this.tipo.nome === TipoPeca.pass.nome) {
-      if (this.id === Hive.hoverId) {
-        // peça de passar a vez sendo selecionada
-        this.#draw(ctx, width, height, ["tracejado", "2"]);
-      } else {
-        // peça de passar a vez
-        this.#draw(ctx, width, height, ["tracejado", "4"]);
+      if (Hive.mostrarPasse) {
+        if (this.id === Hive.hoverId) {
+          // peça de passar a vez sendo selecionada
+          this.#draw(ctx, width, height, ["tracejado", "2"]);
+        } else {
+          // peça de passar a vez
+          this.#draw(ctx, width, height, ["tracejado", "4"]);
+        }
       }
     } else if (this.id === Hive.selectedId) {
       if (Hive.hoverId === null) {
@@ -668,18 +696,16 @@ class Peca {
         } else {
           this.#draw(ctx, width, height, ["tracejado", "2"]);
         }
+      } else if (this.destinos.find(p => p.id === Hive.hoverId)) {
+        // peça selecionada (mas está escolhendo destino)
+        this.#draw(ctx, width, height, ["transparente", "tracejado", "2"]);
       } else {
-        if (Peca.getPecaPorId(Hive.hoverId)) {
-          // peça selecionada (mas está escolhendo outra peça)
-          this.#draw(ctx, width, height, ["tracejado", "2"]);
-        } else {
-          // peça selecionada (mas está escolhendo destino)
-          this.#draw(ctx, width, height, ["transparente", "tracejado", "2"]);
-        }
+        // peça selecionada (mas está escolhendo outra peça)
+        this.#draw(ctx, width, height, ["tracejado", "2"]);
       }
     } else if (this.id === Hive.hoverId) {
       if (Hive.selectedId !== null) {
-        if (Peca.getPecaPorId(Hive.hoverId)) {
+        if (Hive.pecas.find(p => p.id === Hive.hoverId)) { // peça hover não está no destino, é uma peça do jogo mesmo
           // escolhendo outra peça
           this.#draw(ctx, width, height, ["tracejado", "2"]);
         } else {
@@ -705,16 +731,16 @@ class Peca {
     }
   }
 
-  // desenha a peça
   #draw(ctx, width, height, estilo = []) {
-    let [x, y] = this.#getPosicao(width, height);
-    if (this.transicao > 0) {
-      x = x + (this.fromX - x) * this.transicao;
-      y = y + (this.fromY - y) * this.transicao;
-    }
+    let x, y;
     if (estilo.includes("hover")) {
-      x = Hive.mouseX;
-      y = Hive.mouseY;
+      [x, y] = [Hive.mouseX, Hive.mouseY];
+    } else {
+      [x, y] = this.#getPosicao(width, height)
+      if (this.transicao > 0) {
+        x = x + (this.fromX - x) * this.transicao;
+        y = y + (this.fromY - y) * this.transicao;
+      }
     }
     const raio = Peca.RAIO * Camera.scale;
     const path = Peca.#getPath();
@@ -805,62 +831,98 @@ class Peca {
     path.closePath();
     return path;
   }
+  // précalcula as jogadas de colocar peça em jogo
+  static updateJogadasHud() {
+    let pecasEmHud = Hive.pecasEmHud.filter(peca => peca.cor === Hive.corJogando);
+    // primeira e segunda rodada só tem 1 possibilidade
+    if (Hive.rodada === 1) {
+      pecasEmHud.forEach(peca => peca.insereDestino(false, 0, 0, 0));
+      return pecasEmHud.length;
+    }
+    if (Hive.rodada === 2) {
+      const [x, y] = Peca.aoRedor(0, 0).next().value;
+      pecasEmHud.forEach(peca => peca.insereDestino(false, x, y, 0));
+      return pecasEmHud.length;
+    }
+
+    // se não tiver peça em hud, nada a ser feito
+    if (pecasEmHud.length === 0) {
+      return 0;
+    }
+
+    // se estiver na rodada 7 ou 8, somente a rainha joga
+    if (Hive.rodada === 7 || Hive.rodada === 8) {
+      const rainha = pecasEmHud.find(peca => peca.tipo.nome === TipoPeca.queen.nome);
+      if (rainha) {
+        pecasEmHud = [rainha];
+      }
+    }
+
+    let destinos = [];
+    Hive.pecasEmJogo.filter(peca => peca.cor === Hive.corJogando).forEach(peca => {
+      // procura uma casa vazia ao redor da peça
+      for (const [x, y] of Peca.aoRedor(peca.x, peca.y)) {
+        // ignora se for a casa vazia já foi registrada como possível destino
+        if (destinos.find(([rx, ry]) => rx === x && ry === y)) {
+          continue;
+        }
+        destinos.push([x, y]);
+
+        // ignora se não for casa vazia
+        if (Hive.pecasEmJogo.find(p => p.x === x && p.y === y)) {
+          continue;
+        }
+        // olha ao redor da casa vazia encontrada
+        let aceito = true;
+        for (const [x2, y2] of Peca.aoRedor(x, y)) {
+          // ignora a peça inicial
+          if (peca.x === x2 && peca.y === y2) {
+            continue;
+          }
+          // verifica se ao redor da casa vazia tem alguém de outra cor
+          if (Hive.pecasEmJogo.find(p => p.x === x2 && p.y === y2 && p.cor !== Hive.corJogando)) {
+            aceito = false;
+            break;
+          }
+        }
+        // se tudo ok, adiciona possível destino
+        if (aceito) {
+          pecasEmHud.forEach(peca => peca.insereDestino(false, x, y, 0));
+        }
+      }
+    });
+  }
 
   // précalcula as jogadas de uma peça
-  updateJogadas(rodada) {
-    const corJogando = rodada % 2 === 1 ? CorPeca.branco : CorPeca.preto;
-    if (this.cor !== corJogando) {
-      return;
+  updateJogadas() {
+    // não pode movimentar se a rainha estiver no hud
+    if (Hive.pecasEmHud.find(peca => peca.tipo.nome === TipoPeca.queen.nome && peca.cor === this.cor)) {
+      return 0;
     }
-
-    if (rodada === 1) {
-      this.insereDestino(false, 0, 0, 0);
-      return;
+    // não pode movimentar se foi a última peça movida
+    if (this.id === Hive.ultimaId) {
+      return 0;
     }
-    if (rodada === 2) {
-      for (const [x, y] of Peca.aoRedor(0, 0)) {
-        this.insereDestino(false, x, y, 0);
-      }
-      return;
-    }
-    const rainha = Hive.pecas.find(peca => peca.tipo.nome === TipoPeca.queen.nome && peca.cor === this.cor);
-
-    // não pode movimentar se a rainha não estiver em jogo
-    if (rainha.emHud && !this.emHud) {
-      return;
-    }
-
-    if (rainha.emHud && (rodada === 7 || rodada === 8) && this.id !== rainha.id) {
-      // somente a rainha pode ser jogada na rodada 4 se ela não estiver em jogo
-      return;
-    }
-
-    if (this.emHud) {
-      this.#jogadasPecasColocadas();
-    } else if (this.#descoberta() && this.id !== Hive.ultimaId) {
-      this.tipo.jogadas(this);
-    }
-  }
-  #descoberta() {
-    return !Hive.pecas.find(peca => !peca.emHud && peca.x === this.x && peca.y === this.y && peca.z > this.z);
+    this.tipo.jogadas(this);
+    return this.destinos.length;
   }
   static checaOneHive(checaX, checaY) {
     // só pode quebrar colméia se tiver no fundo a peça
-    const peca = Peca.getPecaNoTopo(checaX, checaY);
+    const peca = Hive.pecasEmJogo.find(p => p.x === checaX && p.y === checaY);
     if (!peca || peca.z > 0) {
-      return  true;
+      return true;
     }
 
     // verifica o que tem ao redor da peça
     let ocupado = [];
     let pecasAoRedor = [];
     for (const [x, y] of Peca.aoRedor(checaX, checaY)) {
-      const peca = Peca.getPecaNoFundo(x, y);
-      if (peca === null) {
-        ocupado.push(false);
-      } else {
+      const peca = Hive.pecasEmJogo.find(p => p.x === x && p.y === y);
+      if (peca) {
         pecasAoRedor.push(peca);
         ocupado.push(true);
+      } else {
+        ocupado.push(false);
       }
     }
     // somente é possível quebrar a colmeia com 2 a 4 peças ao redor
@@ -894,67 +956,27 @@ class Peca {
     while (pontas.length > 0) {
       let novasPontas = [];
       pontas.forEach(ponta => {
-        if (!Peca.getPecaPorId(ponta.id, pintados)) {
-          pintados.push(ponta);
-          for (const [x, y] of Peca.aoRedor(ponta.x, ponta.y)) {
-            if (x !== checaX || y !== checaY) {
-              const peca = Peca.getPecaNoFundo(x, y);
-              if (peca && !Peca.getPecaPorId(peca.id, pintados)) {
-                novasPontas.push(peca);
-              }
-            }
+        if (pintados.find(p => p.id === ponta.id)) {
+          return;
+        }
+        pintados.push(ponta);
+        for (const [x, y] of Peca.aoRedor(ponta.x, ponta.y)) {
+          if (x === checaX && y === checaY) {
+            continue;
+          }
+          const peca = Hive.pecasEmJogo.find(p => p.x === x && p.y === y);
+          if (peca && !pintados.find(p => p.id === peca.id)) {
+            novasPontas.push(peca);
           }
         }
       });
       pontas = novasPontas;
     }
-    return !pecasAoRedor.find(peca => !Peca.getPecaPorId(peca.id, pintados));
+    // returna true se não encontrou nenhuma peça não pintada ao redor
+    return !pecasAoRedor.find(peca => !pintados.find(p => p.id === peca.id));
   }
 
 
-  // adiciona movimentos de colocar peça em jogo
-  #jogadasPecasColocadas() {
-    const pecasEmJogo = Hive.pecas.filter(peca => !peca.emHud);
-    pecasEmJogo.forEach(peca => {
-      // se a peça for de outro jogador, ignora
-      if (peca.cor !== this.cor) {
-        return;
-      }
-      // se tiver peça acima, ignora por enquanto
-      if (pecasEmJogo.find(p => p.x === peca.x && p.y === peca.y && p.z > peca.z)) {
-        return;
-      }
-      // procura uma casa vazia ao redor da peça
-      for (const [x, y] of Peca.aoRedor(peca.x, peca.y)) {
-        // ignora se for a casa vazia já foi registrada como possível destino
-        if (Peca.temPeca(x, y, this.destinos)) {
-          continue;
-        }
-        // ignora se não for casa vazia
-        if (Peca.temPeca(x, y, pecasEmJogo)) {
-          continue;
-        }
-        // olha ao redor da casa vazia encontrada
-        let aceito = true;
-        for (const [x2, y2] of Peca.aoRedor(x, y)) {
-          // ignora a peça inicial
-          if (peca.x === x2 && peca.y === y2) {
-            continue;
-          }
-          // verifica se ao redor da casa vazia tem alguém de outra cor
-          let p = Peca.getPecaNoTopo(x2, y2, pecasEmJogo);
-          if (p !== null && p.cor !== this.cor) {
-            aceito = false;
-            break;
-          }
-        }
-        // se tudo ok, adiciona possível destino
-        if (aceito) {
-          this.insereDestino(false, x, y, 0);
-        }
-      }
-    });
-  }
 
   // insere possível jogada
   insereDestino(repetido, x, y, z) {
@@ -963,7 +985,7 @@ class Peca {
     peca.y = y;
     peca.destinos = null;
     peca.emHud = false;
-    if (!repetido || !Peca.temPeca(x, y, this.destinos)) {
+    if (!repetido || !this.destinos.find(p => p.x === x && p.y === y)) {
       this.destinos.push(peca);
     }
     return peca;
@@ -984,13 +1006,15 @@ class Peca {
     let xyz = [];
     for (const [x, y] of Peca.aoRedor(centroX, centroY)) {
       // ignora casas ocupadas ao redor
-      const peca = this.getPecaNoTopo(x, y);
-      if (peca === null) {
-        xyz.push([x, y, -1]);
-      } else if (x === ignoraX && y === ignoraY) {
-        xyz.push([x, y, peca.z - 1]);
+      const peca = Hive.pecasEmJogo.find(peca => peca.x === x && peca.y === y);
+      if (peca) {
+        if (x === ignoraX && y === ignoraY) {
+          xyz.push([x, y, peca.z - 1]);
+        } else {
+          xyz.push([x, y, peca.z]);
+        }
       } else {
-        xyz.push([x, y, peca.z]);
+        xyz.push([x, y, -1]);
       }
     }
     return xyz;
@@ -1010,30 +1034,14 @@ class Peca {
   }
 
   // pega peça no topo de uma posição
-  static getPecaNoTopo(x, y, pecas = null, emHud = false) {
-    const pecasEncontradas = (pecas ?? Hive.pecas).filter(peca => peca.emHud === emHud && peca.x === x && peca.y === y);
+  static getPecaNoTopo(peca, pecas) {
+    const pecasEncontradas = pecas.filter(p => p.emHud === peca.emHud && p.x === peca.x && p.y === peca.y);
     if (pecasEncontradas.length === 0) {
       return null;
     } else if (pecasEncontradas.length === 1) {
       return pecasEncontradas[0];
     }
     return pecasEncontradas.sort((pecaA, pecaB) => pecaA.z - pecaB.z).pop();
-  }
-
-  // verifica se tem alguma peça na posição
-  static temPeca(x, y, pecas = null) {
-    return (pecas ?? Hive.pecas).find(peca => !peca.emHud && peca.x === x && peca.y === y);
-  }
-
-  // pega peça do fundo de uma posição
-  static getPecaNoFundo(x, y, pecas = null) {
-    return (pecas ?? Hive.pecas).find(peca => !peca.emHud && peca.x === x && peca.y === y && peca.z === 0) ?? null;
-  }
-  static getPecaPorId(id, pecas) {
-    if (id === null) {
-      return null;
-    }
-    return (pecas ?? Hive.pecas).find(peca => peca.id === id) ?? null;
   }
 }
 
@@ -1052,6 +1060,16 @@ window.onload = () => {
   });
   canvas.addEventListener('mouseup', function(event) {
     Hive.click(event.offsetX, event.offsetY);
+  });
+  window.addEventListener('keydown', function(event) {
+    switch (event.key) {
+      case "ArrowLeft":
+        Jogada.replay(Hive.rodada - 1);
+        break;
+      case "ArrowRight":
+        Jogada.replay(Hive.rodada + 1);
+        break;
+    }
   });
 }
 
