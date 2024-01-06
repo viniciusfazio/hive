@@ -256,6 +256,11 @@ class Hive {
     static MAX_OFFSET_HUD;
     static corJogadorEmbaixo; // cor das peças que aparece no hud debaixo
     static pecas;             // todas peças (apenas as peças são alteradas, não o array)
+    static tempoInicio;       // tempo de início da partida, para o teporizador
+    static tempoBranco;       // tempo restante
+    static tempoPreto;       // tempo restante
+    static tempoTotal;        // tempo para cada jogadr
+    static incremento;        // incremento por jogada
 
     // atributo alterados a cada da rodada
     static rodadaDePasse; // mostra botão de empate
@@ -282,8 +287,10 @@ class Hive {
     static #frame;     // marca a quantidade de vezes que a tela foi desenhada (para debugar)
 
     // inicia uma nova partida
-    static init(corJogadorEmbaixo) {
+    static init(corJogadorEmbaixo, tempoTotal, incremento) {
         Hive.corJogadorEmbaixo = corJogadorEmbaixo;
+        Hive.tempoTotal = tempoTotal;
+        Hive.incremento = incremento;
         Hive.pecas = [];
         Hive.MAX_OFFSET_HUD = 0;
         for (const keyCor in CorPeca) {
@@ -300,8 +307,26 @@ class Hive {
         Hive.#frame = 0;
         Hive.#animando = false;
         Hive.jogadas = [];
+        Hive.tempoInicio = (new Date()).getTime();
+        Hive.tempoBranco = Hive.tempoTotal * 1000;
+        Hive.tempoPreto = Hive.tempoTotal * 1000;
+        Hive.#atualizaTemporizador();
         Hive.iniciaRodada(1);
         insertListaJogadas();
+    }
+    static #atualizaTemporizador() {
+        const tempoTotal = (Hive.tempoTotal + Math.floor(Hive.jogadas.length / 2) * Hive.incremento) * 1000;
+        const tempoPassado = (new Date()).getTime() - Hive.tempoInicio;
+        const tempoRestante = Math.max(tempoTotal - tempoPassado, 0);
+        if (Hive.jogadas.length % 2 === 0) {
+            Hive.tempoBranco = tempoRestante;
+        } else {
+            Hive.tempoPreto = tempoRestante;
+        }
+        Hive.#drawTime();
+        if (tempoRestante > 0) {
+            setTimeout(Hive.#atualizaTemporizador, 50);
+        }
     }
 
     static anima() {
@@ -360,6 +385,7 @@ class Hive {
         // desenha peças no hud
         Hive.#drawPecas(ctx, canvas.width, canvas.height, true, Hive.pecas);
 
+        Hive.#drawTime();
 
         if (Hive.DEBUG) {
             const text = [
@@ -372,6 +398,34 @@ class Hive {
             Hive.drawText(ctx, text, 0, 0, "top", "left", 12);
         }
 
+    }
+    static #drawTime() {
+        const canvas = document.getElementById("hive");
+        const ctx = canvas.getContext("2d");
+        const [tempoBranco, tempoPreto] = [Hive.tempoBranco, Hive.tempoPreto].map(t => {
+            if (t >= 10000) {
+                t = Math.round(t / 1000);
+                const m = Math.floor(t / 60);
+                const s = t % 60;
+                return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+            } else {
+                t = Math.round(t / 100) / 10;
+                return "00:0" + t;
+            }
+        });
+        let tempoTopo = tempoBranco;
+        let tempoFundo = tempoPreto;
+        if (Hive.corJogadorEmbaixo === CorPeca.branco) {
+            tempoTopo = tempoPreto;
+            tempoFundo = tempoBranco;
+        }
+        const medidaTopo = ctx.measureText(tempoTopo);
+        const medidaFundo = ctx.measureText(tempoFundo);
+        ctx.fillStyle = "black";
+        ctx.fillRect(canvas.width - medidaTopo.width, 0, medidaTopo.width, medidaTopo.height);
+        ctx.fillRect(canvas.width - medidaFundo.width, canvas.height - medidaFundo, medidaFundo.width, medidaFundo.height);
+        Hive.drawText(ctx, [tempoTopo], canvas.width, 0, "top", "right");
+        Hive.drawText(ctx, [tempoFundo], canvas.width, canvas.height, "bottom", "right");
     }
     static drawText(ctx, text, x = 0, y = 0, valign = "middle", align = "center",
                     size = 20) {
@@ -525,6 +579,7 @@ class Hive {
 class Jogada {
     id;
     passe;
+    time;
     x1;
     y1;
     z1;
@@ -536,6 +591,7 @@ class Jogada {
     constructor(passe) {
         this.id = null;
         this.passe = passe;
+        this.time = (new Date()).getTime() - Hive.tempoInicio;
         this.x1 = null;
         this.y1 = null;
         this.z1 = null;
@@ -589,7 +645,7 @@ class Jogada {
     static play(peca, destino) {
         if (Hive.rodadaDePasse) {
             // pulou a vez
-            Hive.jogadas.push(new Jogada(true));
+            Hive.jogadas.push();
         } else {
             // fez a jogada
             const jogada = new Jogada(false);
@@ -603,6 +659,11 @@ class Jogada {
             jogada.z2 = destino.z;
             jogada.emHud2 = destino.emHud;
             Hive.jogadas.push(jogada);
+        }
+        if (Hive.rodada % 2 === 1) {
+            Hive.tempoBranco += Hive.incremento * 1000;
+        } else {
+            Hive.tempoPreto += Hive.incremento * 1000;
         }
         Jogada.replay(Hive.rodada + 1)
         insertListaJogadas();
@@ -1267,6 +1328,6 @@ window.onload = () => {
                 break;
         }
     });
-    Hive.init(CorPeca.branco);
+    Hive.init(CorPeca.branco, 60, 1);
 }
 
