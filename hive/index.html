@@ -1,39 +1,47 @@
-<!doctype html>
-<html class="no-js" lang="">
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title></title>
-  <link rel="stylesheet" href="css/style.css">
-  <meta name="description" content="">
-
-  <meta property="og:title" content="">
-  <meta property="og:type" content="">
-  <meta property="og:url" content="">
-  <meta property="og:image" content="">
-
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.png">
-
-  <meta name="theme-color" content="#fafafa">
+    <meta charset="UTF-8">
+    <title>Hive</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
+            integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8="
+            crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="js/app.js"></script>
 </head>
-
 <body>
-  <img src="img/pass.png" style="display: none" alt="pass" id="pass"/>
-  <img src="img/ant.png" style="display: none" alt="ant" id="ant"/>
-  <img src="img/beetle.png" style="display: none" alt="beetle" id="beetle"/>
-  <img src="img/grasshopper.png" style="display: none" alt="grasshopper" id="grasshopper"/>
-  <img src="img/ladybug.png" style="display: none" alt="ladybug" id="ladybug"/>
-  <img src="img/mosquito.png" style="display: none" alt="mosquito" id="mosquito"/>
-  <img src="img/pillbug.png" style="display: none" alt="pillbug" id="pillbug"/>
-  <img src="img/queen.png" style="display: none" alt="queen" id="queen"/>
-  <img src="img/spider.png" style="display: none" alt="queen" id="spider"/>
-  <script src="js/app.js"></script>
-  <div style="text-align: center">
-    <canvas id="hive" width="750" height="750" style="border:10px solid black"></canvas>
-  </div>
+    <img src="img/pass.png" style="display: none" alt="pass" id="pass"/>
+    <img src="img/ant.png" style="display: none" alt="ant" id="ant"/>
+    <img src="img/beetle.png" style="display: none" alt="beetle" id="beetle"/>
+    <img src="img/grasshopper.png" style="display: none" alt="grasshopper" id="grasshopper"/>
+    <img src="img/ladybug.png" style="display: none" alt="ladybug" id="ladybug"/>
+    <img src="img/mosquito.png" style="display: none" alt="mosquito" id="mosquito"/>
+    <img src="img/pillbug.png" style="display: none" alt="pillbug" id="pillbug"/>
+    <img src="img/queen.png" style="display: none" alt="queen" id="queen"/>
+    <img src="img/spider.png" style="display: none" alt="queen" id="spider"/>
+    <div class="row" style="width: 90%">
+        <div class="col">
+            <canvas id="hive" width="750" height="750" style="border:10px solid black" tabindex="1"></canvas>
+        </div>
+        <div class="col">
+            <label for="rodada" class="form-label"><b>Rodada</b></label>
+            <input type="range" class="form-range" min="1" max="1" id="rodada" step="1"/>
+            <b>Lista de Jogadas</b>
+            <div class="list-group" id="lista-jogadas" style="border: 1px solid black">
+            </div>
+        </div>
+        <div class="col">
+        </div>
+    </div>
+    <div class="modal fade" id="mensagem" tabindex="-1" aria-labelledby="mensagemModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h5 class="modal-title" style="text-align: center" id="mensagemModalLabel"></h5>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
-
 </html>
