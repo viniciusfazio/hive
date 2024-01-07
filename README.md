@@ -3,7 +3,6 @@ Hive game online
 https://ludopedia.com.br/jogo/hive
 
 # TODO
-- Menu de opções (novo jogo, escolha de peça que vai embaixo, tempo)
 - Poder salvar o jogo para ser revisto no futuro
 - Poder importar um jogo com a notação padrão
 - Opção multiplayer p2p, poder oferecer empate e desistir
