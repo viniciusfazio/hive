@@ -329,14 +329,21 @@ class Hive {
         Hive.#animando = false;
         Hive.jogadas = [];
         hive.fimDeJogo = false;
+        Hive.tempoInicio = (new Date()).getTime();
         if (Hive.tempoTotal > 0) {
-            Hive.tempoInicio = (new Date()).getTime();
             Hive.tempoBranco = Hive.tempoTotal * 1000;
             Hive.tempoPreto = Hive.tempoTotal * 1000;
         }
         Hive.iniciaRodada(1);
+        Hive.drawInicioPartida();
         Hive.#atualizaTemporizador();
         insertListaJogadas();
+    }
+    static drawInicioPartida() { // desenha nos primeiros segundos da partida, para resolver um bug de imagens não carregadas
+        Hive.draw();
+        if ((new Date()).getTime() - Hive.tempoInicio < 5000) {
+            setTimeout(Hive.drawInicioPartida, 50);
+        }
     }
     static salvarPartida() {
         let text = "";
@@ -1622,50 +1629,49 @@ function insertListaJogadas(resultado) {
 // inicia o jogo e os eventos
 $(() => {
     const size = Math.min(window.innerWidth, window.innerHeight) - 20 - 15; // remove a borda e o scroll
-    $("#hive").prop("width", size).prop("height", size);
+    const $hive = $("#hive");
+    $hive.prop("width", size).prop("height", size);
     Peca.RAIO = size / 30;
     Peca.OFFSET_LEVEL = Peca.RAIO / 4;
 
-    Promise.all(Array.from(document.images).filter(img => !img.complete).map(img => new Promise(resolve => { img.onload = img.onerror = resolve; }))).then(() => {
-        $("#mensagem").modal();
-        $("#rodada").mousemove(event => {
-            if (event.buttons % 2 === 1) {
-                Jogada.replay(event.target.value);
-            }
-        }).change(event => Jogada.replay(event.target.value));
-        $("#hive").mousemove(event => {
-            Hive.dragging = event.buttons % 2 === 1;
-            Hive.mouseX = event.offsetX;
-            Hive.mouseY = event.offsetY;
-            Hive.hover(event.offsetX, event.offsetY);
-        }).mousedown(event => {
-            Hive.click(event.offsetX, event.offsetY);
-        }).mouseup(event => {
-            Hive.click(event.offsetX, event.offsetY);
-        }).keydown(event => {
-            switch (event.key) {
-                case "ArrowLeft":
-                    Jogada.replay(Hive.rodada - 1);
-                    break;
-                case "ArrowRight":
-                    Jogada.replay(Hive.rodada + 1);
-                    break;
-                case "ArrowUp":
-                    Jogada.replay(Hive.jogadas.length + 1);
-                    break;
-                case "ArrowDown":
-                    Jogada.replay(1);
-                    break;
-                case "D":
-                    Hive.DEBUG = !Hive.DEBUG;
-                    Hive.draw();
-                    break;
-            }
-        });
-
-        //Hive.init(CorPeca.branco, 10);
-        Hive.init();
+    $("#mensagem").modal();
+    $("#rodada").mousemove(event => {
+        if (event.buttons % 2 === 1) {
+            Jogada.replay(event.target.value);
+        }
+    }).change(event => Jogada.replay(event.target.value));
+    $hive.mousemove(event => {
+        Hive.dragging = event.buttons % 2 === 1;
+        Hive.mouseX = event.offsetX;
+        Hive.mouseY = event.offsetY;
+        Hive.hover(event.offsetX, event.offsetY);
+    }).mousedown(event => {
+        Hive.click(event.offsetX, event.offsetY);
+    }).mouseup(event => {
+        Hive.click(event.offsetX, event.offsetY);
+    }).keydown(event => {
+        switch (event.key) {
+            case "ArrowLeft":
+                Jogada.replay(Hive.rodada - 1);
+                break;
+            case "ArrowRight":
+                Jogada.replay(Hive.rodada + 1);
+                break;
+            case "ArrowUp":
+                Jogada.replay(Hive.jogadas.length + 1);
+                break;
+            case "ArrowDown":
+                Jogada.replay(1);
+                break;
+            case "D":
+                Hive.DEBUG = !Hive.DEBUG;
+                Hive.draw();
+                break;
+        }
     });
+
+    //Hive.init(CorPeca.branco, 10);
+    Hive.init();
 });
 // evita reload da página
 window.onbeforeunload = () => {return "-"};
