@@ -293,10 +293,19 @@ class Hive {
     static #frame;     // marca a quantidade de vezes que a tela foi desenhada (para debugar)
 
     // inicia uma nova partida
-    static init(corJogadorEmbaixo, tempoTotal, incremento) {
-        Hive.corJogadorEmbaixo = corJogadorEmbaixo;
-        Hive.tempoTotal = tempoTotal;
-        Hive.incremento = incremento;
+    static init(cor = null, tempoTotal = 0) {
+        if (cor) {
+            Hive.corJogadorEmbaixo = cor;
+        } else {
+            const peca = $("[name='peca']:checked").val();
+            if (peca === "preto" || peca !== "branco" && Math.random() < .5) {
+                Hive.corJogadorEmbaixo = CorPeca.preto;
+            } else {
+                Hive.corJogadorEmbaixo = CorPeca.branco;
+            }
+        }
+        Hive.tempoTotal = cor ? tempoTotal : $("#tempoTotal").val() * 60;
+        Hive.incremento = $("#incremento").val();
         Hive.pecas = [];
         Hive.MAX_OFFSET_HUD = 0;
         for (const keyCor in CorPeca) {
@@ -313,16 +322,144 @@ class Hive {
         Hive.#frame = 0;
         Hive.#animando = false;
         Hive.jogadas = [];
-        Hive.tempoInicio = (new Date()).getTime();
-        Hive.tempoBranco = Hive.tempoTotal * 1000;
-        Hive.tempoPreto = Hive.tempoTotal * 1000;
         hive.fimDeJogo = false;
-        Hive.#atualizaTemporizador();
+        if (Hive.tempoTotal > 0) {
+            Hive.tempoInicio = (new Date()).getTime();
+            Hive.tempoBranco = Hive.tempoTotal * 1000;
+            Hive.tempoPreto = Hive.tempoTotal * 1000;
+        }
         Hive.iniciaRodada(1);
+        Hive.#atualizaTemporizador();
         insertListaJogadas();
     }
+    static salvarPartida() {
+        let text = "";
+        $("#lista-jogadas > a").each((i, v) => {
+            text += $(v).text() + "\n";
+        });
+        const pom = document.createElement('a');
+        pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        const date = new Date();
+        let filename = "hive_" + date.getFullYear() + "-";
+        filename += (date.getMonth() < 9 ? "0" : "") + (date.getMonth() + 1) + "-";
+        filename += (date.getDate() < 10 ? "0" : "") + date.getDate() + ".txt";
+        pom.setAttribute('download', filename);
+        pom.click();
+    }
+    static lerPartida() {
+        const files = $("#file").prop('files');
+        if (files.length === 1) {
+            const fileReader = new FileReader();
+            fileReader.onload = e => {
+                let rodada = 1;
+                let fim = false;
+                let corInvertida = false;
+                (e.target.result ?? "").split("\n").forEach(linha => {
+                    if (fim) {
+                        return;
+                    }
+                    if (rodada === 1) {
+                        const jogada = linha.match(/^(\d+\D *)?([wb][A-Z]\d?)( |$)/);
+                        if (jogada) {
+                            const peca = Peca.lePeca(jogada[2], corInvertida);
+                            if (peca === null) {
+                                mostraMensagem("Erro no arquivo: não foi encontrada nenhuma jogada.");
+                                fim = true;
+                                return;
+                            }
+                            const [cor, tipo, numero] = peca;
+                            corInvertida = cor === CorPeca.preto;
+                            Hive.init(CorPeca.branco, 0);
+                            const origem = Hive.pecas.find(p => p.tipo.nome === tipo && p.cor === cor && p.numero === numero);
+                            const destino = origem.destinos[0];
+                            Jogada.play(origem, destino);
+                            rodada++;
+                        }
+                        return;
+                    }
+                    if (linha.match(/(\d+\D *)?pass/)) {
+                        Hive.rodadaDePasse = true;
+                        Jogada.play();
+                        return;
+                    }
+                    const jogada = linha.match(/^(\d+\D *)?([wb][A-Z]\d?) +([-/\\]?)([wb][A-Z]\d?)([-/\\]?)( |$)/);
+                    if (!jogada) {
+                        return;
+                    }
+                    const peca1 = Peca.lePeca(jogada[2], corInvertida);
+                    const peca2 = Peca.lePeca(jogada[4], corInvertida);
+                    if (peca1 === null || peca2 === null) {
+                        Hive.#erroNoArquivo(linha, rodada, "peça inválida");
+                        fim = true;
+                        return;
+                    }
+                    const [cor1, tipo1, numero1] = peca1;
+                    const [cor2, tipo2, numero2] = peca2;
+                    let dx;
+                    let dy;
+                    if (jogada[3] === "/") {
+                        dx = -1;
+                        dy = -1;
+                    } else if (jogada[3] === "-") {
+                        dx = -2;
+                        dy = 0;
+                    } else if (jogada[3] === "\\") {
+                        dx = -1;
+                        dy = 1;
+                    } else if (jogada[5] === "/") {
+                        dx = 1;
+                        dy = 1;
+                    } else if (jogada[5] === "-") {
+                        dx = 2;
+                        dy = 0;
+                    } else if (jogada[5] === "\\") {
+                        dx = 1;
+                        dy = -1;
+                    } else if (jogada[3] === "" && jogada[5] === "") {
+                        dx = 0;
+                        dy = 0;
+                    } else {
+                        Hive.#erroNoArquivo(linha, rodada, "posição referente inválida");
+                        fim = true;
+                        return;
+                    }
+                    const origem = Hive.pecas.find(p => p.tipo.nome === tipo1 && p.cor === cor1 && p.numero === numero1);
+                    if (!origem) {
+                        Hive.#erroNoArquivo(linha, rodada, "origem inválida");
+                        fim = true;
+                        return;
+                    }
+                    const referencia = Hive.pecas.find(p => !p.emHud && p.tipo.nome === tipo2 && p.cor === cor2 && p.numero === numero2);
+                    if (!referencia) {
+                        Hive.#erroNoArquivo(linha, rodada, "referência inválida");
+                        fim = true;
+                        return;
+                    }
+                    const [rx, ry] = [referencia.x + dx, referencia.y + dy];
+                    const destino = origem.destinos.find(p => p.x === rx && p.y === ry);
+                    if (!destino) {
+                        Hive.#erroNoArquivo(linha, rodada, "destino inexistente");
+                        fim = true;
+                        return;
+                    }
+                    Jogada.play(origem, destino);
+                    rodada++;
+                });
+            };
+            fileReader.readAsText(files[0]);
+        } else if (files.length === 0) {
+            mostraMensagem("Nenhum arquivo com partida escolhido.");
+        } else {
+            mostraMensagem("Escolha somente 1 arquivo.");
+        }
+    }
+    static #erroNoArquivo(linha, rodada, motivo) {
+        mostraMensagem("Erro no arquivo na rodada " + rodada + ", na linha '" + linha + "': " + motivo);
+        Hive.init(CorPeca.branco, 0);
+    }
+
     static #atualizaTemporizador() {
-        if (Hive.fimDeJogo) {
+        if (Hive.fimDeJogo || Hive.tempoTotal === 0) {
             return;
         }
         let tempoTotal = (Hive.tempoTotal + Math.floor(Hive.jogadas.length / 2) * Hive.incremento) * 1000;
@@ -389,13 +526,14 @@ class Hive {
 
         // desenha hud
         const [, ry, offset] = Peca.getRaio();
-        const height = 4 * ry + (Hive.MAX_OFFSET_HUD - 1) * offset + 4 + Hive.TIMER_HEIGHT / 2;
+        const timerHeight = Hive.tempoTotal > 0 ? Hive.TIMER_HEIGHT : 0;
+        const height = 4 * ry + (Hive.MAX_OFFSET_HUD - 1) * offset + 4 + timerHeight / 2;
         if (Hive.corJogando === Hive.corJogadorEmbaixo) {
             ctx.fillStyle = Hive.COR_HUD_JOGANDO;
         } else {
             ctx.fillStyle = Hive.COR_HUD_ESPERANDO;
         }
-        ctx.fillRect(0, Hive.TIMER_HEIGHT / 2, canvas.width, height);
+        ctx.fillRect(0, timerHeight / 2, canvas.width, height);
         if (Hive.corJogando === Hive.corJogadorEmbaixo) {
             ctx.fillStyle = Hive.COR_HUD_ESPERANDO;
         } else {
@@ -425,6 +563,10 @@ class Hive {
         const canvas = document.getElementById("hive");
         const ctx = canvas.getContext("2d");
 
+        if (Hive.tempoTotal === 0) {
+            return;
+        }
+
         // obtém o tempo em segundos
         let [tempoTopo, tempoFundo] = [Hive.tempoBranco, Hive.tempoPreto];
         if (Hive.fimDeJogo) {
@@ -440,19 +582,7 @@ class Hive {
         }
 
         // formata o tempo em texto
-        const [txtTopo, txtFundo] = [tempoTopo, tempoFundo].map(t => {
-            if (t >= 10000) {
-                t = Math.floor(t / 1000);
-                const m = Math.floor(t / 60);
-                const s = t % 60;
-                return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
-            } else {
-                t = Math.floor(t / 100);
-                const s = Math.floor(t / 10);
-                const ms = t % 10;
-                return "00:0" + s + "." + ms;
-            }
-        });
+        const [txtTopo, txtFundo] = [tempoTopo, tempoFundo].map(Hive.tempoToTxt);
 
         // pinta o fundo do temporizador
         const h = Hive.TIMER_HEIGHT;
@@ -485,6 +615,20 @@ class Hive {
             ctx.fillText(txt, x, y);
             y += height;
         })
+    }
+
+    static tempoToTxt(t) {
+        if (t >= 10000) {
+            t = Math.floor(t / 1000);
+            const m = Math.floor(t / 60);
+            const s = t % 60;
+            return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+        } else {
+            t = Math.floor(t / 100);
+            const s = Math.floor(t / 10);
+            const ms = t % 10;
+            return "00:0" + s + "." + ms;
+        }
     }
 
 
@@ -665,31 +809,51 @@ class Jogada {
         }
         const peca = Hive.pecas.find(p => p.id === this.id);
         const p1 = Jogada.#notacao(peca);
-        if (Hive.pecasEmJogo.length < 2) {
+        if (Hive.pecasEmJogo.length === 1) {
+            // primeiro lance
             return p1;
         }
+        if (peca.z > 0) {
+            // se for sobre outra peça, só tem 1 opção
+            const p = Hive.pecas.find(p => !p.emHud && p.x === peca.x && p.y === peca.y && p.z === peca.z - 1);
+            if (p) {
+                return p1 + " " + Jogada.#notacao(p);
+            }
+            return "invalid";
+        }
+        let referencia = null;
         for (const [x, y] of Peca.aoRedor(peca.x, peca.y)) {
+            // dá preferência para peças únicas como referência, e para rainha, e para peças não empilhadas
             const p = Hive.pecasEmJogo.find(p => p.x === x && p.y === y);
             if (p) {
-                const p2 = Jogada.#notacao(p);
-                if (peca.x - p.x === -2) {
-                    return p1 + " " + p2 + "-";
+                if (!referencia
+                    || p.tipo.nome === TipoPeca.queen.nome
+                    || p.numero === 0 && referencia.numero > 0
+                    || p.numero === 0 && referencia.numero === 0 && p.z < referencia.z
+                    || p.numero > 0 && referencia.numero > 0 && p.z < referencia.z) {
+                    referencia = p;
                 }
-                if (peca.x - p.x === 2) {
-                    return p1 + " -" + p2;
-                }
-                if (peca.x - p.x === -1) {
-                    if (peca.y - p.y === 1) {
-                        return p1 + " " + p2 + "/";
-                    }
-                    return p1 + " " + p2 + "\\";
-                } else if (peca.y - p.y === 1) {
-                    return p1 + " \\" + p2;
-                }
-                return p1 + " /" + p2;
             }
         }
-        return "invalid";
+        if (!referencia) {
+            return "invalid";
+        }
+        const p2 = Jogada.#notacao(referencia);
+        if (peca.x - referencia.x === -2) {
+            return p1 + " -" + p2;
+        }
+        if (peca.x - referencia.x === 2) {
+            return p1 + " " + p2 + "-";
+        }
+        if (peca.x - referencia.x === -1) {
+            if (peca.y - referencia.y === 1) {
+                return p1 + " \\" + p2;
+            }
+            return p1 + " /" + p2;
+        } else if (peca.y - referencia.y === 1) {
+            return p1 + " " + p2 + "/";
+        }
+        return p1 + " " + p2 + "\\";
     }
     static #notacao(peca) {
         let txt = peca.cor === CorPeca.branco ? "w" : "b";
@@ -700,14 +864,16 @@ class Jogada {
         return txt;
     }
     static play(peca = null, destino = null) {
-        if (Hive.tempoPreto === 0 || Hive.tempoBranco === 0) {
+        if (Hive.tempoTotal > 0 && (Hive.tempoPreto === 0 || Hive.tempoBranco === 0)) {
             // acabou o tempo
             Hive.jogadas.push(new Jogada());
         } else {
-            if (Hive.rodada % 2 === 1) {
-                Hive.tempoBranco += Hive.incremento * 1000;
-            } else {
-                Hive.tempoPreto += Hive.incremento * 1000;
+            if (Hive.tempoTotal > 0) {
+                if (Hive.rodada % 2 === 1) {
+                    Hive.tempoBranco += Hive.incremento * 1000;
+                } else {
+                    Hive.tempoPreto += Hive.incremento * 1000;
+                }
             }
             if (Hive.rodadaDePasse) {
                 // pulou a vez
@@ -741,13 +907,13 @@ class Jogada {
                 const j = Hive.jogadas[r - 1];
                 if (j.passe) {
                     resultado = null;
-                } else if (j.tempoPreto === 0) {
+                } else if (Hive.tempoBranco > 0 && j.tempoPreto === 0) {
                     resultado = {
                         msg: "Acabou o tempo. Brancas venceram!",
                         notacao: "white wins",
                         pecasComX: [],
                     }
-                } else if (j.tempoBranco === 0) {
+                } else if (Hive.tempoBranco > 0 && j.tempoBranco === 0) {
                     resultado = {
                         msg: "Acabou o tempo. Pretas venceram!",
                         notacao: "black wins",
@@ -760,7 +926,7 @@ class Jogada {
         } else if (Hive.rodada > rodada) {
             for (let r = Hive.rodada - 1; r >= rodada; r--) { // "desjoga"
                 const j = Hive.jogadas[r - 1];
-                if (j.tempoPreto === 0 || j.tempoBranco === 0 || j.passe) {
+                if (Hive.tempoTotal > 0 && (j.tempoPreto === 0 || j.tempoBranco === 0) || j.passe) {
                     resultado = null;
                 } else {
                     resultado = Hive.pecas.find(p => p.id === j.id).play(j.x1, j.y1, j.z1, j.emHud1);
@@ -925,6 +1091,47 @@ class Peca {
         }
     }
 
+    static lePeca(p, corInvertida) {
+        if (p.length < 2 || p.length > 3) {
+            return null;
+        }
+        let cor;
+        if (p[0] === "w") {
+            cor = corInvertida ? CorPeca.preto : CorPeca.branco;
+        } else if (p[0] === "b") {
+            cor = corInvertida ? CorPeca.branco : CorPeca.preto;
+        } else {
+            return null;
+        }
+        let tipo = null;
+        let numero = "0";
+        for (const keyTipo in TipoPeca) {
+            const t = TipoPeca[keyTipo];
+            if (t.notacao !== p[1]) {
+                continue;
+            }
+            tipo = t.nome;
+            if (t.quantidade === 1) {
+                if (p.length === 3) {
+                    return null;
+                }
+                break;
+            }
+            if (p.length !== 3) {
+                return null;
+            }
+            if (p[2] > t.quantidade || p[2] === 0) {
+                return null;
+            }
+            numero = p[2];
+            break;
+        }
+        if (tipo === null) {
+            return null;
+        }
+        return [cor, tipo, parseInt(numero)];
+    }
+
     // verifica se a rainha está cercada
     static #rainhaCercada(cor) {
         const queen = Hive.pecas.find(p => !p.emHud && p.tipo.nome === TipoPeca.queen.nome && p.cor === cor);
@@ -946,7 +1153,7 @@ class Peca {
         Hive.pecas.forEach(peca => {
             if (peca.transicao > 1e-3) {
                 continuaAnimando = true;
-                peca.transicao *= .5;
+                peca.transicao *= .8;
             } else {
                 peca.transicao = 0;
             }
@@ -1113,16 +1320,17 @@ class Peca {
         const [rx, ry, offset] = Peca.getRaio();
         let x, y;
         if (this.emHud) {
+            const timerHeight = Hive.tempoTotal > 0 ? Hive.TIMER_HEIGHT : 0;
             const margemX = (width - Object.keys(TipoPeca).length * rx * 2) / 2;
             x = this.tipo.posicao * rx * 2 + margemX + offset * this.z;
             if (Hive.corJogadorEmbaixo === this.cor) {
-                y = height - ry * 2 - Hive.TIMER_HEIGHT;
+                y = height - ry * 2 - timerHeight;
             } else {
-                y = 2 * ry + (Hive.MAX_OFFSET_HUD - 1) * offset + Hive.TIMER_HEIGHT;
+                y = 2 * ry + (Hive.MAX_OFFSET_HUD - 1) * offset + timerHeight;
             }
             y -= offset * this.z;
         } else {
-            x = width / 2 - Camera.x - this.x * rx + offset * this.z;
+            x = width / 2 - Camera.x + this.x * rx + offset * this.z;
             y = height / 2 + Camera.y - this.y * ry * 3 - offset * this.z;
         }
         return [x, y];
@@ -1359,40 +1567,52 @@ function mostraMensagem(msg) {
     $("#mensagem").modal("show");
 }
 function updateListaJogadas() {
-    $("#lista-jogadas > a").removeClass("active").eq(Hive.rodada - 1).addClass("active");
+    $("#lista-jogadas > ul > li").removeClass("active");
+    $("#lista-jogadas > ul").eq(Hive.rodada === 1 ? 0 : Math.floor(Hive.rodada / 2))
+        .find("li").eq(Hive.rodada === 1 ? 0 : Hive.rodada % 2).addClass("active");
     $("#rodada").val(Hive.rodada);
 }
 function insertListaJogadas(resultado) {
     let txt;
     const rodada = Hive.jogadas.length + 1;
     const $jogadas = $("#lista-jogadas");
-    if (Hive.jogadas.length === 0) {
+    if (rodada === 1) {
         $jogadas.html("");
-        txt = "Início (";
-        if (Hive.tempoTotal >= 60) {
-            txt += Math.floor(Hive.tempoTotal / 60);
+        txt = "Start (";
+        if (Hive.tempoTotal === 0) {
+            txt += "no time control)";
         } else {
-            txt += "0";
+            if (Hive.tempoTotal >= 60) {
+                txt += Math.floor(Hive.tempoTotal / 60) + "m";
+            }
+            if (Hive.tempoTotal % 60 > 0) {
+                const s = Hive.tempoTotal % 60;
+                txt += s + "s";
+            }
+            txt += "+" + Hive.incremento + "s)";
         }
-        if (Hive.tempoTotal % 60 > 0) {
-            const s = Hive.tempoTotal % 60;
-            txt += ":" + (s >= 10 ? "0" : "") + s;
-        }
-        txt += "+" + Hive.incremento + ")";
     } else if (resultado) {
         txt = resultado;
     } else {
         const jogada = Hive.jogadas[rodada - 2];
         txt = (rodada - 1) + ". " + jogada.notacao();
+        if (Hive.tempoTotal > 0) {
+            txt += " # " + Hive.tempoToTxt(rodada % 2 === 0 ? Hive.tempoBranco : Hive.tempoPreto);
+        }
     }
     const onclick = 'onclick="Jogada.replay(' + rodada + ')"';
-    const a = '<a href="#" ' + onclick + ' class="list-group-item list-group-item-action py-0">' + txt + '</a>';
-    $jogadas.append(a);
+    const li = '<li ' + onclick + ' class="list-group-item list-group-item-action py-0">' + txt + '</li>';
+    const $ul = $("#lista-jogadas > ul:last-child");
+    if (rodada <= 2 || $ul.find("li").length > 1) {
+        $jogadas.append('<ul class="list-group list-group-horizontal">' + li + '</ul>');
+    } else {
+        $ul.append(li);
+    }
     $("#rodada").prop("max", rodada);
     updateListaJogadas();
 }
 // inicia o jogo e os eventos
-window.onload = () => {
+$(() => {
     $("#mensagem").modal();
     $("#rodada").mousemove(event => {
         if (event.buttons % 2 === 1) {
@@ -1428,6 +1648,9 @@ window.onload = () => {
                 break;
         }
     });
-    Hive.init(CorPeca.branco, 3, 3);
-}
+    Hive.init(CorPeca.branco);
+});
+// evita reload da página
+window.onbeforeunload = () => {return "-"};
+
 
