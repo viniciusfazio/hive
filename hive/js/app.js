@@ -268,6 +268,10 @@ class Hive {
     static incremento;        // incremento por jogada
     static fimDeJogo;         // indica se o jogo terminou
 
+    // network
+    static peer;
+    static conn;
+
     // atributo alterados a cada da rodada
     static rodadaDePasse; // mostra botão de empate
     static ultimaId;      // id da última peça movida
@@ -294,6 +298,11 @@ class Hive {
 
     // inicia uma nova partida
     static init(cor = null, tempoTotal = 0) {
+        if (Hive.jogadas && Hive.jogadas.length > 0 && !Hive.fimDeJogo) {
+            if (!confirm("Start a new game? The current game will be gone.")) {
+                return false;
+            }
+        }
         if (cor) {
             Hive.corJogadorEmbaixo = cor;
         } else {
@@ -338,6 +347,60 @@ class Hive {
         Hive.drawInicioPartida();
         Hive.#atualizaTemporizador();
         insertListaJogadas();
+        return true;
+    }
+    static receiver() {
+        $("#receiving").removeClass("d-none");
+        Hive.#initPeer();
+        Hive.peer.on('open', id => {
+            $("#receiving").addClass("d-none");
+            $("#waiting, #received").removeClass("d-none");
+            $("#user_id").val(id);
+            new ClipboardJS("#user_id_button");
+        });
+        Hive.peer.on('connection', conn => {
+            $("#waiting, #received").addClass("d-none");
+            $("#connected").removeClass("d-none");
+            Hive.#initConn(conn);
+        });
+
+    }
+    static connect() {
+        const remote = $("[name='remote_id']").val().trim();
+        if (!remote.match(/^[0-9a-z-]{36}$/)) {
+            mostraMensagem("Remote ID is not valid.");
+            return;
+        }
+        $("#connecting").removeClass("d-none");
+        Hive.#initPeer();
+        Hive.#initConn(Hive.peer.connect(remote));
+        Hive.conn.on('open', function () {
+            $("#connecting").addClass("d-none");
+            $("#connected").removeClass("d-none");
+            conn.send("Hi");
+        });
+
+    }
+    static #initPeer() {
+        $("#receive, #connect, #remote_id").addClass("d-none");
+        Hive.peer = new Peer();
+        Hive.peer.on('error', err => mostraMensagem("" + err));
+        Hive.peer.on('disconnected', Hive.#resetaConexao);
+        Hive.peer.on('close', Hive.#resetaConexao);
+    }
+    static #initConn(conn) {
+        Hive.conn = conn;
+        conn.on('data', data => {
+            mostraMensagem(data)
+        });
+        conn.on('close', Hive.#resetaConexao);
+    }
+    static #resetaConexao() {
+        mostraMensagem("Connection broken");
+        Hive.conn = null;
+        $(".conexao").addClass("d-none");
+        $("#remote_id").val("");
+        $("#receive, #remote_id, #connect").removeClass("d-none");
     }
     static drawInicioPartida() { // desenha nos primeiros segundos da partida, para resolver um bug de imagens não carregadas
         Hive.draw();
@@ -347,7 +410,7 @@ class Hive {
     }
     static salvarPartida() {
         let text = "";
-        $("#lista-jogadas > a").each((i, v) => {
+        $("#lista-jogadas > ul > li").each((i, v) => {
             text += $(v).text() + "\n";
         });
         const pom = document.createElement('a');
@@ -360,12 +423,13 @@ class Hive {
         pom.click();
     }
     static lerPartida() {
-        const files = $("#file").prop('files');
+        const files = $("#file").prop("files");
         if (files.length === 1) {
             const fileReader = new FileReader();
             fileReader.onload = e => {
                 let rodada = 1;
                 let fim = false;
+                let iniciou = false;
                 let corInvertida = false;
                 (e.target.result ?? "").split("\n").forEach(linha => {
                     if (fim) {
@@ -376,13 +440,18 @@ class Hive {
                         if (jogada) {
                             const peca = Peca.lePeca(jogada[2], corInvertida);
                             if (peca === null) {
-                                mostraMensagem("Erro no arquivo: não foi encontrada nenhuma jogada.");
+                                mostraMensagem("Error parsing '" + linha + "': invalid piece");
                                 fim = true;
                                 return;
                             }
+                            iniciou = true;
                             const [cor, tipo, numero] = peca;
                             corInvertida = cor === CorPeca.preto;
-                            Hive.init(CorPeca.branco, 0);
+                            if (!Hive.init(CorPeca.branco, 0)) {
+                                $("#file").val(null);
+                                fim = true;
+                                return;
+                            }
                             const origem = Hive.pecas.find(p => p.tipo.nome === tipo && p.cor === cor && p.numero === numero);
                             const destino = origem.destinos[0];
                             Jogada.play(origem, destino);
@@ -402,7 +471,7 @@ class Hive {
                     const peca1 = Peca.lePeca(jogada[2], corInvertida);
                     const peca2 = Peca.lePeca(jogada[4], corInvertida);
                     if (peca1 === null || peca2 === null) {
-                        Hive.#erroNoArquivo(linha, rodada, "peça inválida");
+                        Hive.#erroNoArquivo(linha, rodada, "invalid piece");
                         fim = true;
                         return;
                     }
@@ -432,42 +501,45 @@ class Hive {
                         dx = 0;
                         dy = 0;
                     } else {
-                        Hive.#erroNoArquivo(linha, rodada, "posição referente inválida");
+                        Hive.#erroNoArquivo(linha, rodada, "invalid direction");
                         fim = true;
                         return;
                     }
                     const origem = Hive.pecas.find(p => p.tipo.nome === tipo1 && p.cor === cor1 && p.numero === numero1);
                     if (!origem) {
-                        Hive.#erroNoArquivo(linha, rodada, "origem inválida");
+                        Hive.#erroNoArquivo(linha, rodada, "invalid piece");
                         fim = true;
                         return;
                     }
                     const referencia = Hive.pecas.find(p => !p.emHud && p.tipo.nome === tipo2 && p.cor === cor2 && p.numero === numero2);
                     if (!referencia) {
-                        Hive.#erroNoArquivo(linha, rodada, "referência inválida");
+                        Hive.#erroNoArquivo(linha, rodada, "invalid position");
                         fim = true;
                         return;
                     }
                     const [rx, ry] = [referencia.x + dx, referencia.y + dy];
                     const destino = origem.destinos.find(p => p.x === rx && p.y === ry);
                     if (!destino) {
-                        Hive.#erroNoArquivo(linha, rodada, "destino inexistente");
+                        Hive.#erroNoArquivo(linha, rodada, "invalid move");
                         fim = true;
                         return;
                     }
                     Jogada.play(origem, destino);
                     rodada++;
                 });
+                if (!iniciou) {
+                    mostraMensagem("Error parsing: no move found.");
+                }
             };
             fileReader.readAsText(files[0]);
         } else if (files.length === 0) {
-            mostraMensagem("Nenhum arquivo com partida escolhido.");
+            mostraMensagem("Choose a file.");
         } else {
-            mostraMensagem("Escolha somente 1 arquivo.");
+            mostraMensagem("Choose only 1 file.");
         }
     }
     static #erroNoArquivo(linha, rodada, motivo) {
-        mostraMensagem("Erro no arquivo na rodada " + rodada + ", na linha '" + linha + "': " + motivo);
+        mostraMensagem("Error parsing '" + linha + "': " + motivo);
         Hive.init(CorPeca.branco, 0);
     }
 
@@ -707,7 +779,7 @@ class Hive {
         } else if (Hive.selectedId === null) {
             // selecionou uma peça
             Hive.selectedId = Hive.hoverId;
-            if (this.rodada <= 2) {
+            if (this.rodada <= 2 && $("#automove").prop("checked")) {
                 // joga direto porque é a primeira peça a ser jogada
                 const peca = Hive.pecasEmHud.find(p => p.id === Hive.selectedId);
                 Jogada.play(peca, peca.destinos[0]);
@@ -1087,20 +1159,20 @@ class Peca {
         }
         if (brancoCercado && pretoCercado) {
             return {
-                msg: "Empate!",
+                msg: "Draw!",
                 notacao: "draw",
                 pecasComX: [brancoCercado, pretoCercado],
             }
         }
         if (brancoCercado) {
             return {
-                msg: "Pretas venceram!",
+                msg: "Black wins!",
                 notacao: "black wins",
                 pecasComX: [brancoCercado],
             }
         }
         return {
-            msg: "Brancas venceram!",
+            msg: "White wins!",
             notacao: "white wins",
             pecasComX: [pretoCercado],
         }
@@ -1626,6 +1698,7 @@ function insertListaJogadas(resultado) {
     $("#rodada").prop("max", rodada);
     updateListaJogadas();
 }
+
 // inicia o jogo e os eventos
 $(() => {
     const size = Math.min(window.innerWidth, window.innerHeight) - 20 - 15; // remove a borda e o scroll
@@ -1633,6 +1706,8 @@ $(() => {
     $hive.prop("width", size).prop("height", size);
     Peca.RAIO = size / 30;
     Peca.OFFSET_LEVEL = Peca.RAIO / 4;
+
+    $("[name='user_id']").val("user" + ("000" + Math.floor(Math.random() * 10000)).slice(-4));
 
     $("#mensagem").modal();
     $("#rodada").mousemove(event => {
