@@ -975,7 +975,7 @@ class Camera {
         const maxEmX = canvas.width / rx;
         const maxEmY = canvas.height / (3 * ry);
         Camera.#newScale = Math.min(maxEmX / qtdX, maxEmY / qtdY, 1);
-        Camera.#newX = -rx * Camera.#newScale * (maxX + minX) / 2;
+        Camera.#newX = rx * Camera.#newScale * (maxX + minX) / 2;
         Camera.#newY = 3 * ry * Camera.#newScale * (maxY + minY) / 2;
         Hive.anima();
     }
