@@ -304,7 +304,13 @@ class Hive {
                 Hive.corJogadorEmbaixo = CorPeca.branco;
             }
         }
-        Hive.tempoTotal = cor ? tempoTotal : $("#tempoTotal").val() * 60;
+        if (cor) {
+            Hive.tempoTotal = tempoTotal;
+        } else if ($("#temporizador").prop("checked")) {
+            Hive.tempoTotal = $("#tempoTotal").val() * 60;
+        } else {
+            Hive.tempoTotal = 0;
+        }
         Hive.incremento = $("#incremento").val();
         Hive.pecas = [];
         Hive.MAX_OFFSET_HUD = 0;
@@ -554,8 +560,10 @@ class Hive {
                 "Hover: " + Hive.hoverId,
                 "Último: " + Hive.ultimaId,
                 "Rodada: " + Hive.rodada,
+                "Branco: " + Hive.tempoBranco,
+                "Preto: " + Hive.tempoPreto,
             ];
-            Hive.drawText(ctx, text, 0, 0, "top", "left", 12);
+            Hive.drawText(ctx, text, 0, canvas.height / 2 - text.length * 6, "middle", "left", 12);
         }
 
     }
@@ -742,7 +750,7 @@ class Hive {
             Hive.pecasComX = resultado.pecasComX;
             Camera.recenter();
             if (!Hive.fimDeJogo) {
-                mostraMensagem("Fim de jogo: " + resultado.msg);
+                mostraMensagem(resultado.msg);
                 Hive.fimDeJogo = true;
                 return resultado;
             }
@@ -907,15 +915,15 @@ class Jogada {
                 const j = Hive.jogadas[r - 1];
                 if (j.passe) {
                     resultado = null;
-                } else if (Hive.tempoBranco > 0 && j.tempoPreto === 0) {
+                } else if (Hive.tempoTotal > 0 && j.tempoPreto === 0) {
                     resultado = {
-                        msg: "Acabou o tempo. Brancas venceram!",
+                        msg: "Time is over. White wins!",
                         notacao: "white wins",
                         pecasComX: [],
                     }
-                } else if (Hive.tempoBranco > 0 && j.tempoBranco === 0) {
+                } else if (Hive.tempoTotal > 0 && j.tempoBranco === 0) {
                     resultado = {
-                        msg: "Acabou o tempo. Pretas venceram!",
+                        msg: "Time is over. Black wins!",
                         notacao: "black wins",
                         pecasComX: [],
                     }
@@ -1010,8 +1018,8 @@ class Camera {
 }
 
 class Peca {
-    static #RAIO = 25; // maximo canvas / 30 para caber o HUD
-    static #OFFSET_LEVEL = Peca.#RAIO / 4;
+    static RAIO;
+    static OFFSET_LEVEL;
 
     // guarda o último id usado, para criar novos ids
     static #id = 0;
@@ -1337,8 +1345,8 @@ class Peca {
     }
 
     static getRaio(scale) {
-        const r = Peca.#RAIO * (scale ?? Camera.scale);
-        return [r * Math.sqrt(3), r, Peca.#OFFSET_LEVEL * (scale ?? Camera.scale)];
+        const r = Peca.RAIO * (scale ?? Camera.scale);
+        return [r * Math.sqrt(3), r, Peca.OFFSET_LEVEL * (scale ?? Camera.scale)];
     }
     // obtem o hexagono
     static #getPath() {
@@ -1613,42 +1621,51 @@ function insertListaJogadas(resultado) {
 }
 // inicia o jogo e os eventos
 $(() => {
-    $("#mensagem").modal();
-    $("#rodada").mousemove(event => {
-        if (event.buttons % 2 === 1) {
-            Jogada.replay(event.target.value);
-        }
-    }).change(event => Jogada.replay(event.target.value));
-    $("#hive").mousemove(event => {
-        Hive.dragging = event.buttons % 2 === 1;
-        Hive.mouseX = event.offsetX;
-        Hive.mouseY = event.offsetY;
-        Hive.hover(event.offsetX, event.offsetY);
-    }).mousedown(event => {
-        Hive.click(event.offsetX, event.offsetY);
-    }).mouseup(event => {
-        Hive.click(event.offsetX, event.offsetY);
-    }).keydown(event => {
-        switch (event.key) {
-            case "ArrowLeft":
-                Jogada.replay(Hive.rodada - 1);
-                break;
-            case "ArrowRight":
-                Jogada.replay(Hive.rodada + 1);
-                break;
-            case "ArrowUp":
-                Jogada.replay(Hive.jogadas.length + 1);
-                break;
-            case "ArrowDown":
-                Jogada.replay(1);
-                break;
-            case "D":
-                Hive.DEBUG = !Hive.DEBUG;
-                Hive.draw();
-                break;
-        }
+    const size = Math.min(window.innerWidth, window.innerHeight) - 20 - 15; // remove a borda e o scroll
+    $("#hive").prop("width", size).prop("height", size);
+    Peca.RAIO = size / 30;
+    Peca.OFFSET_LEVEL = Peca.RAIO / 4;
+
+    Promise.all(Array.from(document.images).filter(img => !img.complete).map(img => new Promise(resolve => { img.onload = img.onerror = resolve; }))).then(() => {
+        $("#mensagem").modal();
+        $("#rodada").mousemove(event => {
+            if (event.buttons % 2 === 1) {
+                Jogada.replay(event.target.value);
+            }
+        }).change(event => Jogada.replay(event.target.value));
+        $("#hive").mousemove(event => {
+            Hive.dragging = event.buttons % 2 === 1;
+            Hive.mouseX = event.offsetX;
+            Hive.mouseY = event.offsetY;
+            Hive.hover(event.offsetX, event.offsetY);
+        }).mousedown(event => {
+            Hive.click(event.offsetX, event.offsetY);
+        }).mouseup(event => {
+            Hive.click(event.offsetX, event.offsetY);
+        }).keydown(event => {
+            switch (event.key) {
+                case "ArrowLeft":
+                    Jogada.replay(Hive.rodada - 1);
+                    break;
+                case "ArrowRight":
+                    Jogada.replay(Hive.rodada + 1);
+                    break;
+                case "ArrowUp":
+                    Jogada.replay(Hive.jogadas.length + 1);
+                    break;
+                case "ArrowDown":
+                    Jogada.replay(1);
+                    break;
+                case "D":
+                    Hive.DEBUG = !Hive.DEBUG;
+                    Hive.draw();
+                    break;
+            }
+        });
+
+        //Hive.init(CorPeca.branco, 10);
+        Hive.init();
     });
-    Hive.init(CorPeca.branco);
 });
 // evita reload da página
 window.onbeforeunload = () => {return "-"};
