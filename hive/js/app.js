@@ -271,6 +271,7 @@ class Hive {
     // network
     static peer;
     static conn;
+    static desafio;
 
     // atributo alterados a cada da rodada
     static rodadaDePasse; // mostra botão de empate
@@ -321,7 +322,7 @@ class Hive {
                 incremento: incremento,
 
             });
-            mostraMensagem("Desafio enviado");
+            $("#desafioEnviadoToast").toast("show");
             return false;
         }
         const peca = cor ?? pecaSelecionada;
@@ -376,16 +377,35 @@ class Hive {
             }
 
             $("#waiting, #received").addClass("d-none");
-            $("#connected").removeClass("d-none");
+            $("#connected, #disconnect").removeClass("d-none");
             Jogada.playNotacao("resign");
             Hive.#initConn(conn);
         });
 
     }
+
+    static aceitarDesafio() {
+        $("#desafioToast").toast("hide");
+        const desafio = Hive.desafio;
+        Hive.init(desafio.corAceito, desafio.tempoTotal, desafio.incremento, true);
+        Hive.conn.send(desafio);
+    }
+    static aceitarEmpate() {
+        Jogada.playNotacao("draw");
+        $("#empateToast").toast("hide");
+    }
+    static disconnect() {
+        if (Hive.conn) {
+            Hive.conn.send({tipo: "quit"});
+            Hive.peer.disconnect();
+            mostraMensagemNotificacao("Disconnected");
+            Hive.#resetaConexao(false);
+        }
+    }
     static connect() {
         const remote = $("[name='remote_id']").val().trim();
         if (!remote.match(/^[0-9a-z-]{36}$/)) {
-            mostraMensagem("Remote ID is not valid.");
+            mostraMensagemNotificacao("Remote ID is not valid.");
             return;
         }
         $("#connecting").removeClass("d-none");
@@ -396,7 +416,7 @@ class Hive {
             Hive.#initConn(Hive.peer.connect(remote));
             Hive.conn.on("open", () => {
                 $("#connecting").addClass("d-none");
-                $("#connected").removeClass("d-none");
+                $("#connected, #disconnect").removeClass("d-none");
             });
         });
         Hive.peer.on("connection", conn => {
@@ -409,25 +429,34 @@ class Hive {
     static #initPeer() {
         $("#receive, #connect, #remote_id, #opengame").addClass("d-none");
         Hive.peer = new Peer();
-        Hive.peer.on("error", err => mostraMensagem("" + err));
+        Hive.peer.on("error", err => mostraMensagemNotificacao("" + err));
         Hive.peer.on("disconnected", Hive.#resetaConexao);
         Hive.peer.on("close", Hive.#resetaConexao);
     }
     static #initConn(conn) {
-        console.log(conn);
         Hive.conn = conn;
         conn.on("data", data => {
             switch (data.tipo) {
+                case "quit":
+                    mostraMensagemNotificacao("Your opponent disconnected");
+                    Hive.#resetaConexao(false);
+                    break;
+                case "draw":
+                    $("#empateToast").toast("show", { autohide: false });
+                    break;
                 case "new":
                     const cor = data.cor === "preto" || data.cor !== "branco" && Math.random() < .5 ? "branco" : "preto";
                     const corOutro = cor === "preto" ? "branco" : "preto";
-                    Hive.init(cor, data.tempoTotal, data.incremento, true);
-                    conn.send({
+                    Hive.desafio = {
                         tipo: "new_ok",
+                        corAceito: cor,
                         cor: corOutro,
                         tempoTotal: data.tempoTotal,
                         incremento: data.incremento,
-                    });
+                    };
+                    const you = data.cor === "random" ? "Random" : (data.cor === "branco" ? "Black" : "White");
+                    $("#desafio").text("You play as " + you + " with " + timeControlToTxt(data.tempoTotal, data.incremento) + ".  Do you accept?");
+                    $("#desafioToast").toast("show", { autohide: false });
                     break;
                 case "new_ok":
                     Hive.init(data.cor, data.tempoTotal, data.incremento, true);
@@ -438,9 +467,19 @@ class Hive {
             }
         });
         conn.on("close", Hive.#resetaConexao);
+        Hive.ping();
     }
-    static #resetaConexao() {
-        mostraMensagem("Connection broken");
+    // para evitar timeout
+    static ping() {
+        if (Hive.conn) {
+            Hive.conn.send({tipo: "ping"});
+            setTimeout(Hive.ping, 30000);
+        }
+    }
+    static #resetaConexao(mostrarNotificacao = true) {
+        if (mostrarNotificacao) {
+            mostraMensagemNotificacao("Connection broken");
+        }
         Hive.conn = null;
         $(".conexao, #opengame").addClass("d-none");
         $("#remote_id").val("");
@@ -483,19 +522,19 @@ class Hive {
                     }
                     const motivo = Jogada.playNotacao(linha);
                     if (motivo && motivo !== "cant parse") {
-                        mostraMensagem("Error parsing '" + linha + "': " + motivo);
+                        mostraMensagemNotificacao("Error parsing '" + linha + "': " + motivo);
                         fim = true;
                     }
                 });
                 if (Hive.rodada === 1) {
-                    mostraMensagem("Error parsing: no move found.");
+                    mostraMensagemNotificacao("Error parsing: no move found.");
                 }
             };
             fileReader.readAsText(files[0]);
         } else if (files.length === 0) {
-            mostraMensagem("Choose a file.");
+            mostraMensagemNotificacao("Choose a file...");
         } else {
-            mostraMensagem("Choose only 1 file.");
+            mostraMensagemNotificacao("Choose only 1 file.");
         }
     }
 
@@ -793,12 +832,13 @@ class Hive {
             Hive.pecasComX = resultado.pecasComX;
             Camera.recenter();
             if (!Hive.fimDeJogo) {
-                if (Hive.jogadas.length > 0) {
-                    mostraMensagem(resultado.msg);
+                if (Hive.jogadas.length > 1) {
+                    $("#gameoverToast .toast-body").text(resultado.msg);
+                    $("#gameoverToast").toast("show", {autohide: false});
                 }
                 Hive.fimDeJogo = true;
                 $("#newgame").removeClass("d-none");
-                $("#resign").addClass("d-none");
+                $("#resign, #draw").addClass("d-none");
                 return resultado;
             }
         } else if (Hive.rodada > Hive.jogadas.length) {
@@ -828,6 +868,9 @@ class Hive {
 class Jogada {
     id;
     passe;
+    timeout;
+    resign;
+    draw;
     tempoBranco;
     tempoPreto;
     time;
@@ -877,6 +920,9 @@ class Jogada {
         }
         if (this.timeout) {
             return "timeout";
+        }
+        if (this.draw) {
+            return "draw";
         }
         if (this.resign) {
             return "resign";
@@ -937,6 +983,10 @@ class Jogada {
         }
         return txt;
     }
+    static oferecerEmpate() {
+        Hive.conn.send({tipo: "draw"});
+        $("#empateEnviadoToast").toast("show");
+    }
     static play(peca, destino, time = null) {
         // fez a jogada
         const jogada = new Jogada(time);
@@ -953,6 +1003,9 @@ class Jogada {
         if (Hive.rodada === 1) {
             $("#newgame").addClass("d-none");
             $("#resign").removeClass("d-none");
+            if (Hive.conn) {
+                $("#draw").removeClass("d-none");
+            }
         }
         Jogada.replay(Hive.rodada + 1, true);
     }
@@ -964,6 +1017,12 @@ class Jogada {
                 const j = Hive.jogadas[r - 1];
                 if (j.passe) {
                     resultado = null;
+                } else if (j.draw) {
+                    resultado = {
+                        msg: "Draw agreed!",
+                        notacao: "draw",
+                        pecasComX: [],
+                    };
                 } else if (j.timeout || j.resign) {
                     const win = Hive.corJogador === CorPeca.preto ? "White wins" : "Black wins";
                     const cor = Hive.corJogador === CorPeca.preto ? "Black" : "White";
@@ -971,7 +1030,7 @@ class Jogada {
                         msg: j.timeout ? "Time is over. " + win : cor + " resigns. " + win + "!",
                         notacao: win.toLowerCase(),
                         pecasComX: [],
-                    }
+                    };
                 } else {
                     resultado = j.passe ? null : Hive.pecas.find(p => p.id === j.id).play(j.x2, j.y2, j.z2, j.emHud2);
                 }
@@ -979,7 +1038,7 @@ class Jogada {
         } else if (Hive.rodada > rodada) {
             for (let r = Hive.rodada - 1; r >= rodada; r--) { // "desjoga"
                 const j = Hive.jogadas[r - 1];
-                if (j.passe || j.timeout || j.resign) {
+                if (j.passe || j.timeout || j.resign || j.draw) {
                     resultado = null;
                 } else {
                     resultado = Hive.pecas.find(p => p.id === j.id).play(j.x1, j.y1, j.z1, j.emHud1);
@@ -1018,12 +1077,19 @@ class Jogada {
     }
     static resign() {
         if (Hive.conn && Hive.corJogando !== Hive.corJogadorEmbaixo) {
-            mostraMensagem("Wait for your turn to resign.");
+            mostraMensagemNotificacao("Wait for your turn to resign.");
         } else {
             Jogada.playNotacao("resign");
         }
     }
     static playNotacao(linha, time = null) {
+        if (linha.match(/^(\d+\D *)?draw/)) {
+            const jogada = new Jogada(time);
+            jogada.draw = true;
+            Hive.jogadas.push(jogada);
+            Jogada.replay(Hive.rodada + 1, true);
+            return null;
+        }
         if (linha.match(/^(\d+\D *)?resign/)) {
             const jogada = new Jogada(time);
             jogada.resign = true;
@@ -1731,9 +1797,9 @@ class Peca {
         return pecasEncontradas.filter(p => p.tipo.nome !== TipoPeca.pass.nome).sort((a, b) => a.z - b.z).pop();
     }
 }
-function mostraMensagem(msg) {
-    $("#mensagemModalLabel").html(msg);
-    $("#mensagem").modal("show");
+function mostraMensagemNotificacao(msg) {
+    $("#mensagemToast .toast-body").text(msg);
+    $("#mensagemToast").toast("show");
 }
 function updateListaJogadas() {
     $("#lista-jogadas > ul > li").removeClass("active");
@@ -1792,10 +1858,6 @@ $(() => {
     Peca.RAIO = size / 30;
     Peca.OFFSET_LEVEL = Peca.RAIO / 4;
 
-
-    //$(".conexao").addClass("d-none");
-
-    $("#mensagem").modal();
     $("#rodada").mousemove(event => {
         if (event.buttons % 2 === 1) {
             Jogada.replay(event.target.value);
@@ -1846,8 +1908,7 @@ $(() => {
                 break;
         }
     });
-    //Hive.init("branco", 5, 1);
-    Hive.init();
+    Hive.init("branco", 0, 0);
 });
 // evita reload da página
 window.onbeforeunload = () => {return "-"};
