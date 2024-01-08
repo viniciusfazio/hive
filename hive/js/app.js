@@ -297,24 +297,21 @@ class Hive {
     static #frame;     // marca a quantidade de vezes que a tela foi desenhada (para debugar)
 
     // inicia uma nova partida
-    static init(cor = null, tempoTotal = 0) {
-        if (Hive.jogadas && Hive.jogadas.length > 0 && !Hive.fimDeJogo) {
+    static init(cor = null, tempoTotal = 0, incremento = 0, force = false) {
+        if (!force && Hive.jogadas && Hive.jogadas.length > 0 && !Hive.fimDeJogo) {
             if (!confirm("Start a new game? The current game will be gone.")) {
                 return false;
             }
         }
-        if (cor) {
-            Hive.corJogadorEmbaixo = cor;
+        const peca = cor ?? $("[name='peca']:checked").val();
+        if (peca === "preto" || peca !== "branco" && Math.random() < .5) {
+            Hive.corJogadorEmbaixo = CorPeca.preto;
         } else {
-            const peca = $("[name='peca']:checked").val();
-            if (peca === "preto" || peca !== "branco" && Math.random() < .5) {
-                Hive.corJogadorEmbaixo = CorPeca.preto;
-            } else {
-                Hive.corJogadorEmbaixo = CorPeca.branco;
-            }
+            Hive.corJogadorEmbaixo = CorPeca.branco;
         }
         if (cor) {
             Hive.tempoTotal = tempoTotal;
+            Hive.incremento = incremento;
         } else if ($("#temporizador").prop("checked")) {
             Hive.tempoTotal = $("#tempoTotal").val() * 60;
         } else {
@@ -349,7 +346,7 @@ class Hive {
         insertListaJogadas();
         return true;
     }
-    static receiver() {
+    static receive() {
         $("#receiving").removeClass("d-none");
         Hive.#initPeer();
         Hive.peer.on('open', id => {
@@ -359,6 +356,15 @@ class Hive {
             new ClipboardJS("#user_id_button");
         });
         Hive.peer.on('connection', conn => {
+            // Allow only a single connection
+            if (Hive.conn && Hive.conn.open) {
+                conn.on('open', function() {
+                    conn.send("Already connected to another client");
+                    setTimeout(() => { c.close(); }, 500);
+                });
+                return;
+            }
+
             $("#waiting, #received").addClass("d-none");
             $("#connected").removeClass("d-none");
             Hive.#initConn(conn);
@@ -373,32 +379,54 @@ class Hive {
         }
         $("#connecting").removeClass("d-none");
         Hive.#initPeer();
-        Hive.#initConn(Hive.peer.connect(remote));
-        Hive.conn.on('open', function () {
-            $("#connecting").addClass("d-none");
-            $("#connected").removeClass("d-none");
-            conn.send("Hi");
+        Hive.peer.on("open", () => {
+            Hive.#initConn(Hive.peer.connect(remote));
+            Hive.conn.on("open", () => {
+                $("#connecting").addClass("d-none");
+                $("#connected").removeClass("d-none");
+            });
         });
-
+        Hive.peer.on("connection", conn => {
+            conn.on("open", () => {
+                conn.send("Sender does not accept incoming connections");
+                setTimeout(() => { c.close(); }, 500);
+            });
+        });
     }
     static #initPeer() {
-        $("#receive, #connect, #remote_id").addClass("d-none");
+        $("#receive, #connect, #remote_id, #opengame").addClass("d-none");
         Hive.peer = new Peer();
-        Hive.peer.on('error', err => mostraMensagem("" + err));
-        Hive.peer.on('disconnected', Hive.#resetaConexao);
-        Hive.peer.on('close', Hive.#resetaConexao);
+        Hive.peer.on("error", err => mostraMensagem("" + err));
+        Hive.peer.on("disconnected", Hive.#resetaConexao);
+        Hive.peer.on("close", Hive.#resetaConexao);
     }
     static #initConn(conn) {
+        console.log(conn);
         Hive.conn = conn;
-        conn.on('data', data => {
-            mostraMensagem(data)
+        conn.on("data", data => {
+            switch (data.tipo) {
+                case "new":
+                    const cor = data.cor === "preto" || data.cor !== "branco" && Math.random() < .5 ? "branco" : "preto";
+                    const corOutro = cor === "preto" ? "branco" : "preto";
+                    Hive.init(cor, data.tempoTotal, data.incremento, true);
+                    conn.send({
+                        tipo: "new_ok",
+                        cor: corOutro,
+                        tempoTotal: data.tempoTotal,
+                        incremento: data.incremento,
+                    });
+                    break;
+                case "new_ok":
+                    Hive.init(data.cor, data.tempoTotal, data.incremento, true);
+                    break;
+            }
         });
-        conn.on('close', Hive.#resetaConexao);
+        conn.on("close", Hive.#resetaConexao);
     }
     static #resetaConexao() {
         mostraMensagem("Connection broken");
         Hive.conn = null;
-        $(".conexao").addClass("d-none");
+        $(".conexao, #opengame").addClass("d-none");
         $("#remote_id").val("");
         $("#receive, #remote_id, #connect").removeClass("d-none");
     }
@@ -447,7 +475,7 @@ class Hive {
                             iniciou = true;
                             const [cor, tipo, numero] = peca;
                             corInvertida = cor === CorPeca.preto;
-                            if (!Hive.init(CorPeca.branco, 0)) {
+                            if (!Hive.init("branco")) {
                                 $("#file").val(null);
                                 fim = true;
                                 return;
@@ -540,7 +568,7 @@ class Hive {
     }
     static #erroNoArquivo(linha, rodada, motivo) {
         mostraMensagem("Error parsing '" + linha + "': " + motivo);
-        Hive.init(CorPeca.branco, 0);
+        Hive.init("branco");
     }
 
     static #atualizaTemporizador() {
@@ -738,6 +766,9 @@ class Hive {
         const canvas = document.getElementById("hive");
         const ctx = canvas.getContext("2d");
 
+        if (Hive.conn && Hive.corJogando !== Hive.corJogadorEmbaixo) {
+            return;
+        }
         // obtém a peça em cima do mouse
         let pecaHover = null;
         let destinos = [];
@@ -769,6 +800,10 @@ class Hive {
     static click(mouseX, mouseY) {
         // garante um hover, caso o click aconteça sem mousemove
         Hive.hover(mouseX, mouseY);
+
+        if (Hive.conn && Hive.corJogando !== Hive.corJogadorEmbaixo) {
+            return;
+        }
 
         if (Hive.hoverId === null) {
             // clicou em jogada inválida
@@ -1659,25 +1694,28 @@ function updateListaJogadas() {
         .find("li").eq(Hive.rodada === 1 ? 0 : Hive.rodada % 2).addClass("active");
     $("#rodada").val(Hive.rodada);
 }
+function timeControlToTxt(tempoTotal, incremento) {
+    if (tempoTotal === 0) {
+        return "no time control";
+    } else {
+        let txt = "";
+        if (tempoTotal >= 60) {
+            txt += Math.floor(tempoTotal / 60) + "m";
+        }
+        if (tempoTotal % 60 > 0) {
+            const s = tempoTotal % 60;
+            txt += s + "s";
+        }
+        return txt + "+" + incremento + "s";
+    }
+}
 function insertListaJogadas(resultado) {
     let txt;
     const rodada = Hive.jogadas.length + 1;
     const $jogadas = $("#lista-jogadas");
     if (rodada === 1) {
         $jogadas.html("");
-        txt = "Start (";
-        if (Hive.tempoTotal === 0) {
-            txt += "no time control)";
-        } else {
-            if (Hive.tempoTotal >= 60) {
-                txt += Math.floor(Hive.tempoTotal / 60) + "m";
-            }
-            if (Hive.tempoTotal % 60 > 0) {
-                const s = Hive.tempoTotal % 60;
-                txt += s + "s";
-            }
-            txt += "+" + Hive.incremento + "s)";
-        }
+        txt = "Start (" + timeControlToTxt(Hive.tempoTotal, Hive.incremento) + ")";
     } else if (resultado) {
         txt = resultado;
     } else {
@@ -1707,7 +1745,8 @@ $(() => {
     Peca.RAIO = size / 30;
     Peca.OFFSET_LEVEL = Peca.RAIO / 4;
 
-    $("[name='user_id']").val("user" + ("000" + Math.floor(Math.random() * 10000)).slice(-4));
+
+    $(".conexao").addClass("d-none");
 
     $("#mensagem").modal();
     $("#rodada").mousemove(event => {
@@ -1744,11 +1783,7 @@ $(() => {
                 break;
         }
     });
-
-    //Hive.init(CorPeca.branco, 10);
     Hive.init();
 });
 // evita reload da página
 window.onbeforeunload = () => {return "-"};
-
-
