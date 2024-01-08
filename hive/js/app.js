@@ -261,7 +261,7 @@ class Hive {
     static MAX_OFFSET_HUD;
     static corJogadorEmbaixo; // cor das peças que aparece no hud debaixo
     static pecas;             // todas peças (apenas as peças são alteradas, não o array)
-    static tempoInicio;       // tempo de início da partida, para o teporizador
+    static tempoUltimaJogada; // tempo do início da última jogada
     static tempoBranco;       // tempo restante
     static tempoPreto;        // tempo restante
     static tempoTotal;        // tempo para cada jogar
@@ -294,7 +294,7 @@ class Hive {
 
     // atributos alterados a cada vez que a tela é desenhada
     static #animando   // indica se está acontecendo alguma animacao
-    static #frame;     // marca a quantidade de vezes que a tela foi desenhada (para debugar)
+    static #frame;     // marca a quantidade de vezes que a tela foi desenhada
 
     // inicia uma nova partida
     static init(cor = null, tempoTotal = 0, incremento = 0, force = false) {
@@ -304,32 +304,30 @@ class Hive {
             }
         }
         const pecaSelecionada = $("[name='peca']:checked").val();
-        const peca = cor ?? pecaSelecionada;
-        if (peca === "preto" || peca !== "branco" && Math.random() < .5) {
-            Hive.corJogadorEmbaixo = CorPeca.preto;
-        } else {
-            Hive.corJogadorEmbaixo = CorPeca.branco;
+        if (!cor) {
+            if ($("#temporizador").prop("checked")) {
+                tempoTotal = $("#tempoTotal").val() * 60;
+                incremento = $("#incremento").val();
+            } else {
+                tempoTotal = 0;
+                incremento = 0;
+            }
         }
-        if (cor) {
-            Hive.tempoTotal = tempoTotal;
-            Hive.incremento = incremento;
-        } else if ($("#temporizador").prop("checked")) {
-            Hive.tempoTotal = $("#tempoTotal").val() * 60;
-        } else {
-            Hive.tempoTotal = 0;
-        }
-        Hive.incremento = $("#incremento").val();
         if (!cor && Hive.conn) {
             Hive.conn.send({
                 tipo: "new",
                 cor: pecaSelecionada,
-                tempoTotal: Hive.tempoTotal,
-                incremento: Hive.incremento,
+                tempoTotal: tempoTotal,
+                incremento: incremento,
 
             });
             mostraMensagem("Desafio enviado");
             return false;
         }
+        const peca = cor ?? pecaSelecionada;
+        Hive.corJogadorEmbaixo  = peca === "preto" || peca !== "branco" && Math.random() < .5 ? CorPeca.preto : CorPeca.branco;
+        Hive.tempoTotal = tempoTotal;
+        Hive.incremento = incremento;
         Hive.pecas = [];
         Hive.MAX_OFFSET_HUD = 0;
         for (const keyCor in CorPeca) {
@@ -346,8 +344,8 @@ class Hive {
         Hive.#frame = 0;
         Hive.#animando = false;
         Hive.jogadas = [];
-        hive.fimDeJogo = false;
-        Hive.tempoInicio = (new Date()).getTime();
+        Hive.fimDeJogo = false;
+        Hive.tempoUltimaJogada = (new Date()).getTime();
         if (Hive.tempoTotal > 0) {
             Hive.tempoBranco = Hive.tempoTotal * 1000;
             Hive.tempoPreto = Hive.tempoTotal * 1000;
@@ -379,8 +377,8 @@ class Hive {
 
             $("#waiting, #received").addClass("d-none");
             $("#connected").removeClass("d-none");
+            Jogada.playNotacao("resign");
             Hive.#initConn(conn);
-            Hive.fimDeJogo = true;
         });
 
     }
@@ -393,11 +391,12 @@ class Hive {
         $("#connecting").removeClass("d-none");
         Hive.#initPeer();
         Hive.peer.on("open", () => {
+            Hive.conn = null;
+            Jogada.playNotacao("resign");
             Hive.#initConn(Hive.peer.connect(remote));
             Hive.conn.on("open", () => {
                 $("#connecting").addClass("d-none");
                 $("#connected").removeClass("d-none");
-                Hive.fimDeJogo = true;
             });
         });
         Hive.peer.on("connection", conn => {
@@ -434,8 +433,8 @@ class Hive {
                     Hive.init(data.cor, data.tempoTotal, data.incremento, true);
                     break;
                 case "jogada":
-                    data.time;
-                    Jogada.playNotacao(data.jogada);
+                    Jogada.playNotacao(data.jogada, data.time);
+                    break;
             }
         });
         conn.on("close", Hive.#resetaConexao);
@@ -449,7 +448,7 @@ class Hive {
     }
     static drawInicioPartida() { // desenha nos primeiros segundos da partida, para resolver um bug de imagens não carregadas
         Hive.draw();
-        if ((new Date()).getTime() - Hive.tempoInicio < 5000) {
+        if (Hive.#frame < 100) {
             setTimeout(Hive.drawInicioPartida, 50);
         }
     }
@@ -483,7 +482,7 @@ class Hive {
                         return;
                     }
                     const motivo = Jogada.playNotacao(linha);
-                    if (motivo !== "cant parse") {
+                    if (motivo && motivo !== "cant parse") {
                         mostraMensagem("Error parsing '" + linha + "': " + motivo);
                         fim = true;
                     }
@@ -500,22 +499,23 @@ class Hive {
         }
     }
 
+    static getTempoRestante(time) {
+        let tempoTotal = (Hive.tempoTotal + Math.floor(Hive.jogadas.length / 2) * Hive.incremento) * 1000;
+        let tempoPassado = 0;
+        Hive.jogadas.forEach((jogada, i) => {
+            if (i % 2 === Hive.jogadas.length % 2) {
+                tempoPassado += jogada.time;
+            }
+        });
+        tempoPassado += time;
+        return Math.max(0, tempoTotal - tempoPassado);
+    }
     static #atualizaTemporizador() {
         if (Hive.fimDeJogo || Hive.tempoTotal === 0) {
             return;
         }
-        let tempoTotal = (Hive.tempoTotal + Math.floor(Hive.jogadas.length / 2) * Hive.incremento) * 1000;
-        let tempoPassado = 0;
-        let ultimoTime = 0;
-        Hive.jogadas.forEach((jogada, i) => {
-            if (i % 2 === Hive.jogadas.length % 2) {
-                tempoPassado += jogada.time - ultimoTime;
-            } else {
-                ultimoTime = jogada.time;
-            }
-        });
-        tempoPassado += (new Date()).getTime() - Hive.tempoInicio - ultimoTime;
-        const tempoRestante = Math.max(tempoTotal - tempoPassado, 0);
+        const time = (new Date()).getTime() - Hive.tempoUltimaJogada;
+        const tempoRestante = Hive.getTempoRestante(time);
         if (Hive.jogadas.length % 2 === 0) {
             Hive.tempoBranco = tempoRestante;
         } else {
@@ -524,8 +524,8 @@ class Hive {
         Hive.#drawTime();
         if (tempoRestante > 0) {
             setTimeout(Hive.#atualizaTemporizador, 50);
-        } else {
-            Jogada.play();
+        } else if (!Hive.conn || Hive.corJogadorEmbaixo === Hive.corJogando) {
+            Jogada.playNotacao("timeout", time);
         }
     }
 
@@ -752,7 +752,7 @@ class Hive {
                 Hive.hoverId = null;
             }
         } else if (Hive.rodadaDePasse) {
-            Jogada.play();
+            Jogada.playNotacao("pass");
         } else if (Hive.pecas.find(p => p.id === Hive.hoverId)) {
             // selecionou outra peça em vez de jogar
             Hive.selectedId = Hive.hoverId;
@@ -793,8 +793,12 @@ class Hive {
             Hive.pecasComX = resultado.pecasComX;
             Camera.recenter();
             if (!Hive.fimDeJogo) {
-                mostraMensagem(resultado.msg);
+                if (Hive.jogadas.length > 0) {
+                    mostraMensagem(resultado.msg);
+                }
                 Hive.fimDeJogo = true;
+                $("#newgame").removeClass("d-none");
+                $("#resign").addClass("d-none");
                 return resultado;
             }
         } else if (Hive.rodada > Hive.jogadas.length) {
@@ -835,12 +839,27 @@ class Jogada {
     y2;
     z2;
     emHud2;
-    constructor(passe = false) {
+    constructor(time = null) {
         this.id = null;
-        this.passe = passe;
-        this.time = (new Date()).getTime() - Hive.tempoInicio;
+        this.passe = false;
+        this.timeout = false;
+        this.resign = false;
+        this.time = time ?? (new Date()).getTime() - Hive.tempoUltimaJogada;
+        const tempoRestante = Hive.getTempoRestante(this.time);
+        if (Hive.corJogando === CorPeca.branco) {
+            Hive.tempoBranco = tempoRestante;
+        } else {
+            Hive.tempoPreto = tempoRestante;
+        }
         this.tempoBranco = Hive.tempoBranco;
         this.tempoPreto =  Hive.tempoPreto;
+        if (tempoRestante > 0) {
+            if (Hive.corJogando === CorPeca.branco) {
+                Hive.tempoBranco += Hive.incremento * 1000;
+            } else {
+                Hive.tempoPreto += Hive.incremento * 1000;
+            }
+        }
         this.x1 = null;
         this.y1 = null;
         this.z1 = null;
@@ -849,14 +868,18 @@ class Jogada {
         this.y2 = null;
         this.z2 = null;
         this.emHud2 = null;
+        Hive.tempoUltimaJogada = (new Date()).getTime();
     }
 
     notacao() {
         if (this.passe) {
             return "pass";
         }
-        if (this.tempoPreto === 0 || this.tempoBranco === 0) {
+        if (this.timeout) {
             return "timeout";
+        }
+        if (this.resign) {
+            return "resign";
         }
         const peca = Hive.pecas.find(p => p.id === this.id);
         const p1 = Jogada.#notacao(peca);
@@ -914,46 +937,26 @@ class Jogada {
         }
         return txt;
     }
-    static play(peca = null, destino = null, time = null) {
-        // como ver o timeout?
-        // TODO
-        
-        if (Hive.tempoTotal > 0 && (Hive.tempoPreto === 0 || Hive.tempoBranco === 0)) {
-            // acabou o tempo
-            Hive.jogadas.push(new Jogada());
-        } else {
-            if (Hive.tempoTotal > 0) {
-                if (Hive.rodada % 2 === 1) {
-                    Hive.tempoBranco += Hive.incremento * 1000;
-                } else {
-                    Hive.tempoPreto += Hive.incremento * 1000;
-                }
-            }
-            if (Hive.rodadaDePasse) {
-                // pulou a vez
-                Hive.jogadas.push(new Jogada(true));
-            } else {
-                // fez a jogada
-                const jogada = new Jogada();
-                jogada.id = peca.id;
-                jogada.x1 = peca.x;
-                jogada.y1 = peca.y;
-                jogada.z1 = peca.z;
-                jogada.emHud1 = peca.emHud;
-                jogada.x2 = destino.x;
-                jogada.y2 = destino.y;
-                jogada.z2 = destino.z;
-                jogada.emHud2 = destino.emHud;
-                Hive.jogadas.push(jogada);
-            }
+    static play(peca, destino, time = null) {
+        // fez a jogada
+        const jogada = new Jogada(time);
+        jogada.id = peca.id;
+        jogada.x1 = peca.x;
+        jogada.y1 = peca.y;
+        jogada.z1 = peca.z;
+        jogada.emHud1 = peca.emHud;
+        jogada.x2 = destino.x;
+        jogada.y2 = destino.y;
+        jogada.z2 = destino.z;
+        jogada.emHud2 = destino.emHud;
+        Hive.jogadas.push(jogada);
+        if (Hive.rodada === 1) {
+            $("#newgame").addClass("d-none");
+            $("#resign").removeClass("d-none");
         }
-        const resultado = Jogada.replay(Hive.rodada + 1)
-        insertListaJogadas();
-        if (Hive.fimDeJogo && resultado) {
-            insertListaJogadas(resultado.notacao);
-        }
+        Jogada.replay(Hive.rodada + 1, true);
     }
-    static replay(rodada) {
+    static replay(rodada, insereJogada = false) {
         rodada = Math.max(1, Math.min(rodada, Hive.jogadas.length + 1));
         let resultado = null;
         if (Hive.rodada < rodada) {
@@ -961,16 +964,12 @@ class Jogada {
                 const j = Hive.jogadas[r - 1];
                 if (j.passe) {
                     resultado = null;
-                } else if (Hive.tempoTotal > 0 && j.tempoPreto === 0) {
+                } else if (j.timeout || j.resign) {
+                    const win = Hive.corJogador === CorPeca.preto ? "White wins" : "Black wins";
+                    const cor = Hive.corJogador === CorPeca.preto ? "Black" : "White";
                     resultado = {
-                        msg: "Time is over. White wins!",
-                        notacao: "white wins",
-                        pecasComX: [],
-                    }
-                } else if (Hive.tempoTotal > 0 && j.tempoBranco === 0) {
-                    resultado = {
-                        msg: "Time is over. Black wins!",
-                        notacao: "black wins",
+                        msg: j.timeout ? "Time is over. " + win : cor + " resigns. " + win + "!",
+                        notacao: win.toLowerCase(),
                         pecasComX: [],
                     }
                 } else {
@@ -980,7 +979,7 @@ class Jogada {
         } else if (Hive.rodada > rodada) {
             for (let r = Hive.rodada - 1; r >= rodada; r--) { // "desjoga"
                 const j = Hive.jogadas[r - 1];
-                if (Hive.tempoTotal > 0 && (j.tempoPreto === 0 || j.tempoBranco === 0) || j.passe) {
+                if (j.passe || j.timeout || j.resign) {
                     resultado = null;
                 } else {
                     resultado = Hive.pecas.find(p => p.id === j.id).play(j.x1, j.y1, j.z1, j.emHud1);
@@ -988,7 +987,7 @@ class Jogada {
             }
         } else { // pediu para ficar na mesma rodada
             Hive.draw();
-            return null;
+            return;
         }
         // define a última jogada
         Hive.ultimaId = rodada < 2 ? null : Hive.jogadas[rodada - 2].id;
@@ -998,9 +997,47 @@ class Jogada {
             Hive.ultimaId = Hive.pecas.find(p => p.tipo.nome === TipoPeca.pass.nome && p.cor === cor).id;
         }
         // inicia a rodada pedida
-        return Hive.iniciaRodada(rodada, resultado);
+        console.log(resultado);
+        //console.log(Hive.fimDeJogo ? "Fim" : "NAO FIM");
+        Hive.iniciaRodada(rodada, resultado);
+        if (insereJogada) {
+            if (Hive.conn && Hive.corJogando !== Hive.corJogadorEmbaixo) {
+                const jogada = Hive.jogadas[Hive.jogadas.length - 1];
+                Hive.conn.send({
+                    tipo: "jogada",
+                    jogada: jogada.notacao(),
+                    time: jogada.time,
+                })
+            }
+            insertListaJogadas();
+            if (Hive.fimDeJogo && resultado) {
+                insertListaJogadas(resultado.notacao);
+            }
+        }
+
     }
-    playNotacao(linha, time = null) {
+    static resign() {
+        if (Hive.conn && Hive.corJogando !== Hive.corJogadorEmbaixo) {
+            mostraMensagem("Wait for your turn to resign.");
+        } else {
+            Jogada.playNotacao("resign");
+        }
+    }
+    static playNotacao(linha, time = null) {
+        if (linha.match(/^(\d+\D *)?resign/)) {
+            const jogada = new Jogada(time);
+            jogada.resign = true;
+            Hive.jogadas.push(jogada);
+            Jogada.replay(Hive.rodada + 1, true);
+            return null;
+        }
+        if (linha.match(/^(\d+\D *)?timeout/)) {
+            const jogada = new Jogada(time);
+            jogada.timeout = true;
+            Hive.jogadas.push(jogada);
+            Jogada.replay(Hive.rodada + 1, true);
+            return null;
+        }
         if (Hive.rodada === 1) {
             const jogada = linha.match(/^(\d+\D *)?([wb][A-Z]\d?)( |$)/);
             if (!jogada) {
@@ -1019,7 +1056,10 @@ class Jogada {
             if (!Hive.rodadaDePasse) {
                 return "cant pass";
             }
-            Jogada.play(null, null, time);
+            const jogada = new Jogada(time);
+            jogada.passe = true;
+            Hive.jogadas.push(jogada);
+            Jogada.replay(Hive.rodada + 1, true);
             return null;
         }
         const jogada = linha.match(/^(\d+\D *)?([wb][A-Z]\d?) +([-/\\]?)([wb][A-Z]\d?)([-/\\]?)( |$)/);
@@ -1729,7 +1769,7 @@ function insertListaJogadas(resultado) {
         const jogada = Hive.jogadas[rodada - 2];
         txt = (rodada - 1) + ". " + jogada.notacao();
         if (Hive.tempoTotal > 0) {
-            txt += " # " + Hive.tempoToTxt(rodada % 2 === 0 ? Hive.tempoBranco : Hive.tempoPreto);
+            txt += " # " + Hive.tempoToTxt(rodada % 2 === 0 ? jogada.tempoBranco : jogada.tempoPreto);
         }
     }
     const onclick = 'onclick="Jogada.replay(' + rodada + ')"';
@@ -1753,7 +1793,7 @@ $(() => {
     Peca.OFFSET_LEVEL = Peca.RAIO / 4;
 
 
-    $(".conexao").addClass("d-none");
+    //$(".conexao").addClass("d-none");
 
     $("#mensagem").modal();
     $("#rodada").mousemove(event => {
@@ -1790,6 +1830,23 @@ $(() => {
                 break;
         }
     });
+    $("#lista-jogadas").keydown(event => {
+        switch (event.key) {
+            case "ArrowLeft":
+                Jogada.replay(Hive.rodada - 1);
+                break;
+            case "ArrowRight":
+                Jogada.replay(Hive.rodada + 1);
+                break;
+            case "ArrowUp":
+                Jogada.replay(Hive.rodada - 2);
+                break;
+            case "ArrowDown":
+                Jogada.replay(Hive.rodada + 2);
+                break;
+        }
+    });
+    //Hive.init("branco", 5, 1);
     Hive.init();
 });
 // evita reload da página

@@ -53,7 +53,7 @@
                 <button onclick="Hive.salvarPartida()" type="button" class="btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>
                     Download current game</button>
                 <div><i class="bi bi-list-ul"></i>&nbsp;<b>Move list</b></div>
-                <div id="lista-jogadas">
+                <div id="lista-jogadas" tabindex="2">
                 </div>
             </div>
         </div>
@@ -85,8 +85,10 @@
                 <input type="radio" class="btn-check" name="peca" id="pecaAleatoria" autocomplete="off" value="random"/>
                 <label class="btn" for="pecaAleatoria"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
 
-                <button onclick="Hive.init()" type="button" class="btn btn-danger my-1"><i class="bi bi-play-fill"></i>
+                <button onclick="Hive.init()" type="button" class="btn btn-danger my-1" id="newgame"><i class="bi bi-play-fill"></i>
                     New game</button>
+                <button onclick="Jogada.resign()" type="button" class="btn btn-warning my-1 d-none" id="resign"><i class="bi bi-flag-fill"></i>
+                    Resign</button>
                 <hr/>
                 <button onclick="Hive.receive()" type="button" class="btn btn-danger input-group-text conexao" id="receive"><i class="bi bi-people-fill"></i>Get user ID to play online</button>
                 <button type="button" class="btn btn-secondary d-none conexao" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>
