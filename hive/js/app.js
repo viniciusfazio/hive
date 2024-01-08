@@ -303,7 +303,8 @@ class Hive {
                 return false;
             }
         }
-        const peca = cor ?? $("[name='peca']:checked").val();
+        const pecaSelecionada = $("[name='peca']:checked").val();
+        const peca = cor ?? pecaSelecionada;
         if (peca === "preto" || peca !== "branco" && Math.random() < .5) {
             Hive.corJogadorEmbaixo = CorPeca.preto;
         } else {
@@ -318,6 +319,17 @@ class Hive {
             Hive.tempoTotal = 0;
         }
         Hive.incremento = $("#incremento").val();
+        if (!cor && Hive.conn) {
+            Hive.conn.send({
+                tipo: "new",
+                cor: pecaSelecionada,
+                tempoTotal: Hive.tempoTotal,
+                incremento: Hive.incremento,
+
+            });
+            mostraMensagem("Desafio enviado");
+            return false;
+        }
         Hive.pecas = [];
         Hive.MAX_OFFSET_HUD = 0;
         for (const keyCor in CorPeca) {
@@ -368,6 +380,7 @@ class Hive {
             $("#waiting, #received").addClass("d-none");
             $("#connected").removeClass("d-none");
             Hive.#initConn(conn);
+            Hive.fimDeJogo = true;
         });
 
     }
@@ -384,6 +397,7 @@ class Hive {
             Hive.conn.on("open", () => {
                 $("#connecting").addClass("d-none");
                 $("#connected").removeClass("d-none");
+                Hive.fimDeJogo = true;
             });
         });
         Hive.peer.on("connection", conn => {
@@ -419,6 +433,9 @@ class Hive {
                 case "new_ok":
                     Hive.init(data.cor, data.tempoTotal, data.incremento, true);
                     break;
+                case "jogada":
+                    data.time;
+                    Jogada.playNotacao(data.jogada);
             }
         });
         conn.on("close", Hive.#resetaConexao);
@@ -451,111 +468,27 @@ class Hive {
         pom.click();
     }
     static lerPartida() {
-        const files = $("#file").prop("files");
+        const $file = $("#file");
+        if (!Hive.init("branco")) {
+            $file.val(null);
+            return;
+        }
+        const files = $file.prop("files");
         if (files.length === 1) {
             const fileReader = new FileReader();
             fileReader.onload = e => {
-                let rodada = 1;
                 let fim = false;
-                let iniciou = false;
-                let corInvertida = false;
                 (e.target.result ?? "").split("\n").forEach(linha => {
                     if (fim) {
                         return;
                     }
-                    if (rodada === 1) {
-                        const jogada = linha.match(/^(\d+\D *)?([wb][A-Z]\d?)( |$)/);
-                        if (jogada) {
-                            const peca = Peca.lePeca(jogada[2], corInvertida);
-                            if (peca === null) {
-                                mostraMensagem("Error parsing '" + linha + "': invalid piece");
-                                fim = true;
-                                return;
-                            }
-                            iniciou = true;
-                            const [cor, tipo, numero] = peca;
-                            corInvertida = cor === CorPeca.preto;
-                            if (!Hive.init("branco")) {
-                                $("#file").val(null);
-                                fim = true;
-                                return;
-                            }
-                            const origem = Hive.pecas.find(p => p.tipo.nome === tipo && p.cor === cor && p.numero === numero);
-                            const destino = origem.destinos[0];
-                            Jogada.play(origem, destino);
-                            rodada++;
-                        }
-                        return;
-                    }
-                    if (linha.match(/(\d+\D *)?pass/)) {
-                        Hive.rodadaDePasse = true;
-                        Jogada.play();
-                        return;
-                    }
-                    const jogada = linha.match(/^(\d+\D *)?([wb][A-Z]\d?) +([-/\\]?)([wb][A-Z]\d?)([-/\\]?)( |$)/);
-                    if (!jogada) {
-                        return;
-                    }
-                    const peca1 = Peca.lePeca(jogada[2], corInvertida);
-                    const peca2 = Peca.lePeca(jogada[4], corInvertida);
-                    if (peca1 === null || peca2 === null) {
-                        Hive.#erroNoArquivo(linha, rodada, "invalid piece");
+                    const motivo = Jogada.playNotacao(linha);
+                    if (motivo !== "cant parse") {
+                        mostraMensagem("Error parsing '" + linha + "': " + motivo);
                         fim = true;
-                        return;
                     }
-                    const [cor1, tipo1, numero1] = peca1;
-                    const [cor2, tipo2, numero2] = peca2;
-                    let dx;
-                    let dy;
-                    if (jogada[3] === "/") {
-                        dx = -1;
-                        dy = -1;
-                    } else if (jogada[3] === "-") {
-                        dx = -2;
-                        dy = 0;
-                    } else if (jogada[3] === "\\") {
-                        dx = -1;
-                        dy = 1;
-                    } else if (jogada[5] === "/") {
-                        dx = 1;
-                        dy = 1;
-                    } else if (jogada[5] === "-") {
-                        dx = 2;
-                        dy = 0;
-                    } else if (jogada[5] === "\\") {
-                        dx = 1;
-                        dy = -1;
-                    } else if (jogada[3] === "" && jogada[5] === "") {
-                        dx = 0;
-                        dy = 0;
-                    } else {
-                        Hive.#erroNoArquivo(linha, rodada, "invalid direction");
-                        fim = true;
-                        return;
-                    }
-                    const origem = Hive.pecas.find(p => p.tipo.nome === tipo1 && p.cor === cor1 && p.numero === numero1);
-                    if (!origem) {
-                        Hive.#erroNoArquivo(linha, rodada, "invalid piece");
-                        fim = true;
-                        return;
-                    }
-                    const referencia = Hive.pecas.find(p => !p.emHud && p.tipo.nome === tipo2 && p.cor === cor2 && p.numero === numero2);
-                    if (!referencia) {
-                        Hive.#erroNoArquivo(linha, rodada, "invalid position");
-                        fim = true;
-                        return;
-                    }
-                    const [rx, ry] = [referencia.x + dx, referencia.y + dy];
-                    const destino = origem.destinos.find(p => p.x === rx && p.y === ry);
-                    if (!destino) {
-                        Hive.#erroNoArquivo(linha, rodada, "invalid move");
-                        fim = true;
-                        return;
-                    }
-                    Jogada.play(origem, destino);
-                    rodada++;
                 });
-                if (!iniciou) {
+                if (Hive.rodada === 1) {
                     mostraMensagem("Error parsing: no move found.");
                 }
             };
@@ -565,10 +498,6 @@ class Hive {
         } else {
             mostraMensagem("Choose only 1 file.");
         }
-    }
-    static #erroNoArquivo(linha, rodada, motivo) {
-        mostraMensagem("Error parsing '" + linha + "': " + motivo);
-        Hive.init("branco");
     }
 
     static #atualizaTemporizador() {
@@ -985,7 +914,10 @@ class Jogada {
         }
         return txt;
     }
-    static play(peca = null, destino = null) {
+    static play(peca = null, destino = null, time = null) {
+        // como ver o timeout?
+        // TODO
+        
         if (Hive.tempoTotal > 0 && (Hive.tempoPreto === 0 || Hive.tempoBranco === 0)) {
             // acabou o tempo
             Hive.jogadas.push(new Jogada());
@@ -1067,6 +999,81 @@ class Jogada {
         }
         // inicia a rodada pedida
         return Hive.iniciaRodada(rodada, resultado);
+    }
+    playNotacao(linha, time = null) {
+        if (Hive.rodada === 1) {
+            const jogada = linha.match(/^(\d+\D *)?([wb][A-Z]\d?)( |$)/);
+            if (!jogada) {
+                return "cant parse";
+            }
+            const peca = Peca.lePeca(jogada[2]);
+            if (peca === null) {
+                return "invalid piece";
+            }
+            const [cor, tipo, numero] = peca;
+            const origem = Hive.pecas.find(p => p.tipo.nome === tipo && p.cor === cor && p.numero === numero);
+            const destino = origem.destinos[0];
+            Jogada.play(origem, destino, time);
+        }
+        if (linha.match(/^(\d+\D *)?pass/)) {
+            if (!Hive.rodadaDePasse) {
+                return "cant pass";
+            }
+            Jogada.play(null, null, time);
+            return null;
+        }
+        const jogada = linha.match(/^(\d+\D *)?([wb][A-Z]\d?) +([-/\\]?)([wb][A-Z]\d?)([-/\\]?)( |$)/);
+        if (!jogada) {
+            return "cant parse";
+        }
+        const peca1 = Peca.lePeca(jogada[2]);
+        const peca2 = Peca.lePeca(jogada[4]);
+        if (peca1 === null || peca2 === null) {
+            return "invalid piece";
+        }
+        const [cor1, tipo1, numero1] = peca1;
+        const [cor2, tipo2, numero2] = peca2;
+        let dx;
+        let dy;
+        if (jogada[3] === "/") {
+            dx = -1;
+            dy = -1;
+        } else if (jogada[3] === "-") {
+            dx = -2;
+            dy = 0;
+        } else if (jogada[3] === "\\") {
+            dx = -1;
+            dy = 1;
+        } else if (jogada[5] === "/") {
+            dx = 1;
+            dy = 1;
+        } else if (jogada[5] === "-") {
+            dx = 2;
+            dy = 0;
+        } else if (jogada[5] === "\\") {
+            dx = 1;
+            dy = -1;
+        } else if (jogada[3] === "" && jogada[5] === "") {
+            dx = 0;
+            dy = 0;
+        } else {
+            return "invalid direction";
+        }
+        const origem = Hive.pecas.find(p => p.tipo.nome === tipo1 && p.cor === cor1 && p.numero === numero1);
+        if (!origem) {
+            return "invalid piece";
+        }
+        const referencia = Hive.pecas.find(p => !p.emHud && p.tipo.nome === tipo2 && p.cor === cor2 && p.numero === numero2);
+        if (!referencia) {
+            return "invalid position";
+        }
+        const [rx, ry] = [referencia.x + dx, referencia.y + dy];
+        const destino = origem.destinos.find(p => p.x === rx && p.y === ry);
+        if (!destino) {
+            return "invalid move";
+        }
+        Jogada.play(origem, destino, time);
+        return null;
     }
 }
 
@@ -1213,15 +1220,15 @@ class Peca {
         }
     }
 
-    static lePeca(p, corInvertida) {
+    static lePeca(p) {
         if (p.length < 2 || p.length > 3) {
             return null;
         }
         let cor;
         if (p[0] === "w") {
-            cor = corInvertida ? CorPeca.preto : CorPeca.branco;
+            cor = CorPeca.branco;
         } else if (p[0] === "b") {
-            cor = corInvertida ? CorPeca.branco : CorPeca.preto;
+            cor = CorPeca.preto;
         } else {
             return null;
         }
