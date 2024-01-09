@@ -376,8 +376,9 @@ class Hive {
                 return;
             }
 
-            $("#waiting, #received").addClass("d-none");
-            $("#connected, #disconnect").removeClass("d-none");
+            $("#waiting, #received, #newgame").addClass("d-none");
+            $("#newonlinegame, #disconnect").removeClass("d-none");
+            mostraMensagemNotificacao("Connected!");
             Jogada.playNotacao("resign");
             Hive.#initConn(conn);
         });
@@ -416,7 +417,7 @@ class Hive {
             Hive.#initConn(Hive.peer.connect(remote));
             Hive.conn.on("open", () => {
                 $("#connecting").addClass("d-none");
-                $("#connected, #disconnect").removeClass("d-none");
+                $("#newonlinegame, #disconnect").removeClass("d-none");
             });
         });
         Hive.peer.on("connection", conn => {
@@ -481,9 +482,9 @@ class Hive {
             mostraMensagemNotificacao("Connection broken");
         }
         Hive.conn = null;
-        $(".conexao, #opengame").addClass("d-none");
+        $(".conexao, #opengame, #newonlinegame").addClass("d-none");
         $("#remote_id").val("");
-        $("#receive, #remote_id, #connect").removeClass("d-none");
+        $("#receive, #remote_id, #connect, #newgame").removeClass("d-none");
     }
     static drawInicioPartida() { // desenha nos primeiros segundos da partida, para resolver um bug de imagens não carregadas
         Hive.draw();
