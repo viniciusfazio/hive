@@ -375,11 +375,11 @@ class Hive {
                 });
                 return;
             }
-
+            Hive.conn = null;
+            Jogada.playNotacao("resign");
             $("#newgame, #waiting, #received").addClass("d-none");
             $("#newonlinegame, #disconnect").removeClass("d-none");
             mostraMensagemNotificacao("Connected!");
-            Jogada.playNotacao("resign");
             Hive.#initConn(conn);
         });
 
@@ -839,7 +839,11 @@ class Hive {
                     $("#gameoverToast").toast("show", {autohide: false});
                 }
                 Hive.fimDeJogo = true;
-                $("#newgame").removeClass("d-none");
+                if (Hive.conn) {
+                    $("#newonlinegame").removeClass("d-none");
+                } else {
+                    $("#newgame").removeClass("d-none");
+                }
                 $("#resign, #draw").addClass("d-none");
                 return resultado;
             }
@@ -1003,7 +1007,7 @@ class Jogada {
         jogada.emHud2 = destino.emHud;
         Hive.jogadas.push(jogada);
         if (Hive.rodada === 1) {
-            $("#newgame").addClass("d-none");
+            $("#newgame, #newonlinegame").addClass("d-none");
             $("#resign").removeClass("d-none");
             if (Hive.conn) {
                 $("#draw").removeClass("d-none");
