@@ -376,7 +376,7 @@ class Hive {
                 return;
             }
 
-            $("#waiting, #received, #newgame").addClass("d-none");
+            $("#newgame, #waiting, #received").addClass("d-none");
             $("#newonlinegame, #disconnect").removeClass("d-none");
             mostraMensagemNotificacao("Connected!");
             Jogada.playNotacao("resign");
@@ -416,7 +416,8 @@ class Hive {
             Jogada.playNotacao("resign");
             Hive.#initConn(Hive.peer.connect(remote));
             Hive.conn.on("open", () => {
-                $("#connecting").addClass("d-none");
+                mostraMensagemNotificacao("Connected!");
+                $("#newgame, #connecting").addClass("d-none");
                 $("#newonlinegame, #disconnect").removeClass("d-none");
             });
         });
