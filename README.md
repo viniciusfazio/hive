@@ -4,6 +4,7 @@
 [You can play here](https://viniciusfazio.github.io/hive/hive/index.html)
 
 # TODO
-- Poder analisar variantes
-- Poder jogar contra IA
+- Contar quantidade de partidas vencidas, e opção de rematch alternando a cor
 - Menu de ajuda com explicação das regras
+- Poder analisar variantes depois do jogo
+- Poder jogar contra IA
