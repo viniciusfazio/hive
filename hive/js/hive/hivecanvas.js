@@ -1,9 +1,8 @@
 
 import Board from "./core/board.js";
-import Move from "./core/move.js";
 import {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
-import Timer from "./core/timer.js";
+import Movelist from "./core/movelist.js";
 
 const BACKGROUND_COLOR = "rgb(150, 150, 150)";
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
@@ -14,39 +13,57 @@ export default class Hivecanvas {
     canvas;
     ctx;
     board = new Board();
+
+    #maxQtyPiecesOverOnHud;
+
     #debug = true;
     #frame = 0;
 
-    #scale = 1;
-    #cameraX = 0;
-    #cameraY = 0;
-
-    #timer;
-    #moveLists;
-    #currentMoveListId;
-
+    #bottomPlayerColor;
     #whitePlayer;
     #blackPlayer;
 
-    #bottomPlayerColor;
-    #maxQtyPiecesOverOnHud;
+    #moveLists;
+    #currentMoveListId;
 
-    constructor($canvas, whitePlayer, blackPlayer, bottomPlayerColor = PieceColor.white,
-                totalTime = 0, increment = 0) {
+    #scale;
+    #cameraX;
+    #cameraY;
+
+    constructor($canvas, canvasPlayer) {
         this.canvas = $canvas.get(0);
         this.ctx = this.canvas.getContext("2d");
-        this.#bottomPlayerColor = bottomPlayerColor;
-        this.#whitePlayer = whitePlayer;
-        this.#blackPlayer = blackPlayer;
-        this.#timer = new Timer(totalTime, increment);
         this.#maxQtyPiecesOverOnHud = 0;
         for (const keyType in PieceType) {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
-        this.#moveLists = [[]];
-        this.#currentMoveListId = 0;
+        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 1, 5);
 
-        this.board.pieces.forEach(p => this.#setPiecePosition(p, 0));
+        this.#update();
+
+    }
+    #update() {
+        if (this.#moveLists[0].computeTime()) {
+            this.#drawTime();
+        }
+        const inTransition = this.board.pieces.filter(p => p.transition > 0);
+        if (inTransition.length > 0) {
+            inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .8);
+            this.redraw();
+        }
+        setTimeout(() => this.#update(), 50);
+    }
+    newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
+        [this.#bottomPlayerColor, this.#whitePlayer, this.#blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
+        [this.#moveLists, this.#currentMoveListId] = [[new Movelist(totalTime, increment)], 0];
+        [this.#scale, this.#cameraX, this.#cameraY] = [1, 0, 0];
+
+        // reset moves
+        this.board.pieces.forEach(p => {
+            p.reset();
+            this.#setPiecePosition(p, 0);
+        });
+
 
         this.board.computeLegalMoves();
         this.board.pieces.forEach(p => p.targets.forEach(t => this.#setPiecePosition(t, 0)));
@@ -69,7 +86,7 @@ export default class Hivecanvas {
             piece.toX = w / 2 - this.#cameraX + piece.x * rx + offset * piece.z;
             piece.toY = h / 2 + this.#cameraY - piece.y * ry * 3 - offset * piece.z;
         } else {
-            const timerHeight = this.#timer.totalTime > 0 ? TIMER_HEIGHT : 0;
+            const timerHeight = this.#moveLists[0].totalTime > 0 ? TIMER_HEIGHT : 0;
             const marginX = w / 2 - (Object.keys(PieceType).length + 1) * rx;
             let position = 0;
             for (const key in PieceType) {
@@ -122,7 +139,7 @@ export default class Hivecanvas {
 
         // draw hud
         const [, ry, offset] = this.#getSize();
-        const timerHeight = this.#timer.totalTime > 0 ? TIMER_HEIGHT : 0;
+        const timerHeight = this.#moveLists[0].totalTime > 0 ? TIMER_HEIGHT : 0;
         const height = 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 4 + timerHeight / 2;
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = WAITING_HUD_COLOR;
@@ -135,7 +152,9 @@ export default class Hivecanvas {
 
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame));
 
-        this.#drawTimer();
+        if (timerHeight > 0) {
+            this.#drawTime();
+        }
 
 
 
@@ -146,19 +165,59 @@ export default class Hivecanvas {
             if (player instanceof CanvasPlayer) {
                 text.push("Selected: " + player.selectedPieceId);
                 text.push("Hover: " + player.hoverPieceId);
+                text.push("White: " + this.#moveLists[0].whitePiecesTimeLeft);
+                text.push("Black: " + this.#moveLists[0].blackPiecesTimeLeft);
+                text.push("Round: " + this.board.round);
+                text.push("Last ID: " + this.board.lastMovePieceId);
             }
-            /*
-            "Último: " + Hivecanvas.ultimaId,
-            "Rodada: " + Hivecanvas.rodada,
-            "Branco: " + Hivecanvas.tempoBranco,
-            "Preto: " + Hivecanvas.tempoPreto,
-             */
             this.#drawText(text, 0, this.canvas.height / 2 - text.length * 6, "middle", "left", 12);
         }
     }
-    #drawTimer() {
+    #drawTime() {
+        let [topTime, bottomTime] = [this.#moveLists[0].whitePiecesTimeLeft, this.#moveLists[0].blackPiecesTimeLeft];
+        if (this.#bottomPlayerColor.id === PieceColor.white.id) {
+            [topTime, bottomTime] = [bottomTime, topTime];
+        }
 
+        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(Hivecanvas.#timeToText);
+
+        const [w, h, th] = [this.canvas.width, this.canvas.height, TIMER_HEIGHT]
+        // swap hud color for timer
+        this.ctx.fillStyle = BACKGROUND_COLOR;
+        this.ctx.fillRect(0, 0, w, th);
+        this.ctx.fillRect(0, h - th, w, th);
+        if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
+            this.ctx.fillStyle = PLAYING_HUD_COLOR;
+            this.ctx.fillRect(0, 0, w, th);
+            this.ctx.fillStyle = WAITING_HUD_COLOR;
+            this.ctx.fillRect(0, h - th, w, th);
+        } else {
+            this.ctx.fillStyle = WAITING_HUD_COLOR;
+            this.ctx.fillRect(0, 0, w, th);
+            this.ctx.fillStyle = PLAYING_HUD_COLOR;
+            this.ctx.fillRect(0, h - th, w, th);
+        }
+
+        // change color if time is short
+        const topColor = topTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
+        const bottomColor = bottomTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
+        this.#drawText([topTimeTxt], w / 2, 1, "top", "center", th - 2, topColor);
+        this.#drawText([bottomTimeTxt], w / 2, h + 2, "bottom", "center", th - 2, bottomColor);
     }
+    static #timeToText(t) {
+        if (t >= 10000) {
+            t = Math.floor(t / 1000);
+            const m = Math.floor(t / 60);
+            const s = t % 60;
+            return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+        } else {
+            t = Math.floor(t / 100);
+            const s = Math.floor(t / 10);
+            const ms = t % 10;
+            return "00:0" + s + "." + ms;
+        }
+    }
+
     #drawPieces(pieces, z = 0) {
         let piecesAbove = [];
         pieces.forEach(p => {
@@ -333,26 +392,11 @@ export default class Hivecanvas {
         this.#debug = !this.#debug;
     }
     play(piece, target, time = null) {
-        // fez a jogada
-        const move = new Move();
-        move.id = piece.id;
-        move.fromX = piece.x;
-        move.fromY = piece.y;
-        move.fromZ = piece.inGame ? piece.z : -1;
-        move.toX = target.x;
-        move.toY = target.y;
-        move.toZ = target.z;
+        // save the move
+        const moveList = this.#moveLists[this.#currentMoveListId];
+        moveList.addMove(piece, target, time);
 
-        this.board.makeMove(move);
-        Hivecanvas.jogadas.push(jogada);
-        if (Hivecanvas.rodada === 1) {
-            $("#newgame, #newonlinegame").addClass("d-none");
-            $("#resign").removeClass("d-none");
-            if (Hivecanvas.conn) {
-                $("#draw").removeClass("d-none");
-            }
-        }
-        Jogada.replay(Hivecanvas.rodada + 1, true);
+        moveList.goTo(this.board, moveList.moves.length + 1);
     }
 
 }

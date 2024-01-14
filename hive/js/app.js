@@ -35,11 +35,11 @@ $(() => {
     });
     const size = Math.min(window.innerWidth, window.innerHeight) - 20 - 15; // remove a borda e o scroll
     hive = new Hivecanvas($("#hive").prop("width", size).prop("height", size).mousemove(event => {
-        canvasPlayer.hover(hive, event.offsetX, event.offsetY, event.buttons % 2 === 1);
+        canvasPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1);
     }).mousedown(event => {
-        canvasPlayer.click(hive, event.offsetX, event.offsetY, $("#automove").prop("checked"));
+        click(event.offsetX, event.offsetY, $("#automove").prop("checked"));
     }).mouseup(event => {
-        canvasPlayer.click(hive, event.offsetX, event.offsetY, $("#automove").prop("checked"));
+        click(event.offsetX, event.offsetY, $("#automove").prop("checked"));
     }).keydown(event => {
         if (hive) {
             switch (event.key) {
@@ -61,6 +61,14 @@ $(() => {
                     break;
             }
         }
-    }), canvasPlayer, canvasPlayer);
+    }), canvasPlayer);
 });
+function click(x, y, automove) {
+    const round = hive.board.round;
+    canvasPlayer.click(x, y, automove);
+    if (round === 1 && hive.board.round === 2) {
+        $("#newgame, #newonlinegame").addClass("d-none");
+        $("#resign").removeClass("d-none");
+    }
+}
 window.onbeforeunload = () => {return "-"};

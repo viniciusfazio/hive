@@ -2,35 +2,43 @@ import Board from "./board.js";
 
 
 export default class Piece {
-    x = 0;
-    y = 0;
-    inGame = false;
+    x;
+    y;
+    inGame;
+    targets;
     z;
     number;
     subNumber;
     type;
     color;
-    targets = [];
     id
 
-    constructor(color, type, z, number, subNumber = 0) {
+    constructor(color, type, number, subNumber = 0) {
         this.color = color;
         this.type = type;
-        this.z = z;
         this.number = number;
         this.subNumber = subNumber;
         this.id = this.color.id + this.type.id + (this.number > 0 ? this.number : "")
                                                + (this.subNumber > 0 ? this.subNumber : "");
+        this.reset();
     }
     insertTarget(x, y, z) {
-        const piece = new Piece(this.color, this.type, z, this.number, this.targets.length + 1);
+        const piece = new Piece(this.color, this.type, this.number, this.targets.length + 1);
         piece.x = x;
         piece.y = y;
+        piece.z = z;
         piece.inGame = true;
         if (!this.targets.find(p => p.x === x && p.y === y)) {
             this.targets.push(piece);
         }
         return piece;
+    }
+    reset() {
+        this.x = null;
+        this.y = null;
+        this.z = this.type.qty - Math.max(1, this.number);
+        this.inGame = false;
+        this.targets = [];
     }
 }
 

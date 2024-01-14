@@ -28,9 +28,8 @@ class Board {
             for (const keyColor in PieceColor) {
                 for (const keyType in PieceType) {
                     const type = PieceType[keyType];
-                    for (let z = 0; z < type.qty; z++) {
-                        const number = type.qty === 1 ? 0 : type.qty - z;
-                        this.pieces.push(new Piece(PieceColor[keyColor], type, z, number));
+                    for (let number = 1; number <= type.qty; number++) {
+                        this.pieces.push(new Piece(PieceColor[keyColor], type, number));
                     }
                 }
             }
