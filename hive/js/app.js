@@ -1,11 +1,11 @@
-import Hive from "./hive/hive.js";
-import LocalPlayer from "./hive/player/localplayer.js";
+import Hivecanvas from "./hive/hivecanvas.js";
+import CanvasPlayer from "./hive/player/canvasplayer.js";
 
 let hive = null;
 
-let localPlayer;
+let canvasPlayer;
 $(() => {
-    localPlayer = new LocalPlayer()
+    canvasPlayer = new CanvasPlayer();
     $("#rodada").mousemove(event => {
         if (hive && event.buttons % 2 === 1) {
             //hive.setRodada(event.target.value);
@@ -34,12 +34,12 @@ $(() => {
         }
     });
     const size = Math.min(window.innerWidth, window.innerHeight) - 20 - 15; // remove a borda e o scroll
-    hive = new Hive($("#hive").prop("width", size).prop("height", size).mousemove(event => {
-        localPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1);
+    hive = new Hivecanvas($("#hive").prop("width", size).prop("height", size).mousemove(event => {
+        canvasPlayer.hover(hive, event.offsetX, event.offsetY, event.buttons % 2 === 1);
     }).mousedown(event => {
-        localPlayer.click(event.offsetX, event.offsetY);
+        canvasPlayer.click(hive, event.offsetX, event.offsetY, $("#automove").prop("checked"));
     }).mouseup(event => {
-        localPlayer.click(event.offsetX, event.offsetY);
+        canvasPlayer.click(hive, event.offsetX, event.offsetY, $("#automove").prop("checked"));
     }).keydown(event => {
         if (hive) {
             switch (event.key) {
@@ -61,6 +61,6 @@ $(() => {
                     break;
             }
         }
-    }), localPlayer, localPlayer);
+    }), canvasPlayer, canvasPlayer);
 });
 window.onbeforeunload = () => {return "-"};
