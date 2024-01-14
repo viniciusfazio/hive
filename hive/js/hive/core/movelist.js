@@ -66,69 +66,24 @@ export default class Movelist {
     }
     goTo(board, round) {
         round = Math.max(1, Math.min(round, this.moves.length + 1));
-        let result = null;
-        if (Hive.rodada < rodada) {
-            for (let r = Hive.rodada; r < rodada; r++) { // "joga"
-                const j = Hive.jogadas[r - 1];
-                if (j.passe) {
-                    resultado = null;
-                } else if (j.draw) {
-                    resultado = {
-                        msg: "Draw agreed!",
-                        notacao: "draw",
-                        pecasComX: [],
-                    };
-                } else if (j.timeout || j.resign) {
-                    const win = Hive.corJogador === CorPeca.preto ? "White wins" : "Black wins";
-                    const cor = Hive.corJogador === CorPeca.preto ? "Black" : "White";
-                    resultado = {
-                        msg: j.timeout ? "Time is over. " + win : cor + " resigns. " + win + "!",
-                        notacao: win.toLowerCase(),
-                        pecasComX: [],
-                    };
-                } else {
-                    resultado = j.passe ? null : Hive.pecas.find(p => p.id === j.id).play(j.x2, j.y2, j.z2, j.emHud2);
+        if (board.round < round) {
+            for (; board.round < round; board.round++) { // redo moves
+                const move = this.moves[board.round - 1];
+                if (!move.pass && !move.timeout && !move.resign && !move.draw) {
+                    board.pieces.find(p => p.id === move.id).play(move.toX, move.toY, move.toZ);
                 }
             }
-        } else if (Hive.rodada > rodada) {
-            for (let r = Hive.rodada - 1; r >= rodada; r--) { // "desjoga"
-                const j = Hive.jogadas[r - 1];
-                if (j.passe || j.timeout || j.resign || j.draw) {
-                    resultado = null;
-                } else {
-                    resultado = Hive.pecas.find(p => p.id === j.id).play(j.x1, j.y1, j.z1, j.emHud1);
+        } else if (board.round > round) { // undo moves
+            for (board.round--; board.round >= round; board.round--) {
+                const move = this.moves[board.round - 1];
+                if (!move.pass && !move.timeout && !move.resign && !move.draw) {
+                    board.pieces.find(p => p.id === move.id).play(move.fromX, move.fromY, move.fromZ);
                 }
             }
-        } else { // pediu para ficar na mesma rodada
-            Hive.draw();
+        } else { // no moves asked
             return;
         }
-        // define a última jogada
-        Hive.ultimaId = rodada < 2 ? null : Hive.jogadas[rodada - 2].id;
-        if (Hive.ultimaId === null && rodada >= 2 && Hive.jogadas[rodada - 2].passe) {
-            // se foi passe, marca o botão de passe como última jogada
-            const cor = rodada % 2 === 0 ? CorPeca.branco : CorPeca.preto;
-            Hive.ultimaId = Hive.pecas.find(p => p.tipo.nome === TipoPeca.pass.nome && p.cor === cor).id;
-        }
-        // inicia a rodada pedida
-        console.log(resultado);
-        //console.log(Hive.fimDeJogo ? "Fim" : "NAO FIM");
-        Hive.iniciaRodada(rodada, resultado);
-        if (insereJogada) {
-            if (Hive.conn && Hive.corJogando !== Hive.corJogadorEmbaixo) {
-                const jogada = Hive.jogadas[Hive.jogadas.length - 1];
-                Hive.conn.send({
-                    tipo: "jogada",
-                    jogada: jogada.notacao(),
-                    time: jogada.time,
-                })
-            }
-            insertListaJogadas();
-            if (Hive.fimDeJogo && resultado) {
-                insertListaJogadas(resultado.notacao);
-            }
-        }
-
+        board.lastMovePieceId = round === 1 ? null : this.moves[round - 2].id;
     }
 }
 class Move {
@@ -142,6 +97,7 @@ class Move {
     pass = false;
     resign = false;
     timeout = false;
+    draw = false;
     time = null;
     whitePiecesTimeLeft = null;
     blackPiecesTimeLeft = null;

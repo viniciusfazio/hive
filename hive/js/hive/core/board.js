@@ -29,7 +29,7 @@ class Board {
                 for (const keyType in PieceType) {
                     const type = PieceType[keyType];
                     for (let number = 1; number <= type.qty; number++) {
-                        this.pieces.push(new Piece(PieceColor[keyColor], type, number));
+                        this.pieces.push(new Piece(PieceColor[keyColor], type, type.qty === 1 ? 0 : number));
                     }
                 }
             }
@@ -38,6 +38,7 @@ class Board {
 
 
     computeLegalMoves() {
+        this.pieces.forEach(p => p.targets = []);
         this.inGameTopPieces = this.pieces.filter(p => p.inGame);
         this.inGameTopPieces = this.inGameTopPieces.filter(p => !this.inGameTopPieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
         const colorPlayingId = this.getColorPlaying().id;

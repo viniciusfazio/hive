@@ -8,27 +8,27 @@ $(() => {
     canvasPlayer = new CanvasPlayer();
     $("#rodada").mousemove(event => {
         if (hive && event.buttons % 2 === 1) {
-            //hive.setRodada(event.target.value);
+            hive.setRound(event.target.value);
         }
     }).change(event => {
         if (hive) {
-            //hive.setRodada(event.target.value);
+            hive.setRound(event.target.value);
         }
     });
     $("#move-list").keydown(event => {
         if (hive) {
             switch (event.key) {
                 case "ArrowLeft":
-                    //hive.addRodada(-1);
+                    hive.addRound(-1);
                     break;
                 case "ArrowRight":
-                    //hive.addRodada(1);
+                    hive.addRound(1);
                     break;
                 case "ArrowUp":
-                    //hive.addRodada(-2);
+                    hive.addRound(-2);
                     break;
                 case "ArrowDown":
-                    //hive.addRodada(2);
+                    hive.addRound(2);
                     break;
             }
         }
@@ -44,16 +44,16 @@ $(() => {
         if (hive) {
             switch (event.key) {
                 case "ArrowLeft":
-                    //hive.addRodada(-1);
+                    hive.addRound(-1);
                     break;
                 case "ArrowRight":
-                    //hive.addRodada(1);
+                    hive.addRound(1);
                     break;
                 case "ArrowUp":
-                    //hive.addRodada(999999999);
+                    hive.addRound(999999999);
                     break;
                 case "ArrowDown":
-                    //hive.setRodada(1);
+                    hive.setRound(1);
                     break;
                 case "D":
                     hive.toggleDebug();
@@ -61,8 +61,11 @@ $(() => {
                     break;
             }
         }
-    }), canvasPlayer);
+    }), canvasPlayer, playCallback);
 });
+function playCallback() {
+
+}
 function click(x, y, automove) {
     const round = hive.board.round;
     canvasPlayer.click(x, y, automove);

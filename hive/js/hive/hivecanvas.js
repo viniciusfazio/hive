@@ -10,14 +10,16 @@ const WAITING_HUD_COLOR = "rgb(0, 0, 0, .25)";
 const TIMER_HEIGHT = 20;
 
 export default class Hivecanvas {
-    canvas;
-    ctx;
     board = new Board();
-
-    #maxQtyPiecesOverOnHud;
 
     #debug = true;
     #frame = 0;
+
+    camera = new Camera();
+
+    canvas;
+    ctx;
+    #maxQtyPiecesOverOnHud;
 
     #bottomPlayerColor;
     #whitePlayer;
@@ -26,11 +28,9 @@ export default class Hivecanvas {
     #moveLists;
     #currentMoveListId;
 
-    #scale;
-    #cameraX;
-    #cameraY;
+    #playCallback;
 
-    constructor($canvas, canvasPlayer) {
+    constructor($canvas, canvasPlayer, playCallback = null) {
         this.canvas = $canvas.get(0);
         this.ctx = this.canvas.getContext("2d");
         this.#maxQtyPiecesOverOnHud = 0;
@@ -41,50 +41,44 @@ export default class Hivecanvas {
 
         this.#update();
 
+        this.#playCallback = playCallback;
     }
     #update() {
         if (this.#moveLists[0].computeTime()) {
             this.#drawTime();
         }
         const inTransition = this.board.pieces.filter(p => p.transition > 0);
+        let redraw = false;
         if (inTransition.length > 0) {
             inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .8);
+            redraw = true;
+        }
+        redraw |= this.camera.update();
+        if (redraw) {
             this.redraw();
         }
-        setTimeout(() => this.#update(), 50);
+        setTimeout(() => this.#update(), 20);
     }
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
         [this.#bottomPlayerColor, this.#whitePlayer, this.#blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.#moveLists, this.#currentMoveListId] = [[new Movelist(totalTime, increment)], 0];
-        [this.#scale, this.#cameraX, this.#cameraY] = [1, 0, 0];
-
-        // reset moves
+        this.camera.reset();
         this.board.pieces.forEach(p => {
+            p.transition = 0;
             p.reset();
-            this.#setPiecePosition(p, 0);
         });
 
-
-        this.board.computeLegalMoves();
-        this.board.pieces.forEach(p => p.targets.forEach(t => this.#setPiecePosition(t, 0)));
-        this.#whitePlayer.initPlayerTurn(this);
+        this.#initRound();
 
         this.#drawFirstFrames();
     }
-    #setPiecePosition(piece, transition = 1) {
-        if (transition === 0) {
-            piece.fromX = 0;
-            piece.fromY = 0;
-        } else {
-            piece.fromX = piece.toX + (piece.fromX - piece.toX) * piece.transition;
-            piece.fromY = piece.toY + (piece.fromY - piece.toY) * piece.transition;
-        }
-        piece.transition = transition;
-        const [rx, ry, offset] = this.#getSize();
+    getPiecePosition(piece) {
+        const [rx, ry, offset] = this.getSize();
         const [w, h] = [this.canvas.width, this.canvas.height];
+        let x, y;
         if (piece.inGame) {
-            piece.toX = w / 2 - this.#cameraX + piece.x * rx + offset * piece.z;
-            piece.toY = h / 2 + this.#cameraY - piece.y * ry * 3 - offset * piece.z;
+            x = w / 2 + piece.x * rx + offset * piece.z - this.camera.x;
+            y = h / 2 - piece.y * ry * 3 - offset * piece.z + this.camera.y;
         } else {
             const timerHeight = this.#moveLists[0].totalTime > 0 ? TIMER_HEIGHT : 0;
             const marginX = w / 2 - (Object.keys(PieceType).length + 1) * rx;
@@ -95,16 +89,21 @@ export default class Hivecanvas {
                     break;
                 }
             }
-            piece.toX = position * rx * 2 + marginX + offset * piece.z;
+            x = position * rx * 2 + marginX + offset * piece.z;
             if (this.#bottomPlayerColor.id === piece.color.id) {
-                piece.toY = h - ry * 2 - timerHeight - offset * piece.z;
+                y = h - ry * 2 - timerHeight - offset * piece.z;
             } else {
-                piece.toY = 2 * ry + (this.#maxQtyPiecesOverOnHud - piece.z) * offset + timerHeight;
+                y = 2 * ry + (this.#maxQtyPiecesOverOnHud - piece.z) * offset + timerHeight;
             }
         }
+        if (piece.transition > 0) {
+            return [x + (piece.fromX - x) * piece.transition, y + (piece.fromY - y) * piece.transition];
+        } else {
+            return [x, y];
+        }
     }
-    #getSize(scale = null) {
-        const r = (scale ?? this.#scale) * this.canvas.width / 30;
+    getSize(scale = null) {
+        const r = (scale ?? this.camera.scale) * this.canvas.width / 30;
         const offset = r / 4;
         return [r * Math.sqrt(3), r, offset];
     }
@@ -138,7 +137,7 @@ export default class Hivecanvas {
         }
 
         // draw hud
-        const [, ry, offset] = this.#getSize();
+        const [, ry, offset] = this.getSize();
         const timerHeight = this.#moveLists[0].totalTime > 0 ? TIMER_HEIGHT : 0;
         const height = 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 4 + timerHeight / 2;
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
@@ -149,14 +148,6 @@ export default class Hivecanvas {
         this.ctx.fillRect(0, timerHeight / 2, this.canvas.width, height);
         this.ctx.fillStyle = this.ctx.fillStyle === WAITING_HUD_COLOR ? PLAYING_HUD_COLOR : WAITING_HUD_COLOR;
         this.ctx.fillRect(0, this.canvas.height - height, this.canvas.width, height);
-
-        this.#drawPieces(this.board.pieces.filter(p => !p.inGame));
-
-        if (timerHeight > 0) {
-            this.#drawTime();
-        }
-
-
 
         if (this.#debug) {
             let text = [
@@ -172,6 +163,18 @@ export default class Hivecanvas {
             }
             this.#drawText(text, 0, this.canvas.height / 2 - text.length * 6, "middle", "left", 12);
         }
+
+        this.#drawPieces(this.board.pieces.filter(p => !p.inGame));
+
+        if (player instanceof CanvasPlayer && player.dragging && player.selectedPieceId !== null) {
+            this.#drawPiece(this.board.pieces.find(p => p.id === player.selectedPieceId));
+        }
+
+        if (timerHeight > 0) {
+            this.#drawTime();
+        }
+
+
     }
     #drawTime() {
         let [topTime, bottomTime] = [this.#moveLists[0].whitePiecesTimeLeft, this.#moveLists[0].blackPiecesTimeLeft];
@@ -234,7 +237,7 @@ export default class Hivecanvas {
     }
     getPiecePath2D() {
         let path = new Path2D();
-        const [rx, ry, ] = this.#getSize();
+        const [rx, ry, ] = this.getSize();
 
         let [px, py] = [null, null];
         for (const [x, y] of Board.coordsAround(0, 0)) {
@@ -258,10 +261,9 @@ export default class Hivecanvas {
                 const player = this.#getPlayerPlaying();
                 [x, y] = [player.mouseX, player.mouseY];
             } else {
-                x = piece.toX + (piece.fromX - piece.toX) * piece.transition;
-                y = piece.toY + (piece.fromY - piece.toY) * piece.transition;
+                [x, y] = this.getPiecePosition(piece);
             }
-            const [rx, ry, ] = this.#getSize();
+            const [rx, ry, ] = this.getSize();
             const path = this.getPiecePath2D();
 
             this.ctx.setTransform(1, 0, 0, 1, x, y);
@@ -285,14 +287,15 @@ export default class Hivecanvas {
             this.ctx.globalAlpha = 1;
 
             if (this.#debug) {
+                const h = Math.round(20 * this.camera.scale);
                 if (piece.inGame) {
                     let text = [piece.x + "," + piece.y + "," + piece.z];
                     if (piece.subNumber === 0) {
                         text.push(piece.id);
                     }
-                    this.#drawText(text, 0, 0);
+                    this.#drawText(text, 0, 0, "middle", "center", h);
                 } else {
-                    this.#drawText(["", piece.id], 0, 0);
+                    this.#drawText(["", piece.id], 0, 0, "middle", "center", h);
                 }
             }
 
@@ -396,7 +399,72 @@ export default class Hivecanvas {
         const moveList = this.#moveLists[this.#currentMoveListId];
         moveList.addMove(piece, target, time);
 
+        this.board.pieces.forEach(p => [[p.fromX, p.fromY], p.transition] = [this.getPiecePosition(p), 1]);
         moveList.goTo(this.board, moveList.moves.length + 1);
-    }
 
+        if (this.#playCallback) {
+            this.#playCallback();
+        }
+        this.#initRound();
+    }
+    addRound(round) {
+        this.setRound(this.board.round + round);
+    }
+    setRound(round) {
+        this.#moveLists[this.#currentMoveListId].goTo(this.board, round);
+        this.#initRound();
+    }
+    #initRound() {
+        this.board.computeLegalMoves();
+        this.camera.recenter(this);
+        this.#getPlayerPlaying().initPlayerTurn(this);
+        this.redraw();
+    }
+}
+
+class Camera {
+    scale = 1;
+    x = 0;
+    y = 0;
+    #toScale = 1;
+    #toX = 0;
+    #toY = 0;
+    constructor() {
+        this.reset();
+    }
+    reset() {
+        [this.scale, this.x, this.y, this.#toScale, this.#toX, this.#toY] = [1, 0, 0, 1, 0, 0];
+    }
+    recenter(hive) {
+        let minX = null;
+        let maxX = null;
+        let minY = null;
+        let maxY = null;
+        hive.board.inGameTopPieces.forEach(p => {
+            minX = Math.min(p.x, minX);
+            maxX = Math.max(p.x, maxX);
+            minY = Math.min(p.y, minY);
+            maxY = Math.max(p.y, maxY);
+        });
+        const [rx, ry, ] = hive.getSize(1);
+        const qtdX = 5 + maxX - minX; // number of pieces on x, adding extra piece space
+        const qtdY = 7 + maxY - minY; // number of pieces on y, adding extra piece space and hud
+        const maxInX = hive.canvas.width / rx;
+        const maxInY = hive.canvas.height / (3 * ry);
+        this.#toScale = Math.min(maxInX / qtdX, maxInY / qtdY, 1);
+        this.#toX = rx * this.#toScale * (maxX + minX) / 2;
+        this.#toY = 3 * ry * this.#toScale * (maxY + minY) / 2;
+    }
+    update() {
+        const diffX = (this.#toX - this.x) * .2;
+        const diffY = (this.#toY - this.y) * .2;
+        const diffScale = (this.#toScale - this.scale) * .2;
+        if (Math.abs(diffX) > 1e-4 || Math.abs(diffY) > 1e-4 || Math.abs(diffScale) > 1e-4) {
+            this.x += diffX;
+            this.y += diffY;
+            this.scale += diffScale;
+            return true;
+        }
+        return false;
+    }
 }

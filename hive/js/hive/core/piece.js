@@ -40,13 +40,23 @@ export default class Piece {
         this.inGame = false;
         this.targets = [];
     }
+    play(x, y, z) {
+        this.x = x;
+        this.y = y;
+        if (z < 0) {
+            this.reset();
+        } else {
+            this.inGame = true;
+            this.z = z;
+        }
+    }
 }
 
-function *coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
+function *coordsAroundWithNeighbor(board, cx, cy, ignoreX = null, ignoreY = null) {
     let xyz = [];
     for (const [x, y] of Board.coordsAround(cx, cy)) {
         // get all pieces around
-        const piece = this.inGameTopPieces.find(p => p.x === x && p.y === y);
+        const piece = board.inGameTopPieces.find(p => p.x === x && p.y === y);
         if (piece) {
             if (x === ignoreX && y === ignoreY) {
                 xyz.push([x, y, piece.z - 1]);
@@ -75,7 +85,7 @@ function checkOneHive(board, x, y) {
     let occupied = [];
     let piecesAround = [];
     for (const [ax, ay] of Board.coordsAround(x, y)) {
-        const piece = this.inGameTopPieces.find(p => p.x === ax && p.y === ay);
+        const piece = board.inGameTopPieces.find(p => p.x === ax && p.y === ay);
         if (piece) {
             piecesAround.push(piece);
             occupied.push(true);
@@ -114,7 +124,7 @@ function checkOneHive(board, x, y) {
         let newEdges = [];
         edges.forEach(edge => {
             for (const [ax, ay] of Board.coordsAround(edge.x, edge.y)) {
-                const piece = this.inGameTopPieces.find(p => p.x === ax && p.y === ay);
+                const piece = board.inGameTopPieces.find(p => p.x === ax && p.y === ay);
                 if (piece && !marked.find(p => p.id === piece.id)) {
                     marked.push(piece);
                     newEdges.push(piece);
@@ -140,7 +150,7 @@ export const PieceType = Object.freeze({
             if (!checkOneHive(board, piece.x, piece.y)) {
                 return;
             }
-            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(piece.x, piece.y)) {
+            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, piece.x, piece.y)) {
                 const noPiece = z < 0;
                 if (noPiece && noGate(piece.z, z, z1, z2)) {
                     piece.insertTarget(x, y, 0);
@@ -155,7 +165,7 @@ export const PieceType = Object.freeze({
             if (!checkOneHive(board, piece.x, piece.y)) {
                 return;
             }
-            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(piece.x, piece.y)) {
+            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, piece.x, piece.y)) {
                 if (noGate(piece.z, z, z1, z2)) {
                     piece.insertTarget(x, y, z + 1);
                 }
@@ -198,7 +208,7 @@ export const PieceType = Object.freeze({
                 // test all pahts possible
                 paths.forEach(path => {
                     const [stepX, stepY] = path[p];
-                    for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(stepX, stepY, piece.x, piece.y)) {
+                    for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y)) {
                         const noPiece = z < 0;
                         const unexplored = !path.find(([cx, cy]) => cx === x && cy === y);
                         if (noPiece && unexplored && noGate(piece.z, z, z1, z2, -1)) {
@@ -231,7 +241,7 @@ export const PieceType = Object.freeze({
             while (edges.length > 0) {
                 let newEdges = [];
                 edges.forEach(edge => {
-                    for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(edge.x, edge.y, piece.x, piece.y)) {
+                    for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, edge.x, edge.y, piece.x, piece.y)) {
                         const noPiece = z < 0;
                         if (noPiece && noGate(piece.z, z, z1, z2) &&!marked.find(p => p.x === x && p.y === y)) {
                             const p = piece.insertTarget(x, y, 0);
@@ -258,7 +268,7 @@ export const PieceType = Object.freeze({
                 // try all paths
                 paths.forEach(path => {
                     const [stepX, stepY, stepZ] = path[p];
-                    for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(stepX, stepY, piece.x, piece.y)) {
+                    for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y)) {
                         if (p < 2) {
                             // move only over pieces
                             const hasPiece = z >= 0;
@@ -305,7 +315,7 @@ export const PieceType = Object.freeze({
             const canMove = checkOneHive(board, piece.x, piece.y);
             let noPieces = [];
             let preys = [];
-            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(piece.x, piece.y)) {
+            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, piece.x, piece.y)) {
                 const noPiece = z < 0;
                 const prey = z === 0;
                 const isMoveableTarget = noPiece && noGate(piece.z + 1, z, z1, z2);
