@@ -21,9 +21,6 @@ class Board {
                 return p;
             });
         } else {
-            this.round = 1;
-            this.lastMovePieceId = null;
-            this.passRound = false;
             this.pieces = [];
             for (const keyColor in PieceColor) {
                 for (const keyType in PieceType) {
@@ -33,7 +30,17 @@ class Board {
                     }
                 }
             }
+            this.reset();
         }
+    }
+    reset() {
+        this.round = 1;
+        this.lastMovePieceId = null;
+        this.passRound = false;
+        this.pieces.forEach(p => {
+            p.transition = 0;
+            p.reset();
+        });
     }
     isQueenDead(colorId) {
         const queen = this.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);

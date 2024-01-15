@@ -50,6 +50,37 @@ export default class Piece {
             this.z = z;
         }
     }
+    static parse(p) {
+        if (p.length < 2 || p.length > 3) {
+            return null;
+        }
+        let color = null;
+        let type = null;
+        let number = 0;
+        for (const key in PieceColor) {
+            if (p[0] === PieceColor[key].id) {
+                color = PieceColor[key];
+            }
+        }
+        for (const key in PieceType) {
+            if (p[1] === PieceType[key].id) {
+                type = PieceType[key];
+                if (type.qty === 1 && p.length === 3 || type.qty > 1 && p.length === 2) {
+                    return null;
+                }
+                if (type.qty > 1) {
+                    number = parseInt(p[2]);
+                    if (number < 1 || number > type.qty) {
+                        return null;
+                    }
+                }
+            }
+        }
+        if (color === null || type === null) {
+            return null;
+        }
+        return [color.id, type.id, number];
+    }
 }
 
 function *coordsAroundWithNeighbor(board, cx, cy, ignoreX = null, ignoreY = null) {

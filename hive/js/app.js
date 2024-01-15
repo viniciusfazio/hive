@@ -1,11 +1,73 @@
 import HiveCanvas from "./hive/hivecanvas.js";
 import CanvasPlayer from "./hive/player/canvasplayer.js";
+import {PieceColor} from "./hive/core/piece.js";
 
 let hive = null;
 
 let canvasPlayer;
 $(() => {
     canvasPlayer = new CanvasPlayer();
+    $("#resign").click(() => {
+        if (!hive.getPlayerPlaying() instanceof CanvasPlayer) {
+            showMessage("Wait for your turn to resign");
+        } else {
+            hive.resign();
+        }
+    });
+    $("#newgame").click(() => {
+        const piece = $("[name='piece']:checked").val();
+        const color = piece === "black" || piece !== "white" && Math.random() < .5 ? PieceColor.black : PieceColor.white;
+        const totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : 0;
+        const increment = $("#increment").val();
+        hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment);
+    });
+    $("#download").click(() => {
+        let text = "";
+        $("#move-list > ul > li").each((i, v) => {
+            text += $(v).text() + "\n";
+        });
+        const pom = document.createElement('a');
+        pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        const date = new Date();
+        let filename = "hive_" + date.getFullYear() + "-";
+        filename += (date.getMonth() < 9 ? "0" : "") + (date.getMonth() + 1) + "-";
+        filename += (date.getDate() < 10 ? "0" : "") + date.getDate() + ".txt";
+        pom.setAttribute('download', filename);
+        pom.click();
+    });
+    $("#upload").change(() => {
+        const $file = $("#upload");
+        if ($("#move-list > ul > li").length > 2 && !hive.gameOver && !confirm("The ongoing game will be gone. Are you sure?")) {
+            $file.val(null);
+            return;
+        }
+        hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer);
+        const files = $file.prop("files");
+        if (files.length === 1) {
+            const fileReader = new FileReader();
+            fileReader.onload = e => {
+                let ended = false;
+                (e.target.result ?? "").split("\n").forEach(move => {
+                    if (ended) {
+                        return;
+                    }
+                    const error = hive.playNotation(move);
+                    if (error && error !== "cant parse") {
+                        showMessage("Error parsing '" + move + "': " + error);
+                        ended = true;
+                    }
+                });
+                if (hive.board.round === 1) {
+                    showMessage("Error parsing: no move found.");
+                }
+            };
+            fileReader.readAsText(files[0]);
+        } else if (files.length === 0) {
+            showMessage("Choose a file...");
+        } else {
+            showMessage("Choose only 1 file.");
+        }
+    });
     $("#round").mousemove(event => {
         if (event.buttons % 2 === 1) {
             setRound(event.target.value);
@@ -96,23 +158,23 @@ function hiveCallback(action) {
                     break;
                 case "resign":
                     if (action.round % 2 === 1) {
-                        msg = "White resigns! Black wins!";
-                    } else {
                         msg = "Black resigns! White wins!";
+                    } else {
+                        msg = "White resigns! Black wins!";
                     }
                     break;
                 case "timeout":
                     if (action.round % 2 === 1) {
-                        msg = "Time is over! Black wins!";
-                    } else {
                         msg = "Time is over! White wins!";
+                    } else {
+                        msg = "Time is over! Black wins!";
                     }
                     break;
             }
             if (msg !== null) {
-                $("#messageToast .toast-body").text(msg);
-                // noinspection JSUnresolvedReference
-                $("#messageToast").toast("show");
+                showMessage(msg);
+                $("#resign, #draw").addClass("d-none");
+                $("#newgame").removeClass("d-none");
 
             }
             break;
@@ -127,6 +189,11 @@ function hiveCallback(action) {
     $("#move-list > ul:last-child > li:last-child").click(() => setRound(action.round));
     $("#round").prop("max", action.round);
     updateMoveList(action.round);
+}
+function showMessage(msg) {
+    $("#messageToast .toast-body").text(msg);
+    // noinspection JSUnresolvedReference
+    $("#messageToast").toast("show");
 }
 function updateMoveList(round) {
     if (!round) {
