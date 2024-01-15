@@ -9,7 +9,7 @@ const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
 const WAITING_HUD_COLOR = "rgb(0, 0, 0, .25)";
 const TIMER_HEIGHT = 20;
 
-export default class Hivecanvas {
+export default class HiveCanvas {
     board = new Board();
 
     #debug = true;
@@ -19,6 +19,9 @@ export default class Hivecanvas {
 
     canvas;
     ctx;
+
+    gameOver;
+
     #maxQtyPiecesOverOnHud;
 
     #bottomPlayerColor;
@@ -28,23 +31,23 @@ export default class Hivecanvas {
     #moveLists;
     #currentMoveListId;
 
-    #playCallback;
+    #hiveCallback;
 
-    constructor($canvas, canvasPlayer, playCallback = null) {
+
+    constructor($canvas, canvasPlayer, hiveCallback = null) {
         this.canvas = $canvas.get(0);
         this.ctx = this.canvas.getContext("2d");
         this.#maxQtyPiecesOverOnHud = 0;
         for (const keyType in PieceType) {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
+        this.#hiveCallback = hiveCallback;
         this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 1, 5);
 
         this.#update();
-
-        this.#playCallback = playCallback;
     }
     #update() {
-        if (this.#moveLists[0].computeTime()) {
+        if (this.getMoveList().computeTime()) {
             this.#drawTime();
         }
         const inTransition = this.board.pieces.filter(p => p.transition > 0);
@@ -63,12 +66,22 @@ export default class Hivecanvas {
         [this.#bottomPlayerColor, this.#whitePlayer, this.#blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.#moveLists, this.#currentMoveListId] = [[new Movelist(totalTime, increment)], 0];
         this.camera.reset();
+        this.gameOver = false;
+
         this.board.pieces.forEach(p => {
             p.transition = 0;
             p.reset();
         });
 
         this.#initRound();
+        if (this.#hiveCallback) {
+            this.#hiveCallback({
+                type: "newGame",
+                round: this.board.round,
+                timeControl: this.getMoveList().timeControlToText(),
+            });
+        }
+
 
         this.#drawFirstFrames();
     }
@@ -80,7 +93,7 @@ export default class Hivecanvas {
             x = w / 2 + piece.x * rx + offset * piece.z - this.camera.x;
             y = h / 2 - piece.y * ry * 3 - offset * piece.z + this.camera.y;
         } else {
-            const timerHeight = this.#moveLists[0].totalTime > 0 ? TIMER_HEIGHT : 0;
+            const timerHeight = this.getMoveList().totalTime > 0 ? TIMER_HEIGHT : 0;
             const marginX = w / 2 - (Object.keys(PieceType).length + 1) * rx;
             let position = 0;
             for (const key in PieceType) {
@@ -137,8 +150,9 @@ export default class Hivecanvas {
         }
 
         // draw hud
+        const movelist = this.getMoveList();
         const [, ry, offset] = this.getSize();
-        const timerHeight = this.#moveLists[0].totalTime > 0 ? TIMER_HEIGHT : 0;
+        const timerHeight = movelist.totalTime > 0 ? TIMER_HEIGHT : 0;
         const height = 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 4 + timerHeight / 2;
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = WAITING_HUD_COLOR;
@@ -156,15 +170,23 @@ export default class Hivecanvas {
             if (player instanceof CanvasPlayer) {
                 text.push("Selected: " + player.selectedPieceId);
                 text.push("Hover: " + player.hoverPieceId);
-                text.push("White: " + this.#moveLists[0].whitePiecesTimeLeft);
-                text.push("Black: " + this.#moveLists[0].blackPiecesTimeLeft);
+                text.push("White: " + movelist.whitePiecesTimeLeft);
+                text.push("Black: " + movelist.blackPiecesTimeLeft);
                 text.push("Round: " + this.board.round);
                 text.push("Last ID: " + this.board.lastMovePieceId);
+                text.push("pass round: " + (this.board.passRound ? 1 : 0));
             }
             this.#drawText(text, 0, this.canvas.height / 2 - text.length * 6, "middle", "left", 12);
         }
 
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame));
+        if (this.board.passRound && !this.gameOver && this.#getPlayerPlaying() instanceof CanvasPlayer) {
+            const [w2, h2] = [this.canvas.width / 2, this.canvas.height / 2];
+            const fh = Math.round(w2 / 10);
+            this.ctx.fillStyle = "rgb(0, 0, 0, 0.5)";
+            this.ctx.fillRect(0, h2 - fh, w2 * 2, fh * 2);
+            this.#drawText(["Click anyware to pass"], w2, h2, "middle", "center", fh);
+        }
 
         if (player instanceof CanvasPlayer && player.dragging && player.selectedPieceId !== null) {
             this.#drawPiece(this.board.pieces.find(p => p.id === player.selectedPieceId));
@@ -173,16 +195,18 @@ export default class Hivecanvas {
         if (timerHeight > 0) {
             this.#drawTime();
         }
-
-
+    }
+    getMoveList() {
+        return this.#moveLists[this.#currentMoveListId];
     }
     #drawTime() {
-        let [topTime, bottomTime] = [this.#moveLists[0].whitePiecesTimeLeft, this.#moveLists[0].blackPiecesTimeLeft];
+        const movelist = this.getMoveList();
+        let [topTime, bottomTime] = [movelist.whitePiecesTimeLeft, movelist.blackPiecesTimeLeft];
         if (this.#bottomPlayerColor.id === PieceColor.white.id) {
             [topTime, bottomTime] = [bottomTime, topTime];
         }
 
-        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(Hivecanvas.#timeToText);
+        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(Movelist.timeToText);
 
         const [w, h, th] = [this.canvas.width, this.canvas.height, TIMER_HEIGHT]
         // swap hud color for timer
@@ -206,19 +230,6 @@ export default class Hivecanvas {
         const bottomColor = bottomTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
         this.#drawText([topTimeTxt], w / 2, 1, "top", "center", th - 2, topColor);
         this.#drawText([bottomTimeTxt], w / 2, h + 2, "bottom", "center", th - 2, bottomColor);
-    }
-    static #timeToText(t) {
-        if (t >= 10000) {
-            t = Math.floor(t / 1000);
-            const m = Math.floor(t / 60);
-            const s = t % 60;
-            return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
-        } else {
-            t = Math.floor(t / 100);
-            const s = Math.floor(t / 10);
-            const ms = t % 10;
-            return "00:0" + s + "." + ms;
-        }
     }
 
     #drawPieces(pieces, z = 0) {
@@ -320,7 +331,8 @@ export default class Hivecanvas {
             return;
         }
         const player = this.#getPlayerPlaying();
-        if (player instanceof CanvasPlayer) {
+        const playable = this.board.round > this.getMoveList().moves.length;
+        if (playable && player instanceof CanvasPlayer) {
             if (piece.id === player.selectedPieceId) {
                 if (player.hoverPieceId === null) {
                     if (player.dragging) {
@@ -366,7 +378,7 @@ export default class Hivecanvas {
             this.#drawPiece(piece, ["boarded", "3"]);
             return;
         }
-        if (piece.targets.length > 0) {
+        if (playable && piece.targets.length > 0) {
             // drawing moveable piece
             this.#drawPiece(piece, ["boarded", "4"]);
             return;
@@ -394,30 +406,63 @@ export default class Hivecanvas {
     toggleDebug() {
         this.#debug = !this.#debug;
     }
-    play(piece, target, time = null) {
-        // save the move
-        const moveList = this.#moveLists[this.#currentMoveListId];
-        moveList.addMove(piece, target, time);
-
-        this.board.pieces.forEach(p => [[p.fromX, p.fromY], p.transition] = [this.getPiecePosition(p), 1]);
+    #playRound() {
+        const moveList = this.getMoveList();
         moveList.goTo(this.board, moveList.moves.length + 1);
-
-        if (this.#playCallback) {
-            this.#playCallback();
+        const lastMove = moveList.moves[moveList.moves.length - 1];
+        if (this.#hiveCallback) {
+            this.#hiveCallback({
+                type: "move",
+                round: this.board.round,
+                move: lastMove.notation(this.board),
+            });
         }
+        this.gameOver ||= lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout;
         this.#initRound();
     }
-    addRound(round) {
-        this.setRound(this.board.round + round);
+    pass(time = null) {
+        const moveList = this.getMoveList();
+        moveList.addPass();
+        this.#playRound();
+    }
+    resign(time = null) {
+        const moveList = this.getMoveList();
+        moveList.addResign();
+        this.#playRound();
+    }
+    draw(time = null) {
+        const moveList = this.getMoveList();
+        moveList.addDraw(time);
+        this.#playRound();
+    }
+    timeout(time = null) {
+        const moveList = this.getMoveList();
+        moveList.addTimeout(time);
+        this.#playRound();
+    }
+    play(piece, target, time = null) {
+        // save the move
+        const moveList = this.getMoveList();
+        moveList.addMove(piece, target, time);
+        this.board.pieces.forEach(p => [[p.fromX, p.fromY], p.transition] = [this.getPiecePosition(p), 1]);
+        this.#playRound();
+        const whiteLoses = this.board.isQueenDead(PieceColor.white.id);
+        const blackLoses = this.board.isQueenDead(PieceColor.black.id);
+        if (whiteLoses || blackLoses) {
+            moveList.addGameOver(whiteLoses, blackLoses, time);
+            this.#playRound();
+        }
     }
     setRound(round) {
-        this.#moveLists[this.#currentMoveListId].goTo(this.board, round);
+        this.getMoveList().goTo(this.board, round);
         this.#initRound();
     }
     #initRound() {
-        this.board.computeLegalMoves();
+        this.board.computeLegalMoves(this.gameOver);
         this.camera.recenter(this);
-        this.#getPlayerPlaying().initPlayerTurn(this);
+        if (!this.gameOver) {
+            this.#getPlayerPlaying().initPlayerTurn(this);
+        }
         this.redraw();
     }
 }

@@ -9,7 +9,7 @@ export default class CanvasPlayer extends Player {
     dragging = null;
 
     hover(x, y, dragging = false) {
-        if (!this.hive) {
+        if (!this.hive || this.hive.board.round <= this.hive.getMoveList().moves.length || this.hive.gameOver) {
             return;
         }
         [this.dragging, this.mouseX, this.mouseY] = [dragging, x, y];
@@ -49,11 +49,14 @@ export default class CanvasPlayer extends Player {
 
     click(x, y, automove) {
         this.hover(x, y);
-        if (!this.hive) {
+        if (!this.hive || this.hive.gameOver) {
             return;
         }
-
-        if (this.hoverPieceId === null) {
+        if (this.hive.board.passRound) {
+            this.selectedPieceId = null;
+            this.hoverPieceId = null;
+            this.hive.pass();
+        } else if (this.hoverPieceId === null) {
             // clicked on nothing
             this.selectedPieceId = null;
         } else if (this.selectedPieceId === null) {

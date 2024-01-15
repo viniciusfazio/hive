@@ -35,19 +35,31 @@ class Board {
             }
         }
     }
+    isQueenDead(colorId) {
+        const queen = this.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
+        if (queen) {
+            for (const [x, y] of Board.coordsAround(queen.x, queen.y)) {
+                if (!this.inGameTopPieces.find(p => p.x === x && p.y === y)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 
-
-    computeLegalMoves() {
+    computeLegalMoves(ended) {
         this.pieces.forEach(p => p.targets = []);
-        this.inGameTopPieces = this.pieces.filter(p => p.inGame);
-        this.inGameTopPieces = this.inGameTopPieces.filter(p => !this.inGameTopPieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
-        const colorPlayingId = this.getColorPlaying().id;
-        this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
-
-        this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;
+        if (!ended) {
+            this.inGameTopPieces = this.pieces.filter(p => p.inGame);
+            this.inGameTopPieces = this.inGameTopPieces.filter(p => !this.inGameTopPieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
+            const colorPlayingId = this.getColorPlaying().id;
+            this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
+            this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;
+        }
     }
     #computeMoves() {
-        if (!this.#sameColorInGameTopPieces.find(p => p.type.id === PieceType.queen.id)) {
+        if (!this.pieces.find(p => p.inGame && p.color.id === this.getColorPlaying().id && p.type.id === PieceType.queen.id)) {
             return 0;
         }
         let total = 0;

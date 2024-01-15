@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Hivecanvas</title>
+    <title>Hive</title>
     <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
             integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8="
             crossorigin="anonymous"></script>
@@ -26,12 +26,11 @@
             font-size: 10px;
         }
         #move-list li {
-            cursor: pointer;;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <img src="img/pass.png" style="display: none" alt="pass" id="pass"/>
     <img src="img/ant.png" style="display: none" alt="ant" id="pieceA"/>
     <img src="img/beetle.png" style="display: none" alt="beetle" id="pieceB"/>
     <img src="img/grasshopper.png" style="display: none" alt="grasshopper" id="pieceG"/>
@@ -46,10 +45,10 @@
         </div>
         <div class="col">
             <div class="d-grid">
-                <label for="rodada" class="form-label"><i class="bi bi-skip-forward-fill"></i>
+                <label for="round" class="form-label"><i class="bi bi-skip-forward-fill"></i>
                     &nbsp;<b>Move navigator</b></label>
-                <input type="range" class="form-range" min="1" max="1" id="rodada" step="1"/>
-                <button onclick="" type="button" class="btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>
+                <input type="range" class="form-range" min="1" max="1" id="round" step="1"/>
+                <button id="download" type="button" class="btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>
                     Download current game</button>
                 <div><i class="bi bi-list-ul"></i>&nbsp;<b>Move list</b></div>
                 <div id="move-list" tabindex="2">
@@ -84,18 +83,18 @@
                 <input type="radio" class="btn-check" name="peca" id="pecaAleatoria" autocomplete="off" value="random" checked="checked"/>
                 <label class="btn" for="pecaAleatoria"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
 
-                <button onclick="" type="button" class="btn btn-danger my-1" id="newgame"><i class="bi bi-play-fill"></i>
+                <button type="button" class="btn btn-danger my-1" id="newgame"><i class="bi bi-play-fill"></i>
                     New game</button>
-                <button onclick="" type="button" class="btn btn-danger my-1 d-none" id="newonlinegame"><i class="bi bi-play-fill"></i>
+                <button type="button" class="btn btn-danger my-1 d-none" id="newonlinegame"><i class="bi bi-play-fill"></i>
                     New online game</button>
-                <button onclick="" type="button" class="btn btn-warning my-1 d-none" id="resign"><i class="bi bi-flag-fill"></i>
+                <button type="button" class="btn btn-warning my-1 d-none" id="resign"><i class="bi bi-flag-fill"></i>
                     Resign</button>
-                <button onclick="" type="button" class="btn btn-warning my-1 d-none" id="draw"><i class="bi bi-emoji-sunglasses"></i>
+                <button type="button" class="btn btn-warning my-1 d-none" id="draw"><i class="bi bi-emoji-sunglasses"></i>
                     Offer draw</button>
                 <hr/>
 
                 <div><strong><i class="bi bi-cloud-fill"></i>&nbsp;Online settings</strong></div>
-                <button onclick="" type="button" class="btn btn-danger input-group-text conexao" id="receive"><i class="bi bi-people-fill"></i>Get user ID to play online</button>
+                <button type="button" class="btn btn-danger input-group-text conexao" id="receive"><i class="bi bi-people-fill"></i>Get user ID to play online</button>
                 <button type="button" class="btn btn-secondary d-none conexao" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>
                     Receiving user ID...</button>
                 <div class="input-group mb-3 d-none conexao" id="received">
@@ -109,18 +108,18 @@
                 <div class="input-group mt-1 conexao" id="remote_id">
                     <input type="text" class="form-control" name="remote_id" placeholder="Remote user ID" value=""/>
                 </div>
-                <button onclick="" type="button" class="btn btn-danger conexao" id="connect"><i class="bi bi-people-fill"></i>
+                <button type="button" class="btn btn-danger conexao" id="connect"><i class="bi bi-people-fill"></i>
                     Connect to remote user</button>
                 <button type="button" class="btn btn-secondary d-none conexao" disabled="disabled" id="connecting"><i class="bi bi-people-fill"></i>
                     Connecting...</button>
                 <button type="button" class="btn btn-secondary d-none conexao" disabled="disabled" id="waiting"><i class="bi bi-people-fill"></i>
                     Waiting connection...</button>
-                <button onclick="" type="button" class="btn btn-danger d-none conexao" id="disconnect"><i class="bi bi-people-fill"></i>
+                <button type="button" class="btn btn-danger d-none conexao" id="disconnect"><i class="bi bi-people-fill"></i>
                     Disconnect</button>
                 <hr>
                 <div class="mb-1" id="opengame">
                     <label for="file" class="form-label"><strong><i class="bi bi-folder-fill"></i> Open game from file</strong></label>
-                    <input class="form-control form-control-sm" type="file" id="file" onchange="">
+                    <input class="form-control form-control-sm" type="file" id="file">
                 </div>
             </div>
         </div>
