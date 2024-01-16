@@ -71,19 +71,21 @@ export default class Movelist {
         move.toZ = target.z;
         this.#pushMoveWithTime(move, time);
     }
-    timeControlToText() {
-        if (this.totalTime === 0) {
+    timeControlToText(totalTime = null, increment = null) {
+        totalTime = totalTime ?? this.totalTime;
+        increment = increment ?? this.#increment;
+        if (totalTime === 0) {
             return "no time control";
         } else {
             let txt = "";
-            if (this.totalTime >= 60) {
-                txt += Math.floor(this.totalTime / 60) + "m";
+            if (totalTime >= 60) {
+                txt += Math.floor(totalTime / 60) + "m";
             }
-            if (this.totalTime % 60 > 0) {
-                const s = this.totalTime % 60;
+            if (totalTime % 60 > 0) {
+                const s = totalTime % 60;
                 txt += s + "s";
             }
-            return txt + "+" + this.#increment + "s";
+            return txt + "+" + increment + "s";
         }
     }
     computeTime(time = null) {

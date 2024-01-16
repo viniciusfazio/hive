@@ -1,4 +1,3 @@
-
 import Player from "./player.js";
 
 export default class CanvasPlayer extends Player {

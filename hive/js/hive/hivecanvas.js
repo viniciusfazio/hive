@@ -1,4 +1,3 @@
-
 import Board from "./core/board.js";
 import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
@@ -34,7 +33,7 @@ export default class HiveCanvas {
     #hiveCallback;
 
 
-    constructor($canvas, canvasPlayer, hiveCallback = null) {
+    init($canvas, canvasPlayer, hiveCallback = null) {
         this.canvas = $canvas.get(0);
         this.ctx = this.canvas.getContext("2d");
         this.#maxQtyPiecesOverOnHud = 0;
@@ -42,7 +41,7 @@ export default class HiveCanvas {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
         this.#hiveCallback = hiveCallback;
-        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, .1, 5);
+        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer);
 
         this.#update();
     }
@@ -568,7 +567,7 @@ export default class HiveCanvas {
         this.board.computeLegalMoves(this.gameOver);
         this.camera.recenter(this);
         if (!this.gameOver) {
-            this.getPlayerPlaying().initPlayerTurn(this);
+            this.getPlayerPlaying().initPlayerTurn();
         }
         this.redraw();
     }

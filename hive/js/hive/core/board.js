@@ -1,4 +1,3 @@
-
 import Piece, {PieceColor, PieceType} from "./piece.js"
 class Board {
     round;

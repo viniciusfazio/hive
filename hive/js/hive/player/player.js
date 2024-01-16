@@ -1,6 +1,8 @@
 export default class Player {
     hive;
-    initPlayerTurn(hive) {
+    constructor(hive) {
         this.hive = hive;
+    }
+    initPlayerTurn() {
     }
 }

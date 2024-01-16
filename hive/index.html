@@ -74,10 +74,10 @@
                     <input type="number" class="form-control" min="0" max="300" id="increment" value="3"/>
                     <label for="increment">Increment per move (in seconds)</label>
                 </div>
-                <input type="radio" class="btn-check" name="piece" id="whitePiece" autocomplete="off" value="white"/>
+                <input type="radio" class="btn-check" name="piece" id="whitePiece" autocomplete="off" value="w"/>
                 <label class="btn" for="whitePiece"><i class="bi bi-bug"></i>&nbsp;Play as White</label>
 
-                <input type="radio" class="btn-check" name="piece" id="blackPiece" autocomplete="off" value="black"/>
+                <input type="radio" class="btn-check" name="piece" id="blackPiece" autocomplete="off" value="b"/>
                 <label class="btn" for="blackPiece"><i class="bi bi-bug-fill"></i>&nbsp;Play as Black</label>
 
                 <input type="radio" class="btn-check" name="piece" id="randomPiece" autocomplete="off" value="random" checked="checked"/>
@@ -94,10 +94,10 @@
                 <hr/>
 
                 <div><strong><i class="bi bi-cloud-fill"></i>&nbsp;Online settings</strong></div>
-                <button type="button" class="btn btn-danger input-group-text conexao" id="receive"><i class="bi bi-people-fill"></i>Get user ID to play online</button>
-                <button type="button" class="btn btn-secondary d-none conexao" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>
+                <button type="button" class="btn btn-danger input-group-text connection" id="receive"><i class="bi bi-people-fill"></i>Get user ID to play online</button>
+                <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>
                     Receiving user ID...</button>
-                <div class="input-group mb-3 d-none conexao" id="received">
+                <div class="input-group mb-3 d-none connection" id="received">
                     <span class="input-group-text">User ID:</span>
                     <input type="text" id="user_id" class="form-control" value=""/>
                     <button class="btn btn-primary" data-clipboard-target="#user_id" id="user_id_button">
@@ -105,16 +105,16 @@
                     </button>
                 </div>
 
-                <div class="input-group mt-1 conexao" id="remote_id">
+                <div class="input-group mt-1 connection" id="remote_id">
                     <input type="text" class="form-control" name="remote_id" placeholder="Remote user ID" value=""/>
                 </div>
-                <button type="button" class="btn btn-danger conexao" id="connect"><i class="bi bi-people-fill"></i>
+                <button type="button" class="btn btn-danger connection" id="connect"><i class="bi bi-people-fill"></i>
                     Connect to remote user</button>
-                <button type="button" class="btn btn-secondary d-none conexao" disabled="disabled" id="connecting"><i class="bi bi-people-fill"></i>
+                <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="connecting"><i class="bi bi-people-fill"></i>
                     Connecting...</button>
-                <button type="button" class="btn btn-secondary d-none conexao" disabled="disabled" id="waiting"><i class="bi bi-people-fill"></i>
+                <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="waiting"><i class="bi bi-people-fill"></i>
                     Waiting connection...</button>
-                <button type="button" class="btn btn-danger d-none conexao" id="disconnect"><i class="bi bi-people-fill"></i>
+                <button type="button" class="btn btn-danger d-none connection" id="disconnect"><i class="bi bi-people-fill"></i>
                     Disconnect</button>
                 <hr>
                 <div class="mb-1" id="opengame">
@@ -133,7 +133,7 @@
             <div class="toast-body">
                 <span id="challenge"></span>
                 <div class="mt-2 pt-2 border-top">
-                    <button type="button" onclick="" class="btn btn-primary btn-sm">Accept</button>
+                    <button type="button" id="acceptNewGame" onclick="" class="btn btn-primary btn-sm">Accept</button>
                 </div>
             </div>
         </div>
@@ -145,7 +145,7 @@
             <div class="toast-body">
                 Your opponent offers draw. Do you accept?
                 <div class="mt-2 pt-2 border-top">
-                    <button type="button" onclick="" class="btn btn-primary btn-sm">Accept</button>
+                    <button type="button" id="acceptDraw" onclick="" class="btn btn-primary btn-sm">Accept</button>
                 </div>
             </div>
         </div>
