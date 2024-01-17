@@ -164,7 +164,7 @@ export default class HiveCanvas {
 
         if (this.#debug) {
             let text = [
-                "Frame + " + this.#frame,
+                "Frame: " + this.#frame,
                 "Selected: " + player.selectedPieceId,
                 "Hover: " + player.hoverPieceId,
                 "White: " + moveList.whitePiecesTimeLeft,
