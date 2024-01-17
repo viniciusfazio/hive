@@ -2,7 +2,6 @@ import HiveCanvas from "./hive/hivecanvas.js";
 import CanvasPlayer from "./hive/player/canvasplayer.js";
 import {PieceColor} from "./hive/core/piece.js";
 import OnlinePlayer from "./hive/player/onlineplayer.js";
-//import {Toast} from "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.esm.min.js";
 
 let hive, canvasPlayer, onlinePlayer;
 $(() => {
