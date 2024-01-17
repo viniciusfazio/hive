@@ -235,7 +235,7 @@ export const PieceType = Object.freeze({
             // make exactly 3 moves
             for (let p = 0; p < 3; p++) {
                 let newPaths = [];
-                // test all pahts possible
+                // test all paths possible
                 paths.forEach(path => {
                     const [stepX, stepY] = path[p];
                     for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y)) {
@@ -332,13 +332,13 @@ export const PieceType = Object.freeze({
                 for (const [x, y] of Board.coordsAround(piece.x, piece.y)) {
                     const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
                     if (p && p.type.id !== PieceType.mosquito.id) {
-                        p.tipo.jogadas(board, piece);
+                        p.type.play(board, piece);
                     }
                 }
             }
         }
     }),
-    pillbug: Object.freeze({
+    pillBug: Object.freeze({
         id: "P",
         qty: 1,
         play: (board, piece) => {
@@ -348,13 +348,13 @@ export const PieceType = Object.freeze({
             for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, piece.x, piece.y)) {
                 const noPiece = z < 0;
                 const prey = z === 0;
-                const isMoveableTarget = noPiece && noGate(piece.z + 1, z, z1, z2);
-                if (isMoveableTarget) {
+                const isMovableTarget = noPiece && noGate(piece.z + 1, z, z1, z2);
+                if (isMovableTarget) {
                     noPieces.push([x, y]);
                 } else if (prey && noGate(z, piece.z, z1, z2)) {
                     preys.push([x, y]);
                 }
-                if (canMove && isMoveableTarget) {
+                if (canMove && isMovableTarget) {
                     piece.insertTarget(x, y, 0);
                 }
             }

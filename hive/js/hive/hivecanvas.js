@@ -184,7 +184,7 @@ export default class HiveCanvas {
             const fh = Math.round(w2 / 10);
             this.ctx.fillStyle = "rgb(0, 0, 0, 0.5)";
             this.ctx.fillRect(0, h2 - fh, w2 * 2, fh * 2);
-            this.#drawText(["Click anyware to pass"], w2, h2, "middle", "center", fh);
+            this.#drawText(["Click anywhere to pass"], w2, h2, "middle", "center", fh);
         }
 
         if (player instanceof CanvasPlayer && player.dragging && player.selectedPieceId !== null) {
@@ -235,7 +235,7 @@ export default class HiveCanvas {
         let piecesAbove = [];
         pieces.forEach(p => {
             if (p.z > z) {
-                piecesAbove.push(p); // se for peça acima, guarda para próxima iteração
+                piecesAbove.push(p); // pieces above go to the next iteration
             } else {
                 this.#drawPiece(p);
             }
@@ -381,7 +381,7 @@ export default class HiveCanvas {
             return;
         }
         if (playable && piece.targets.length > 0) {
-            // drawing moveable piece
+            // drawing movable piece
             this.#drawPiece(piece, ["boarded", "4"]);
             return;
         }
