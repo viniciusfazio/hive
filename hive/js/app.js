@@ -43,7 +43,7 @@ $(() => {
     hive.init($("#hive").prop("width", size).prop("height", size)
     .mousemove(event => canvasPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1))
     .mousedown(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked")))
-    .mouseup(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked")))
+    .mouseup(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked"), true))
     .keydown(event => {
         switch (event.key) {
             case "ArrowLeft":

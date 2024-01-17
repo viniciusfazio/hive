@@ -58,7 +58,7 @@ export default class HiveCanvas {
         const inTransition = this.board.pieces.filter(p => p.transition > 0);
         let redraw = false;
         if (inTransition.length > 0) {
-            inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .9);
+            inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .85);
             redraw = true;
         }
         redraw |= this.camera.update();
@@ -437,9 +437,9 @@ export default class HiveCanvas {
     toggleDebug() {
         this.#debug = !this.#debug;
     }
-    #playRound() {
+    #playRound(withAnimation = true) {
         const moveList = this.getMoveList();
-        moveList.goTo(this.board, moveList.moves.length + 1, p => this.#resetPieceAnimation(p));
+        moveList.goTo(this.board, moveList.moves.length + 1, p => withAnimation && this.#resetPieceAnimation(p));
         const lastMove = moveList.moves[moveList.moves.length - 1];
         this.#callbacks.move(this.board.round, (this.board.round - 1) + ". " + lastMove.notation(this.board));
         this.gameOver ||= lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout;
@@ -569,12 +569,12 @@ export default class HiveCanvas {
         this.play(from, to, time);
         return null;
     }
-    play(piece, target, time = null) {
+    play(piece, target, time = null, withAnimation = true) {
         if (this.gameOver) return;
         // save the move
         const moveList = this.getMoveList();
         moveList.addMove(piece, target, time);
-        this.#playRound();
+        this.#playRound(withAnimation);
         const whiteLoses = this.board.isQueenDead(PieceColor.white.id);
         const blackLoses = this.board.isQueenDead(PieceColor.black.id);
         if (whiteLoses || blackLoses) {

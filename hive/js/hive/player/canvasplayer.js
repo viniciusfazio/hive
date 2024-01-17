@@ -51,7 +51,7 @@ export default class CanvasPlayer extends Player {
     }
 
 
-    click(x, y, autoMove) {
+    click(x, y, autoMove, dragging = false) {
         if (this.hover(x, y)) {
             if (this.hive.board.passRound) {
                 this.selectedPieceId = null;
@@ -74,14 +74,14 @@ export default class CanvasPlayer extends Player {
                     // clicked on piece when another piece was selected
                     this.selectedPieceId = this.hoverPieceId;
                     this.hoverPieceId = null;
-                } else {
+                } else if (this.hoverPieceId !== this.selectedPieceId) {
                     this.selectedPieceId = null;
                 }
             } else {
                 // clicked on target
                 const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
                 const target = piece.targets.find(p => p.id === this.hoverPieceId);
-                this.hive.play(piece, target);
+                this.hive.play(piece, target, null, !dragging);
                 this.selectedPieceId = null;
                 this.hoverPieceId = null;
             }
