@@ -256,7 +256,9 @@ export const PieceType = Object.freeze({
                                 newPath.push([x, y, 0]);
                                 newPaths.push(newPath);
                             } else {
-                                piece.insertTarget(x, y, 0, path.map(xyz => [...xyz]));
+                                let intermediateXYZs = path.map(xyz => [...xyz]);
+                                intermediateXYZs.shift();
+                                piece.insertTarget(x, y, 0, intermediateXYZs);
                             }
                         }
                     }
@@ -287,7 +289,8 @@ export const PieceType = Object.freeze({
                             let newPath = [...path];
                             newPath.push([x, y, 0]);
                             newPaths.push(newPath);
-                            const intermediateXYZs = path.map(xyz => [...xyz]);
+                            let intermediateXYZs = path.map(xyz => [...xyz]);
+                            intermediateXYZs.shift();
                             piece.insertTarget(x, y, 0, intermediateXYZs);
                         }
                     }
@@ -311,10 +314,10 @@ export const PieceType = Object.freeze({
                 paths.forEach(path => {
                     const [stepX, stepY, stepZ] = path[p];
                     for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y)) {
+                        const unexplored = !path.find(([cx, cy, ]) => cx === x && cy === y);
                         if (p < 2) {
                             // move only over pieces
                             const hasPiece = z >= 0;
-                            const unexplored = !path.find(([cx, cy, ]) => cx === x && cy === y);
                             if (hasPiece && unexplored && onHiveAndNoGate(stepZ, z, z1, z2)) {
                                 let newPath = [...path];
                                 newPath.push([x, y, z + 1]);
@@ -323,8 +326,10 @@ export const PieceType = Object.freeze({
                         } else {
                             // move only to empty spaces
                             const noPiece = z < 0;
-                            if (noPiece && onHiveAndNoGate(stepZ + 1, z, z1, z2)) {
-                                piece.insertTarget(x, y, 0, path.map(xyz => [...xyz]));
+                            if (noPiece && unexplored && onHiveAndNoGate(stepZ + 1, z, z1, z2)) {
+                                let intermediateXYZs = path.map(xyz => [...xyz]);
+                                intermediateXYZs.shift();
+                                piece.insertTarget(x, y, 0, intermediateXYZs);
                             }
                         }
                     }
