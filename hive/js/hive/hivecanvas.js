@@ -565,9 +565,7 @@ export default class HiveCanvas {
     }
     #initRound() {
         this.board.computeLegalMoves(this.gameOver);
-        if (!this.gameOver) {
-            this.getPlayerPlaying().initPlayerTurn();
-        }
+        this.getPlayerPlaying().initPlayerTurn();
         this.camera.recenter(this);
         this.redraw();
     }

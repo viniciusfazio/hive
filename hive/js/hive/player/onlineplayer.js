@@ -98,6 +98,9 @@ export default class OnlinePlayer extends Player {
                     const bottomColor = data.color === "w" ? PieceColor.white : PieceColor.black;
                     callbacks.newGame(bottomColor, data.totalTime, data.increment);
                     break;
+                case "draw_ok":
+                    this.hive.draw();
+                    break;
                 case "move":
                     this.hive.playNotation(data.move, data.time);
                     break;
@@ -113,11 +116,20 @@ export default class OnlinePlayer extends Player {
             increment: increment,
         });
     }
+    draw() {
+        this.#conn.send({type: "draw"});
+    }
     acceptNewGame(callbacks) {
         if (this.#conn) {
             this.#conn.send(this.#challenge);
             const bottomColor = this.#challenge.colorAccepted === "w" ? PieceColor.white : PieceColor.black;
             callbacks.newGame(bottomColor, this.#challenge.totalTime, this.#challenge.increment);
+        }
+    }
+    acceptDraw() {
+        if (this.#conn) {
+            this.#conn.send({type: "draw_ok"});
+            this.hive.draw();
         }
     }
     #resetConnection(callbacks, showNotification = true) {

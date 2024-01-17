@@ -15,9 +15,10 @@ $(() => {
     $("#upload").change(upload);
     $("#receive").click(receive);
     $("#connect").click(connect);
-    $("#draw").click(() => hive.resign());
+    $("#draw").click(draw);
     $("#disconnect").click(() => onlinePlayer.disconnect(onlineCallbacks()));
     $("#acceptNewGame").click(acceptNewGame);
+    $("#acceptDraw").click(acceptDraw);
     $("#round").mousemove(event => {
         if (event.buttons % 2 === 1) {
             setRound(event.target.value);
@@ -67,8 +68,8 @@ $(() => {
     }), canvasPlayer);
 });
 function setRound(round) {
+    round = Math.max(1, Math.min(round, hive.getMoveList().moves.length + 1));
     hive.setRound(round);
-    showMessage("round " + round);
     updateMoveList(round);
 }
 function addRound(round) {
@@ -91,8 +92,8 @@ function showMessage(msg) {
     // noinspection JSUnresolvedReference
     $("#messageToast").toast("show");
 }
-function updateMoveList(round) {
-    if (!round) {
+function updateMoveList(round = null) {
+    if (round === null) {
         round = hive.board.round;
     }
     $("#move-list > ul > li").removeClass("active");
@@ -154,6 +155,10 @@ function newGame() {
     const increment = $("#increment").val();
     hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment);
 }
+function draw () {
+    onlinePlayer.draw();
+    $("#drawSentToast").toast("show");
+}
 function newOnlineGame() {
     const piece = $("[name='piece']:checked").val();
     const totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : 0;
@@ -166,6 +171,11 @@ function acceptNewGame() {
     // noinspection JSUnresolvedReference
     $("#challengeToast").toast("hide");
     onlinePlayer.acceptNewGame(onlineCallbacks());
+}
+function acceptDraw() {
+    // noinspection JSUnresolvedReference
+    $("#drawToast").toast("hide");
+    onlinePlayer.acceptDraw();
 }
 function resign() {
     if (hive.getPlayerPlaying() instanceof CanvasPlayer) {
