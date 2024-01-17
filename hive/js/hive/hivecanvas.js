@@ -58,7 +58,7 @@ export default class HiveCanvas {
         const inTransition = this.board.pieces.filter(p => p.transition > 0);
         let redraw = false;
         if (inTransition.length > 0) {
-            inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .8);
+            inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .9);
             redraw = true;
         }
         redraw |= this.camera.update();
