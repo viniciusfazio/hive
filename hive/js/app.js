@@ -14,7 +14,6 @@ $(() => {
     $("#download").click(download);
     $("#upload").change(upload);
     $("#receive").click(receive);
-    $("#connect").click(connect);
     $("#draw").click(draw);
     $("#disconnect").click(() => onlinePlayer.disconnect(onlineCallbacks()));
     $("#acceptNewGame").click(acceptNewGame);
@@ -66,6 +65,10 @@ $(() => {
                 break;
         }
     }), canvasPlayer);
+    const id = getParam("id");
+    if (id !== null) {
+        connect(id);
+    }
 });
 function setRound(round) {
     round = Math.max(1, Math.min(round, hive.getMoveList().moves.length + 1));
@@ -184,17 +187,28 @@ function resign() {
         showMessage("Wait for your turn to resign");
     }
 }
-function connect() {
-    $("#connect").addClass("d-none");
+function connect(id) {
     $("#connecting").removeClass("d-none");
-    $("#receive, #connect, #remote_id, #openGame").addClass("d-none");
+    $("#receive, #openGame").addClass("d-none");
     onlinePlayer = new OnlinePlayer(hive);
-    onlinePlayer.connect($("[name='remote_id']").val().trim(), onlineCallbacks());
+    onlinePlayer.connect(id, onlineCallbacks());
+}
+function getParam(name) {
+    const param = window.location.search.substring(1).split("&")
+        .map(param => param.split("=", 2))
+        .find(param => param[0] === name);
+    if (!param) {
+        return null;
+    } else if (param.length === 1) {
+        return "";
+    } else {
+        return param[1];
+    }
 }
 function receive() {
     $("#receive").addClass("d-none");
     $("#receiving").removeClass("d-none");
-    $("#receive, #connect, #remote_id, #openGame").addClass("d-none");
+    $("#receive, #openGame").addClass("d-none");
     onlinePlayer = new OnlinePlayer(hive);
     onlinePlayer.waitForConnection(onlineCallbacks());
 }
@@ -253,7 +267,7 @@ function onlineCallbacks() {
         waiting: id => {
             $("#receiving").addClass("d-none");
             $("#waiting, #received").removeClass("d-none");
-            $("#user_id").val(id);
+            $("#user_id").val(window.location.href.split('?')[0] + "?id=" + id);
             // noinspection JSUnresolvedReference
             new ClipboardJS("#user_id_button");
         },
@@ -286,8 +300,7 @@ function connectionBroken(showNotification) {
         showMessage("Connection broken")
     }
     $(".connection, #openGame, #newOnlineGame, #resign, #draw").addClass("d-none");
-    $("#remote_id").val("");
-    $("#receive, #remote_id, #connect, #newGame, #openGame").removeClass("d-none");
+    $("#receive, #newGame, #openGame").removeClass("d-none");
     if (hive.whitePlayer instanceof OnlinePlayer) {
         hive.whitePlayer = canvasPlayer;
     }
