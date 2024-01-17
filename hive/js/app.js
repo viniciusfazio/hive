@@ -159,9 +159,11 @@ function newOnlineGame() {
     const totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : 0;
     const increment = $("#increment").val();
     onlinePlayer.newGame(piece, totalTime, increment);
+    // noinspection JSUnresolvedReference
     $("#challengeSentToast").toast("show");
 }
 function acceptNewGame() {
+    // noinspection JSUnresolvedReference
     $("#challengeToast").toast("hide");
     onlinePlayer.acceptNewGame(onlineCallbacks());
 }
@@ -236,6 +238,7 @@ function gameOver() {
     }
 }
 function onlineCallbacks() {
+    // noinspection JSUnresolvedReference
     return {
         waiting: id => {
             $("#receiving").addClass("d-none");
@@ -253,6 +256,7 @@ function onlineCallbacks() {
             const you = color === "random" ? "Random" : (color === "w" ? "Black" : "White");
             const timeControl = hive.getMoveList().timeControlToText(totalTime, increment);
             $("#challenge").text("You play as " + you + " with " + timeControl + ".  Do you accept?");
+            // noinspection JSUnresolvedReference
             $("#challengeToast").toast("show", { autohide: false });
         },
         newGame: (bottomColor, totalTime, increment) => {

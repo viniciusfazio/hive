@@ -66,7 +66,7 @@ export default class OnlinePlayer extends Player {
 
     }
     #initPeer(callbacks) {
-        this.#peer = new Peer();
+        this.#peer = new peerjs.Peer();
         this.#peer.on("error", callbacks.error);
         this.#peer.on("disconnected", () => this.#resetConnection(callbacks));
         this.#peer.on("close", () => this.#resetConnection(callbacks));
