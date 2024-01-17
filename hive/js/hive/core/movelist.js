@@ -113,14 +113,14 @@ export default class MoveList {
         }
         return true;
     }
-    goTo(board, round, callbackFrom) {
+    goTo(board, round, callbackMove) {
         round = Math.max(1, Math.min(round, this.moves.length + 1));
         if (board.round < round) {
             for (; board.round < round; board.round++) { // redo moves
                 const move = this.moves[board.round - 1];
                 if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                     const p = board.pieces.find(p => p.id === move.pieceId);
-                    callbackFrom(p);
+                    callbackMove(p);
                     p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
                 }
             }
@@ -129,7 +129,7 @@ export default class MoveList {
                 const move = this.moves[board.round - 1];
                 if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                     const p = board.pieces.find(p => p.id === move.pieceId);
-                    callbackFrom(p);
+                    callbackMove(p);
                     p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
                 }
             }
