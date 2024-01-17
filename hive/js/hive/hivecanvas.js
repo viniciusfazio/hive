@@ -315,6 +315,9 @@ export default class HiveCanvas {
                     this.ctx.strokeStyle = "rgb(0, 255, 255)";
                 } else if (style.includes("4")) {
                     this.ctx.strokeStyle = "rgb(255, 128, 0)";
+                } else if (style.includes("5")) {
+                    this.ctx.strokeStyle = "rgb(0, 255, 0)";
+                    this.ctx.lineWidth = 4;
                 } else {
                     this.ctx.strokeStyle = "rgb(255, 0, 0)";
                 }
@@ -381,6 +384,10 @@ export default class HiveCanvas {
             // drawing moveable piece
             this.#drawPiece(piece, ["boarded", "4"]);
             return;
+        }
+        if (piece.type.id === PieceType.queen.id && piece.inGame && !this.board.inGameTopPieces.find(p => p.id === piece.id)) {
+            // there are pieces above queen
+            this.#drawPiece(piece, ["boarded", "5"]);
         }
         // drawing piece in other cases
         this.#drawPiece(piece, []);
