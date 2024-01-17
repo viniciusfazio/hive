@@ -24,8 +24,8 @@ export default class HiveCanvas {
     #maxQtyPiecesOverOnHud;
 
     #bottomPlayerColor;
-    #whitePlayer;
-    #blackPlayer;
+    whitePlayer;
+    blackPlayer;
 
     #moveLists;
     #currentMoveListId;
@@ -68,7 +68,7 @@ export default class HiveCanvas {
         setTimeout(() => this.#update(), 20);
     }
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
-        [this.#bottomPlayerColor, this.#whitePlayer, this.#blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
+        [this.#bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.#moveLists, this.#currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
         this.camera.reset();
         this.gameOver = false;
@@ -164,17 +164,17 @@ export default class HiveCanvas {
 
         if (this.#debug) {
             let text = [
-                "Frame: " + this.#frame,
+                "Frame + " + this.#frame,
+                "Selected: " + player.selectedPieceId,
+                "Hover: " + player.hoverPieceId,
+                "White: " + moveList.whitePiecesTimeLeft,
+                "Black: " + moveList.blackPiecesTimeLeft,
+                "Round: " + this.board.round,
+                "Last ID: " + this.board.lastMovePieceId,
+                "pass round: " + (this.board.passRound ? 1 : 0),
+                "white player: " + this.whitePlayer.constructor.name,
+                "black player: " + this.blackPlayer.constructor.name,
             ];
-            if (player instanceof CanvasPlayer) {
-                text.push("Selected: " + player.selectedPieceId);
-                text.push("Hover: " + player.hoverPieceId);
-                text.push("White: " + moveList.whitePiecesTimeLeft);
-                text.push("Black: " + moveList.blackPiecesTimeLeft);
-                text.push("Round: " + this.board.round);
-                text.push("Last ID: " + this.board.lastMovePieceId);
-                text.push("pass round: " + (this.board.passRound ? 1 : 0));
-            }
             this.#drawText(text, 0, this.canvas.height / 2 - text.length * 6, "middle", "left", 12);
         }
 
@@ -400,7 +400,7 @@ export default class HiveCanvas {
         })
     }
     getPlayerPlaying() {
-        return this.board.round % 2 === 1 ? this.#whitePlayer : this.#blackPlayer;
+        return this.board.round % 2 === 1 ? this.whitePlayer : this.blackPlayer;
     }
     toggleDebug() {
         this.#debug = !this.#debug;

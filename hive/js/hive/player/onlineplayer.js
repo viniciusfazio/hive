@@ -9,7 +9,7 @@ export default class OnlinePlayer extends Player {
     }
     initPlayerTurn() {
         const moveList = this.hive.getMoveList();
-        if (this.#conn?.open && moveList.length > 0) {
+        if (this.#conn && moveList.moves.length > 0) {
             const lastMove = moveList.moves[moveList.moves.length - 1];
             this.#conn.send({
                 type: "move",
@@ -20,10 +20,10 @@ export default class OnlinePlayer extends Player {
     }
 
     disconnect(callbacks) {
-        if (this.#conn?.open) {
+        if (this.#conn) {
             this.#conn.send({type: "quit"});
             this.#peer.disconnect();
-            this.#resetConnection(false);
+            this.#resetConnection(callbacks, false);
             callbacks.disconnect();
         }
     }
@@ -52,7 +52,7 @@ export default class OnlinePlayer extends Player {
         this.#peer.on('connection', conn => {
             // Allow only a single connection
             if (this.#conn?.open) {
-                conn.on('open', function() {
+                conn.on('open', () => {
                     conn.send("Already connected to another client");
                     setTimeout(() => { conn.close(); }, 500);
                 });
@@ -68,8 +68,8 @@ export default class OnlinePlayer extends Player {
     #initPeer(callbacks) {
         this.#peer = new Peer();
         this.#peer.on("error", callbacks.error);
-        this.#peer.on("disconnected", this.#resetConnection);
-        this.#peer.on("close", this.#resetConnection);
+        this.#peer.on("disconnected", () => this.#resetConnection(callbacks));
+        this.#peer.on("close", () => this.#resetConnection(callbacks));
     }
     #initConn(conn, callbacks) {
         this.#conn = conn;
@@ -77,7 +77,7 @@ export default class OnlinePlayer extends Player {
             switch (data.type) {
                 case "quit":
                     callbacks.opponentDisconnects();
-                    this.#resetConnection(false);
+                    this.#resetConnection(callbacks, false);
                     break;
                 case "draw":
                     callbacks.opponentOffersDraw();
@@ -99,11 +99,10 @@ export default class OnlinePlayer extends Player {
                     callbacks.newGame(bottomColor, data.totalTime, data.increment);
                     break;
                 case "move":
-                    alert(data.move);
                     this.hive.playNotation(data.move, data.time);
                     break;
             }
-        }).on("close", this.#resetConnection);
+        }).on("close", () => this.#resetConnection(callbacks));
         this.#ping();
     }
     newGame(color, totalTime, increment) {
@@ -115,20 +114,18 @@ export default class OnlinePlayer extends Player {
         });
     }
     acceptNewGame(callbacks) {
-        if (this.#conn?.open) {
+        if (this.#conn) {
             this.#conn.send(this.#challenge);
             const bottomColor = this.#challenge.colorAccepted === "w" ? PieceColor.white : PieceColor.black;
             callbacks.newGame(bottomColor, this.#challenge.totalTime, this.#challenge.increment);
         }
     }
-    #resetConnection(showNotification = true, callbacks) {
-        if (showNotification) {
-            callbacks.connectionBroken(showNotification);
-        }
+    #resetConnection(callbacks, showNotification = true) {
+        callbacks.connectionBroken(showNotification);
         this.#conn = null;
     }
     #ping() {
-        if (this.#conn?.open) {
+        if (this.#conn) {
             this.#conn.send({type: "ping"});
             setTimeout(() => this.#ping(), 30000);
         }

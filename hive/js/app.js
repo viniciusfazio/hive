@@ -22,9 +22,7 @@ $(() => {
         if (event.buttons % 2 === 1) {
             setRound(event.target.value);
         }
-    }).change(event => {
-        setRound(event.target.value);
-    });
+    }).change(event => setRound(event.target.value));
     $("#move-list").keydown(event => {
         switch (event.key) {
             case "ArrowLeft":
@@ -42,13 +40,12 @@ $(() => {
         }
     });
     const size = Math.min(window.innerWidth, window.innerHeight) - 20 - 15; // remove border and scroll sizes
-    hive.init($("#hive").prop("width", size).prop("height", size).mousemove(event => {
-        canvasPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1);
-    }).mousedown(event => {
-        click(event.offsetX, event.offsetY, $("#autoMove").prop("checked"));
-    }).mouseup(event => {
-        click(event.offsetX, event.offsetY, $("#autoMove").prop("checked"));
-    }).keydown(event => {
+    const $autoMove = $("#autoMove");
+    hive.init($("#hive").prop("width", size).prop("height", size)
+    .mousemove(event => canvasPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1))
+    .mousedown(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked")))
+    .mouseup(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked")))
+    .keydown(event => {
         switch (event.key) {
             case "ArrowLeft":
                 addRound(-1);
@@ -78,8 +75,6 @@ function addRound(round) {
     setRound(hive.board.round + round);
 }
 function appendMoveList(round, move) {
-    $("#resign, #draw").addClass("d-none");
-    $("#newgame").removeClass("d-none");
     const li = '<li class="list-group-item list-group-item-action py-0">' + move + '</li>';
     const $ul = $("#move-list > ul:last-child");
     if (round <= 2 || $ul.find("li").length > 1) {
@@ -104,14 +99,6 @@ function updateMoveList(round) {
     $("#move-list > ul").eq(round === 1 ? 0 : Math.floor(round / 2))
         .find("li").eq(round === 1 ? 0 : round % 2).addClass("active");
     $("#round").val(round);
-}
-function click(x, y, autoMove) {
-    const round = hive.board.round;
-    canvasPlayer.click(x, y, autoMove);
-    if (round === 1 && hive.board.round === 2) {
-        $("#newGame, #newOnlineGame").addClass("d-none");
-        $("#resign").removeClass("d-none");
-    }
 }
 function upload() {
     const $file = $("#upload");
@@ -179,10 +166,10 @@ function acceptNewGame() {
     onlinePlayer.acceptNewGame(onlineCallbacks());
 }
 function resign() {
-    if (!hive.getPlayerPlaying() instanceof CanvasPlayer) {
-        showMessage("Wait for your turn to resign");
-    } else {
+    if (hive.getPlayerPlaying() instanceof CanvasPlayer) {
         hive.resign();
+    } else {
+        showMessage("Wait for your turn to resign");
     }
 }
 function connect() {
@@ -205,6 +192,10 @@ function localCallbacks() {
         newGame: timeControl => {
             $("#move-list").html("");
             appendMoveList(1, "Start (" + timeControl + ")");
+            if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
+                $("#newGame, #newOnlineGame").addClass("d-none");
+                $("#resign, #draw").removeClass("d-none");
+            }
         },
         resign: id => {
             if (id === "b") {
@@ -212,9 +203,11 @@ function localCallbacks() {
             } else {
                 showMessage("White resigns! Black wins!");
             }
+            gameOver();
         },
         drawByAgreement: () => {
             showMessage("Draw by agreement!");
+            gameOver();
         },
         timeout: id => {
             if (id === "b") {
@@ -222,6 +215,7 @@ function localCallbacks() {
             } else {
                 showMessage("Time is over! Black wins!");
             }
+            gameOver();
         },
         gameOver: id => {
             if (id === "w") {
@@ -231,9 +225,15 @@ function localCallbacks() {
             } else {
                 showMessage("Draw!");
             }
+            gameOver();
         },
     }
-
+}
+function gameOver() {
+    if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
+        $("#newOnlineGame").removeClass("d-none");
+        $("#resign, #draw").addClass("d-none");
+    }
 }
 function onlineCallbacks() {
     return {
@@ -271,8 +271,14 @@ function connectionBroken(showNotification) {
     if (showNotification) {
         showMessage("Connection broken")
     }
-    $(".connection, #openGame, #newOnlineGame").addClass("d-none");
+    $(".connection, #openGame, #newOnlineGame, #resign, #draw").addClass("d-none");
     $("#remote_id").val("");
     $("#receive, #remote_id, #connect, #newGame, #openGame").removeClass("d-none");
+    if (hive.whitePlayer instanceof OnlinePlayer) {
+        hive.whitePlayer = canvasPlayer;
+    }
+    if (hive.blackPlayer instanceof OnlinePlayer) {
+        hive.blackPlayer = canvasPlayer;
+    }
 }
 window.onbeforeunload = () => {return "-"};
