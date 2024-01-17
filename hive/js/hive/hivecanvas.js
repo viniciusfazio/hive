@@ -1,7 +1,7 @@
 import Board from "./core/board.js";
 import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
-import Movelist from "./core/movelist.js";
+import MoveList from "./core/movelist.js";
 
 const BACKGROUND_COLOR = "rgb(150, 150, 150)";
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
@@ -30,26 +30,28 @@ export default class HiveCanvas {
     #moveLists;
     #currentMoveListId;
 
-    #hiveCallback;
+    #callbacks;
 
+    constructor(callbacks) {
+        this.#callbacks = callbacks;
+    }
 
-    init($canvas, canvasPlayer, hiveCallback = null) {
+    init($canvas, canvasPlayer) {
         this.canvas = $canvas.get(0);
         this.ctx = this.canvas.getContext("2d");
         this.#maxQtyPiecesOverOnHud = 0;
         for (const keyType in PieceType) {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
-        this.#hiveCallback = hiveCallback;
-        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer);
+        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0);
 
         this.#update();
     }
     #update() {
-        const movelist = this.getMoveList();
-        if (!this.gameOver && movelist.computeTime()) {
+        const moveList = this.getMoveList();
+        if (!this.gameOver && moveList.computeTime()) {
             this.#drawTime();
-            if (movelist.whitePiecesTimeLeft === 0 || movelist.blackPiecesTimeLeft === 0) {
+            if (moveList.whitePiecesTimeLeft === 0 || moveList.blackPiecesTimeLeft === 0) {
                 this.timeout();
             }
         }
@@ -67,20 +69,14 @@ export default class HiveCanvas {
     }
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
         [this.#bottomPlayerColor, this.#whitePlayer, this.#blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
-        [this.#moveLists, this.#currentMoveListId] = [[new Movelist(totalTime, increment)], 0];
+        [this.#moveLists, this.#currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
         this.camera.reset();
         this.gameOver = false;
         this.board.reset();
 
 
         this.#initRound();
-        if (this.#hiveCallback) {
-            this.#hiveCallback({
-                type: "newGame",
-                round: this.board.round,
-                timeControl: this.getMoveList().timeControlToText(),
-            });
-        }
+        this.#callbacks.newGame(this.getMoveList().timeControlToText());
 
         this.#drawFirstFrames();
     }
@@ -149,9 +145,9 @@ export default class HiveCanvas {
         }
 
         // draw hud
-        const movelist = this.getMoveList();
+        const moveList = this.getMoveList();
         const [, ry, offset] = this.getSize();
-        const timerHeight = movelist.totalTime > 0 ? TIMER_HEIGHT : 0;
+        const timerHeight = moveList.totalTime > 0 ? TIMER_HEIGHT : 0;
         const height = 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 4 + timerHeight / 2;
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
@@ -173,8 +169,8 @@ export default class HiveCanvas {
             if (player instanceof CanvasPlayer) {
                 text.push("Selected: " + player.selectedPieceId);
                 text.push("Hover: " + player.hoverPieceId);
-                text.push("White: " + movelist.whitePiecesTimeLeft);
-                text.push("Black: " + movelist.blackPiecesTimeLeft);
+                text.push("White: " + moveList.whitePiecesTimeLeft);
+                text.push("Black: " + moveList.blackPiecesTimeLeft);
                 text.push("Round: " + this.board.round);
                 text.push("Last ID: " + this.board.lastMovePieceId);
                 text.push("pass round: " + (this.board.passRound ? 1 : 0));
@@ -203,13 +199,13 @@ export default class HiveCanvas {
         return this.#moveLists[this.#currentMoveListId];
     }
     #drawTime() {
-        const movelist = this.getMoveList();
-        let [topTime, bottomTime] = [movelist.whitePiecesTimeLeft, movelist.blackPiecesTimeLeft];
+        const moveList = this.getMoveList();
+        let [topTime, bottomTime] = [moveList.whitePiecesTimeLeft, moveList.blackPiecesTimeLeft];
         if (this.#bottomPlayerColor.id === PieceColor.white.id) {
             [topTime, bottomTime] = [bottomTime, topTime];
         }
 
-        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(Movelist.timeToText);
+        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(MoveList.timeToText);
 
         const [w, h, th] = [this.canvas.width, this.canvas.height, TIMER_HEIGHT]
         // swap hud color for timer
@@ -414,38 +410,35 @@ export default class HiveCanvas {
         this.board.pieces.forEach(p => [[p.fromX, p.fromY], p.transition] = [this.getPiecePosition(p), 1]);
         moveList.goTo(this.board, moveList.moves.length + 1);
         const lastMove = moveList.moves[moveList.moves.length - 1];
-        if (this.#hiveCallback) {
-            this.#hiveCallback({
-                type: "move",
-                round: this.board.round,
-                move: (this.board.round - 1) + ". " + lastMove.notation(this.board),
-            });
-        }
+        this.#callbacks.move(this.board.round, (this.board.round - 1) + ". " + lastMove.notation(this.board));
         this.gameOver ||= lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout;
         this.#initRound();
     }
     pass(time = null) {
         if (this.gameOver) return;
         const moveList = this.getMoveList();
-        moveList.addPass();
+        moveList.addPass(time);
         this.#playRound();
     }
     resign(time = null) {
         if (this.gameOver) return;
         const moveList = this.getMoveList();
-        moveList.addResign();
+        moveList.addResign(time);
+        this.#callbacks.resign(this.board.getColorPlaying().id);
         this.#playRound();
     }
     draw(time = null) {
         if (this.gameOver) return;
         const moveList = this.getMoveList();
         moveList.addDraw(time);
+        this.#callbacks.drawByAgreement();
         this.#playRound();
     }
     timeout(time = null) {
         if (this.gameOver) return;
         const moveList = this.getMoveList();
         moveList.addTimeout(time);
+        this.#callbacks.timeout(this.board.getColorPlaying().id);
         this.#playRound();
     }
     playNotation(move, time = null) {
@@ -555,6 +548,13 @@ export default class HiveCanvas {
         const blackLoses = this.board.isQueenDead(PieceColor.black.id);
         if (whiteLoses || blackLoses) {
             moveList.addGameOver(whiteLoses, blackLoses, time);
+            if (whiteLoses && !blackLoses) {
+                this.#callbacks.gameOver("b");
+            } else if (!whiteLoses && blackLoses) {
+                this.#callbacks.gameOver("w");
+            } else if (whiteLoses && blackLoses) {
+                this.#callbacks.gameOver("d");
+            }
             this.#playRound();
         }
     }
@@ -565,10 +565,10 @@ export default class HiveCanvas {
     }
     #initRound() {
         this.board.computeLegalMoves(this.gameOver);
-        this.camera.recenter(this);
         if (!this.gameOver) {
             this.getPlayerPlaying().initPlayerTurn();
         }
+        this.camera.recenter(this);
         this.redraw();
     }
 }

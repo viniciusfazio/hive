@@ -1,7 +1,7 @@
 import Board from "./board.js";
 import {PieceType} from "./piece.js";
 
-export default class Movelist {
+export default class MoveList {
     moves = [];
     totalTime;
     #increment;
@@ -241,9 +241,9 @@ class Move {
 
         if (this.whitePiecesTimeLeft !== null && this.blackPiecesTimeLeft !== null) {
             if (board.round % 2 === 0) {
-                move += " # " + Movelist.timeToText(this.whitePiecesTimeLeft);
+                move += " # " + MoveList.timeToText(this.whitePiecesTimeLeft);
             } else {
-                move += " # " + Movelist.timeToText(this.blackPiecesTimeLeft);
+                move += " # " + MoveList.timeToText(this.blackPiecesTimeLeft);
             }
         }
         return move;

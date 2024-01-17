@@ -46,7 +46,7 @@ export default class CanvasPlayer extends Player {
     }
 
 
-    click(x, y, automove) {
+    click(x, y, autoMove) {
         this.hover(x, y);
         if (!this.hive || this.hive.gameOver) {
             return;
@@ -61,7 +61,7 @@ export default class CanvasPlayer extends Player {
         } else if (this.selectedPieceId === null) {
             // clicked on a piece when no piece was selected
             this.selectedPieceId = this.hoverPieceId;
-            if (this.hive.board.round <= 2 && automove) {
+            if (this.hive.board.round <= 2 && autoMove) {
                 const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
                 this.hive.play(piece, piece.targets[0]);
                 this.selectedPieceId = null;

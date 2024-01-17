@@ -8,12 +8,12 @@ export default class OnlinePlayer extends Player {
         super(hive);
     }
     initPlayerTurn() {
-        const movelist = this.hive.getMoveList();
-        const lastMove = movelist.moves[movelist.moves.length - 1];
-        if (this.#conn?.open) {
+        const moveList = this.hive.getMoveList();
+        if (this.#conn?.open && moveList.length > 0) {
+            const lastMove = moveList.moves[moveList.moves.length - 1];
             this.#conn.send({
                 type: "move",
-                move: lastMove.notation(),
+                move: lastMove.notation(this.hive.board),
                 time: lastMove.time,
             });
         }
@@ -99,6 +99,7 @@ export default class OnlinePlayer extends Player {
                     callbacks.newGame(bottomColor, data.totalTime, data.increment);
                     break;
                 case "move":
+                    alert(data.move);
                     this.hive.playNotation(data.move, data.time);
                     break;
             }
