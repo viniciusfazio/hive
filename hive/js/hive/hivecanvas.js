@@ -58,7 +58,7 @@ export default class HiveCanvas {
         const inTransition = this.board.pieces.filter(p => p.transition > 0);
         let redraw = false;
         if (inTransition.length > 0) {
-            inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .7);
+            inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .8);
             redraw = true;
         }
         redraw |= this.camera.update();
@@ -73,7 +73,12 @@ export default class HiveCanvas {
         this.camera.reset();
         this.gameOver = false;
         this.board.reset();
-
+        this.board.pieces.forEach(p => {
+            p.fromX = null;
+            p.fromY = null;
+            p.fromZ = null;
+            p.transition = 0;
+        });
 
         this.#initRound();
         this.#callbacks.newGame(this.getMoveList().timeControlToText());
@@ -84,9 +89,28 @@ export default class HiveCanvas {
         const [rx, ry, offset] = this.getSize();
         const [w, h] = [this.canvas.width, this.canvas.height];
         let x, y;
+        let transition = piece.transition;
+        let [fromX, fromY] = [piece.fromX, piece.fromY];
         if (piece.inGame) {
-            x = w / 2 + piece.x * rx + offset * piece.z - this.camera.x;
-            y = h / 2 - piece.y * ry * 3 - offset * piece.z + this.camera.y;
+            let [px, py, pz] = [piece.x, piece.y, piece.z];
+            if (piece.intermediateXYZs.length > 0) {
+                if (transition > 0) {
+                    const totalAnimation = (piece.intermediateXYZs.length + 1) * (1 - piece.transition);
+                    const partAnimation = Math.floor(totalAnimation);
+                    transition = 1 - (totalAnimation - partAnimation);
+
+                    if (partAnimation < piece.intermediateXYZs.length) {
+                        [px, py, pz] = piece.intermediateXYZs[partAnimation];
+                    }
+                    if (partAnimation > 0) {
+                        const [fx, fy, ] = piece.intermediateXYZs[partAnimation - 1];
+                        fromX = w / 2 + fx * rx + offset * pz - this.camera.x;
+                        fromY = h / 2 - fy * ry * 3 - offset * pz + this.camera.y;
+                    }
+                }
+            }
+            x = w / 2 + px * rx + offset * pz - this.camera.x;
+            y = h / 2 - py * ry * 3 - offset * pz + this.camera.y;
         } else {
             const timerHeight = this.getMoveList().totalTime > 0 ? TIMER_HEIGHT : 0;
             const marginX = w / 2 - (Object.keys(PieceType).length + 1) * rx;
@@ -104,11 +128,10 @@ export default class HiveCanvas {
                 y = 2 * ry + (this.#maxQtyPiecesOverOnHud - piece.z) * offset + timerHeight;
             }
         }
-        if (piece.transition > 0) {
-            return [x + (piece.fromX - x) * piece.transition, y + (piece.fromY - y) * piece.transition];
-        } else {
-            return [x, y];
+        if (transition > 0) {
+            [x, y] = [x + (fromX - x) * transition, y + (fromY - y) * transition];
         }
+        return [x, y];
     }
     getSize(scale = null) {
         const r = (scale ?? this.camera.scale) * this.canvas.width / 30;
@@ -129,7 +152,8 @@ export default class HiveCanvas {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // draw pieces in game
-        this.#drawPieces(this.board.pieces.filter(p => p.inGame));
+        this.#drawPieces(this.board.pieces.filter(p => p.inGame && p.transition === 0));
+        this.#drawPieces(this.board.pieces.filter(p => p.inGame && p.transition > 0));
 
         const player = this.getPlayerPlaying();
         if (player instanceof CanvasPlayer) {
@@ -178,7 +202,8 @@ export default class HiveCanvas {
             this.#drawText(text, 0, this.canvas.height / 2 - text.length * 6, "middle", "left", 12);
         }
 
-        this.#drawPieces(this.board.pieces.filter(p => !p.inGame));
+        this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
+        this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition > 0));
         if (this.board.passRound && !this.gameOver && this.getPlayerPlaying() instanceof CanvasPlayer) {
             const [w2, h2] = [this.canvas.width / 2, this.canvas.height / 2];
             const fh = Math.round(w2 / 10);
@@ -414,8 +439,7 @@ export default class HiveCanvas {
     }
     #playRound() {
         const moveList = this.getMoveList();
-        this.board.pieces.forEach(p => [[p.fromX, p.fromY], p.transition] = [this.getPiecePosition(p), 1]);
-        moveList.goTo(this.board, moveList.moves.length + 1);
+        moveList.goTo(this.board, moveList.moves.length + 1, p => this.#resetPieceAnimation(p));
         const lastMove = moveList.moves[moveList.moves.length - 1];
         this.#callbacks.move(this.board.round, (this.board.round - 1) + ". " + lastMove.notation(this.board));
         this.gameOver ||= lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout;
@@ -566,18 +590,21 @@ export default class HiveCanvas {
         }
     }
     setRound(round) {
-        this.board.pieces.forEach(p => [[p.fromX, p.fromY], p.transition] = [this.getPiecePosition(p), 1]);
-        this.getMoveList().goTo(this.board, round);
+        this.getMoveList().goTo(this.board, round, p => this.#resetPieceAnimation(p));
         this.#initRound();
     }
     #initRound() {
         this.board.computeLegalMoves(this.gameOver);
+        this.board.pieces.forEach(p => p.targets.forEach(t => t.transition = 0));
         this.getPlayerPlaying().initPlayerTurn();
         this.camera.recenter(this);
         this.redraw();
     }
+    #resetPieceAnimation(piece) {
+        [piece.fromX, piece.fromY] = this.getPiecePosition(piece);
+        piece.transition = 1;
+    }
 }
-
 class Camera {
     scale = 1;
     x = 0;

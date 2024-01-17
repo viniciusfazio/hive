@@ -1,15 +1,19 @@
 import Board from "./board.js";
 
 export default class Piece {
+    // variable
+    intermediateXYZs;
     x;
     y;
     inGame;
     targets;
     z;
+
+    // constant
+    color;
+    type;
     number;
     subNumber;
-    type;
-    color;
     id
 
     constructor(color, type, number, subNumber = 0) {
@@ -21,11 +25,12 @@ export default class Piece {
                                                + (this.subNumber > 0 ? this.subNumber : "");
         this.reset();
     }
-    insertTarget(x, y, z) {
+    insertTarget(x, y, z, intermediateXYZs = []) {
         const piece = new Piece(this.color, this.type, this.number, this.targets.length + 1);
         piece.x = x;
         piece.y = y;
         piece.z = z;
+        piece.intermediateXYZs = intermediateXYZs;
         piece.inGame = true;
         if (!this.targets.find(p => p.x === x && p.y === y)) {
             this.targets.push(piece);
@@ -36,10 +41,11 @@ export default class Piece {
         this.x = null;
         this.y = null;
         this.z = this.type.qty - Math.max(1, this.number);
+        this.intermediateXYZs = [];
         this.inGame = false;
         this.targets = [];
     }
-    play(x, y, z) {
+    play(x, y, z, intermediateXYZs) {
         this.x = x;
         this.y = y;
         if (z < 0) {
@@ -47,6 +53,7 @@ export default class Piece {
         } else {
             this.inGame = true;
             this.z = z;
+            this.intermediateXYZs = intermediateXYZs.map(xyz => [...xyz]);
         }
     }
     static parse(p) {
@@ -232,25 +239,24 @@ export const PieceType = Object.freeze({
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            let paths = [[[piece.x, piece.y]]];
+            let paths = [[[piece.x, piece.y, 0]]];
             // make exactly 3 moves
             for (let p = 0; p < 3; p++) {
                 let newPaths = [];
                 // test all paths possible
                 paths.forEach(path => {
-                    const [stepX, stepY] = path[p];
+                    const [stepX, stepY, ] = path[p];
                     for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y)) {
                         const noPiece = z < 0;
-                        const unexplored = !path.find(([cx, cy]) => cx === x && cy === y);
+                        const unexplored = !path.find(([cx, cy, ]) => cx === x && cy === y);
                         if (noPiece && unexplored && onHiveAndNoGate(piece.z, z, z1, z2, -1)) {
                             // new step with no repetition
                             if (p < 2) {
                                 let newPath = [...path];
-                                newPath.push([x, y]);
+                                newPath.push([x, y, 0]);
                                 newPaths.push(newPath);
                             } else {
-                                // always check for repetition
-                                piece.insertTarget(x, y, 0);
+                                piece.insertTarget(x, y, 0, path.map(xyz => [...xyz]));
                             }
                         }
                     }
@@ -267,21 +273,26 @@ export const PieceType = Object.freeze({
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            let edges = [piece];
-            let marked = [piece];
-            while (edges.length > 0) {
-                let newEdges = [];
-                edges.forEach(edge => {
-                    for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, edge.x, edge.y, piece.x, piece.y)) {
+            let paths = [[[piece.x, piece.y, 0]]];
+            while (paths.length > 0) {
+                let newPaths = [];
+                // test all paths possible
+                paths.forEach(path => {
+                    const [stepX, stepY, ] = path[path.length - 1];
+                    for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y)) {
                         const noPiece = z < 0;
-                        if (noPiece && onHiveAndNoGate(piece.z, z, z1, z2) &&!marked.find(p => p.x === x && p.y === y)) {
-                            const p = piece.insertTarget(x, y, 0);
-                            marked.push(p);
-                            newEdges.push(p);
+                        const unexplored = !path.find(([cx, cy, ]) => cx === x && cy === y);
+                        if (noPiece && unexplored && onHiveAndNoGate(piece.z, z, z1, z2, -1)) {
+                            // new step with no repetition
+                            let newPath = [...path];
+                            newPath.push([x, y, 0]);
+                            newPaths.push(newPath);
+                            const intermediateXYZs = path.map(xyz => [...xyz]);
+                            piece.insertTarget(x, y, 0, intermediateXYZs);
                         }
                     }
                 });
-                edges = newEdges;
+                paths = newPaths;
             }
         }
     }),
@@ -292,7 +303,7 @@ export const PieceType = Object.freeze({
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            let paths = [[[piece.x, piece.y, piece.z]]];
+            let paths = [[[piece.x, piece.y, 0]]];
             // make exactly 3 moves
             for (let p = 0; p < 3; p++) {
                 let newPaths = [];
@@ -303,17 +314,17 @@ export const PieceType = Object.freeze({
                         if (p < 2) {
                             // move only over pieces
                             const hasPiece = z >= 0;
-                            const unexplored = !path.find(([cx, cy, cz]) => cx === x && cy === y && cz === z);
+                            const unexplored = !path.find(([cx, cy, ]) => cx === x && cy === y);
                             if (hasPiece && unexplored && onHiveAndNoGate(stepZ, z, z1, z2)) {
                                 let newPath = [...path];
-                                newPath.push([x, y, z]);
+                                newPath.push([x, y, z + 1]);
                                 newPaths.push(newPath);
                             }
                         } else {
                             // move only to empty spaces
                             const noPiece = z < 0;
                             if (noPiece && onHiveAndNoGate(stepZ + 1, z, z1, z2)) {
-                                piece.insertTarget(x, y, 0);
+                                piece.insertTarget(x, y, 0, path.map(xyz => [...xyz]));
                             }
                         }
                     }
@@ -364,7 +375,7 @@ export const PieceType = Object.freeze({
                 const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
                 if (prey.id !== board.lastMovePieceId && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
                     noPieces.forEach(([tx, ty]) => {
-                        prey.insertTarget(tx, ty, 0);
+                        prey.insertTarget(tx, ty, 0, [[piece.x, piece.y, piece.z + 1]]);
                     });
                 }
             });

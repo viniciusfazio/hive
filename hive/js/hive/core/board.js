@@ -36,10 +36,7 @@ class Board {
         this.round = 1;
         this.lastMovePieceId = null;
         this.passRound = false;
-        this.pieces.forEach(p => {
-            p.transition = 0;
-            p.reset();
-        });
+        this.pieces.forEach(p => p.reset());
     }
     isQueenDead(colorId) {
         const queen = this.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
@@ -57,8 +54,9 @@ class Board {
     computeLegalMoves(ended) {
         this.pieces.forEach(p => p.targets = []);
         if (!ended) {
-            this.inGameTopPieces = this.pieces.filter(p => p.inGame);
-            this.inGameTopPieces = this.inGameTopPieces.filter(p => !this.inGameTopPieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
+            this.inGameTopPieces = this.pieces
+                .filter(p => p.inGame)
+                .filter(p => !this.inGameTopPieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
             const colorPlayingId = this.getColorPlaying().id;
             this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
             this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;

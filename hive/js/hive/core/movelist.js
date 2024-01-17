@@ -69,6 +69,7 @@ export default class MoveList {
         move.toX = target.x;
         move.toY = target.y;
         move.toZ = target.z;
+        move.intermediateXYZs = target.intermediateXYZs.map(xyz => [...xyz]);
         this.#pushMoveWithTime(move, time);
     }
     timeControlToText(totalTime = null, increment = null) {
@@ -112,20 +113,24 @@ export default class MoveList {
         }
         return true;
     }
-    goTo(board, round) {
+    goTo(board, round, callbackFrom) {
         round = Math.max(1, Math.min(round, this.moves.length + 1));
         if (board.round < round) {
             for (; board.round < round; board.round++) { // redo moves
                 const move = this.moves[board.round - 1];
                 if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
-                    board.pieces.find(p => p.id === move.pieceId).play(move.toX, move.toY, move.toZ);
+                    const p = board.pieces.find(p => p.id === move.pieceId);
+                    callbackFrom(p);
+                    p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
                 }
             }
         } else if (board.round > round) { // undo moves
             for (board.round--; board.round >= round; board.round--) {
                 const move = this.moves[board.round - 1];
                 if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
-                    board.pieces.find(p => p.id === move.pieceId).play(move.fromX, move.fromY, move.fromZ);
+                    const p = board.pieces.find(p => p.id === move.pieceId);
+                    callbackFrom(p);
+                    p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
                 }
             }
             board.round++;
@@ -157,6 +162,7 @@ class Move {
     toX = null;
     toY = null;
     toZ = null;
+    intermediateXYZs = [];
     pass = false;
     resign = false;
     timeout = false;
