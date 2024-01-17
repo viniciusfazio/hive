@@ -70,9 +70,13 @@ export default class CanvasPlayer extends Player {
                 }
                 this.hoverPieceId = null;
             } else if (this.hive.board.pieces.find(p => p.id === this.hoverPieceId)) {
-                // clicked on piece when another piece was selected
-                this.selectedPieceId = this.hoverPieceId;
-                this.hoverPieceId = null;
+                if (this.dragging) {
+                    // clicked on piece when another piece was selected
+                    this.selectedPieceId = this.hoverPieceId;
+                    this.hoverPieceId = null;
+                } else {
+                    this.selectedPieceId = null;
+                }
             } else {
                 // clicked on target
                 const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
