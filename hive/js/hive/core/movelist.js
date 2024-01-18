@@ -173,8 +173,16 @@ class Move {
     whitePiecesTimeLeft = null;
     blackPiecesTimeLeft = null;
     notation(board) {
+        let time = "";
+        if (this.whitePiecesTimeLeft !== null && this.blackPiecesTimeLeft !== null) {
+            if (board.round % 2 === 0) {
+                time = " " + MoveList.timeToText(this.whitePiecesTimeLeft);
+            } else {
+                time = " " + MoveList.timeToText(this.blackPiecesTimeLeft);
+            }
+        }
         if (this.pass) {
-            return "pass";
+            return "pass" + time;
         }
         if (this.timeout) {
             return "timeout";
@@ -245,14 +253,7 @@ class Move {
             }
         }
 
-        if (this.whitePiecesTimeLeft !== null && this.blackPiecesTimeLeft !== null) {
-            if (board.round % 2 === 0) {
-                move += " " + MoveList.timeToText(this.whitePiecesTimeLeft);
-            } else {
-                move += " " + MoveList.timeToText(this.blackPiecesTimeLeft);
-            }
-        }
-        return move;
+        return move + time;
     }
 }
 
