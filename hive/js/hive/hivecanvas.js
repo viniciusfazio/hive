@@ -42,7 +42,7 @@ export default class HiveCanvas {
         for (const keyType in PieceType) {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
-        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0.2, 0);
+        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0);
 
         this.#update();
     }
