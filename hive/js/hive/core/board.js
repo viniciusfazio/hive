@@ -54,9 +54,8 @@ class Board {
     computeLegalMoves(ended) {
         this.pieces.forEach(p => p.targets = []);
         if (!ended) {
-            this.inGameTopPieces = this.pieces
-                .filter(p => p.inGame)
-                .filter(p => !this.inGameTopPieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
+            const inGame = this.pieces.filter(p => p.inGame);
+            this.inGameTopPieces = inGame.filter(p => !inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
             const colorPlayingId = this.getColorPlaying().id;
             this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
             this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;

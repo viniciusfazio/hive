@@ -166,6 +166,8 @@ export default class HiveCanvas {
             }
         }
 
+        this.#drawGameOver();
+
         // draw hud
         const height = this.#getHudHeight();
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
@@ -215,6 +217,31 @@ export default class HiveCanvas {
         }
 
         this.#drawTime();
+    }
+    #drawGameOver() {
+        if (!this.gameOver) {
+            return;
+        }
+        const [rx, ry, ] = this.getSize();
+        const r = (rx + ry) / 2;
+        this.board.pieces.filter(p => p.inGame && p.type.id === PieceType.queen.id && this.board.isQueenDead(p.color.id)).forEach(p => {
+            const pieceOnTop = this.board.inGameTopPieces.find(tp => tp.x === p.x && tp.y === p.y);
+            const [x, y] = this.getPiecePosition(pieceOnTop);
+            this.ctx.setTransform(1, 0, 0, 1, x, y);
+            let path = new Path2D();
+            path.moveTo(-r, -r);
+            path.lineTo(r, r);
+            path.moveTo(r, -r);
+            path.lineTo(-r, r);
+            path.closePath();
+            this.ctx.lineWidth = 12;
+            this.ctx.strokeStyle = "rgb(0, 0, 0)";
+            this.ctx.stroke(path);
+            this.ctx.lineWidth = 8;
+            this.ctx.strokeStyle = "rgb(255, 0, 0)";
+            this.ctx.stroke(path);
+            this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        });
     }
     #getHudHeight() {
         const [, ry, offset] = this.getSize();
