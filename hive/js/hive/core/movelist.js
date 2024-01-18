@@ -19,7 +19,7 @@ export default class MoveList {
             this.#lastMoveTimestamp = (new Date()).getTime();
         }
     }
-    #pushMoveWithTime(move, time) {
+    #pushMoveWithTime(move, time, withIncrement = false) {
         if (this.totalTime > 0) {
             const now = (new Date()).getTime();
             if (time === null) {
@@ -27,7 +27,7 @@ export default class MoveList {
             } else {
                 move.time = time;
             }
-            this.computeTime(time);
+            this.computeTime(time, withIncrement);
             move.whitePiecesTimeLeft = this.whitePiecesTimeLeft;
             move.blackPiecesTimeLeft = this.blackPiecesTimeLeft;
             this.#lastMoveTimestamp = now;
@@ -37,7 +37,7 @@ export default class MoveList {
     addPass(time = null) {
         const move = new Move();
         move.pass = true;
-        this.#pushMoveWithTime(move, time);
+        this.#pushMoveWithTime(move, time, true);
     }
     addDraw(time = null) {
         const move = new Move();
@@ -70,7 +70,7 @@ export default class MoveList {
         move.toY = target.y;
         move.toZ = target.z;
         move.intermediateXYZs = target.intermediateXYZs.map(xyz => [...xyz]);
-        this.#pushMoveWithTime(move, time);
+        this.#pushMoveWithTime(move, time, true);
     }
     timeControlToText(totalTime = null, increment = null) {
         totalTime = totalTime ?? this.totalTime;
@@ -89,11 +89,14 @@ export default class MoveList {
             return "time control: " + txt + "+" + increment + "s";
         }
     }
-    computeTime(time = null) {
+    computeTime(time = null, withIncrement = true) {
         if (this.totalTime === 0 || this.whitePiecesTimeLeft === 0 || this.blackPiecesTimeLeft === 0) {
             return false;
         }
         let totalTime = (this.totalTime + Math.floor(this.moves.length / 2) * this.#increment) * 1000;
+        if (!withIncrement) {
+            totalTime -= this.#increment * 1000;
+        }
         let timePast = 0;
         this.moves.forEach((move, i) => {
             if (i % 2 === this.moves.length % 2) {

@@ -224,11 +224,21 @@ export default class HiveCanvas {
         return this.#moveLists[this.#currentMoveListId];
     }
     #drawTime() {
-        if (this.getMoveList().totalTime === 0) {
+        const moveList = this.getMoveList();
+        if (moveList.totalTime === 0) {
             return;
         }
-        const moveList = this.getMoveList();
-        let [topTime, bottomTime] = [moveList.whitePiecesTimeLeft, moveList.blackPiecesTimeLeft];
+        let topTime, bottomTime;
+        if (this.gameOver) {
+            if (this.board.round === 1) {
+                [topTime, bottomTime] = [moveList.totalTime * 1000, moveList.totalTime * 1000];
+            } else {
+                const move = moveList.moves[this.board.round - 2];
+                [topTime, bottomTime] = [move.whitePiecesTimeLeft, move.blackPiecesTimeLeft];
+            }
+        } else {
+            [topTime, bottomTime] = [moveList.whitePiecesTimeLeft, moveList.blackPiecesTimeLeft];
+        }
         if (this.#bottomPlayerColor.id === PieceColor.white.id) {
             [topTime, bottomTime] = [bottomTime, topTime];
         }
@@ -249,15 +259,17 @@ export default class HiveCanvas {
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(1, ty1 + 1, tw1 - 2, th1 - 2);
         this.ctx.strokeRect(1, ty2 + 1, tw2 - 2, th2 - 2);
-        if ((moveList.moves.length % 2 === 0 ? PieceColor.white.id : PieceColor.black.id) === this.#bottomPlayerColor.id) {
-            this.ctx.fillStyle = PLAYING_HUD_COLOR;
-            this.ctx.fillRect(0, ty1, tw1, th1);
+
+        let color = (this.gameOver ? this.board.round + 1 : moveList.moves.length) % 2 === 1 ? PieceColor.white.id : PieceColor.black.id;
+        if (color === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = WAITING_HUD_COLOR;
+            this.ctx.fillRect(0, ty1, tw1, th1);
+            this.ctx.fillStyle = PLAYING_HUD_COLOR;
             this.ctx.fillRect(0, ty2, tw2, th2);
         } else {
-            this.ctx.fillStyle = WAITING_HUD_COLOR;
-            this.ctx.fillRect(0, ty1, tw1, th1);
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
+            this.ctx.fillRect(0, ty1, tw1, th1);
+            this.ctx.fillStyle = WAITING_HUD_COLOR;
             this.ctx.fillRect(0, ty2, tw2, th2);
         }
 
