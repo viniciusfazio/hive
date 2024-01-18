@@ -54,9 +54,11 @@ export default class CanvasPlayer extends Player {
     click(x, y, autoMove, dragging = false) {
         if (this.hover(x, y)) {
             if (this.hive.board.passRound) {
-                this.selectedPieceId = null;
                 this.hoverPieceId = null;
-                this.hive.pass();
+                if (!dragging) {
+                    this.selectedPieceId = null;
+                    this.hive.pass();
+                }
             } else if (this.hoverPieceId === null) {
                 // clicked on nothing
                 this.selectedPieceId = null;
