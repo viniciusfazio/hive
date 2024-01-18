@@ -14,6 +14,10 @@ $(() => {
     $("#upload").change(upload);
     $("#receive").click(receive);
     $("#draw").click(draw);
+    $("#nextMove").click(() => addRound(1));
+    $("#previousMove").click(() => addRound(-1));
+    $("#firstMove").click(() => setRound(1));
+    $("#lastMove").click(() => addRound(999999999));
     $("#disconnect").click(() => onlinePlayer.disconnect(onlineCallbacks()));
     $("#acceptNewGame").click(acceptNewGame);
     $("#acceptDraw").click(acceptDraw);
@@ -38,7 +42,7 @@ $(() => {
                 break;
         }
     });
-    const size = Math.min(window.innerWidth, window.innerHeight) - 20 - 15; // remove border and scroll sizes
+    const size = Math.min(window.innerWidth, window.innerHeight) - 2;
     const $autoMove = $("#autoMove");
     hive.init($("#hive").prop("width", size).prop("height", size)
     .mousemove(event => canvasPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1))

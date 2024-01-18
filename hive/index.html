@@ -14,16 +14,11 @@
     <script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"></script>
     <script type="module" src="js/app.js?v1"></script>
     <link rel="icon" type="image/png" href="img/queen.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
-        #main {
-            width: 100%;
-        }
         #hive {
-            border: 10px solid black;
-        }
-        #move-list {
-            font-size: 10px;
+            border: 1px solid black;
         }
         #move-list li {
             cursor: pointer;
@@ -39,72 +34,90 @@
     <img src="img/pillbug.png" style="display: none" alt="pill bug" id="pieceP"/>
     <img src="img/queen.png" style="display: none" alt="queen" id="pieceQ"/>
     <img src="img/spider.png" style="display: none" alt="queen" id="pieceS"/>
-    <div class="row" id="main">
-        <div class="col">
-            <canvas id="hive" width="750" height="750" tabindex="1"></canvas>
-        </div>
-        <div class="col">
-            <div class="d-grid">
-                <label for="round" class="form-label"><i class="bi bi-skip-forward-fill"></i>&nbsp;<b>Move navigator</b></label>
-                <input type="range" class="form-range" min="1" max="1" id="round" step="1"/>
-                <button id="download" type="button" class="btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>&nbsp;Download current game</button>
-                <div><i class="bi bi-list-ul"></i>&nbsp;<b>Move list</b></div>
-                <div id="move-list" tabindex="2">
+    <div class="container-fluid p-0 m-0">
+        <div class="row m-0">
+            <div class="col m-0 p-0">
+                <canvas id="hive" tabindex="1"></canvas>
+            </div>
+            <div class="col">
+                <div class="d-grid">
+                    <button id="download" type="button" class="btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>&nbsp;Download current game</button>
+                    <hr>
+                    <label for="round" class="form-label"><i class="bi bi-skip-forward-fill"></i>&nbsp;<b>Move navigator</b></label>
+                    <input type="range" class="form-range" min="1" max="1" id="round" step="1"/>
+                    <div class="row text-center">
+                        <div class="col">
+                            <button id="firstMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-backward-fill"></i></button>
+                        </div>
+                        <div class="col">
+                        <button id="previousMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-start-fill"></i></button>
+                        </div>
+                        <div class="col">
+                        <button id="nextMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-end-fill"></i></button>
+                        </div>
+                        <div class="col">
+                        <button id="lastMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-forward-fill"></i></button>
+                        </div>
+                    </div>
+                    <div><i class="bi bi-list-ul"></i>&nbsp;<b>Move list</b></div>
+                    <div id="move-list" tabindex="2">
+                    </div>
+                    <hr>
                 </div>
             </div>
-        </div>
-        <div class="col">
-            <div class="d-grid">
-                <div><strong><i class="bi bi-gear-fill"></i>&nbsp;Game settings</strong></div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="autoMove" checked="checked"/>
-                    <label class="form-check-label" for="autoMove">Auto move first piece</label>
-                </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="timer" onchange="$('#increment, #totalTime').prop('disabled', !$('#timer').prop('checked'))" checked="checked"/>
-                    <label class="form-check-label" for="timer">Time control</label>
-                </div>
-                <div class="form-floating mb-1">
-                    <input type="number" class="form-control" min="1" max="300" id="totalTime" value="5"/>
-                    <label for="totalTime">Time (in minutes)</label>
-                </div>
-                <div class="form-floating mb-1">
-                    <input type="number" class="form-control" min="0" max="300" id="increment" value="3"/>
-                    <label for="increment">Increment per move (in seconds)</label>
-                </div>
-                <input type="radio" class="btn-check" name="piece" id="whitePiece" autocomplete="off" value="w"/>
-                <label class="btn" for="whitePiece"><i class="bi bi-bug"></i>&nbsp;Play as White</label>
+            <div class="col">
+                <div class="d-grid">
+                    <div><strong><i class="bi bi-gear-fill"></i>&nbsp;Game settings</strong></div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoMove" checked="checked"/>
+                        <label class="form-check-label" for="autoMove">Auto move first piece</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="timer" onchange="$('#increment, #totalTime').prop('disabled', !$('#timer').prop('checked'))" checked="checked"/>
+                        <label class="form-check-label" for="timer">Time control</label>
+                    </div>
+                    <div class="form-floating mb-1">
+                        <input type="number" class="form-control" min="1" max="300" id="totalTime" value="5"/>
+                        <label for="totalTime">Time (in minutes)</label>
+                    </div>
+                    <div class="form-floating mb-1">
+                        <input type="number" class="form-control" min="0" max="300" id="increment" value="3"/>
+                        <label for="increment">Increment per move (in seconds)</label>
+                    </div>
+                    <input type="radio" class="btn-check" name="piece" id="whitePiece" autocomplete="off" value="w"/>
+                    <label class="btn" for="whitePiece"><i class="bi bi-bug"></i>&nbsp;Play as White</label>
 
-                <input type="radio" class="btn-check" name="piece" id="blackPiece" autocomplete="off" value="b"/>
-                <label class="btn" for="blackPiece"><i class="bi bi-bug-fill"></i>&nbsp;Play as Black</label>
+                    <input type="radio" class="btn-check" name="piece" id="blackPiece" autocomplete="off" value="b"/>
+                    <label class="btn" for="blackPiece"><i class="bi bi-bug-fill"></i>&nbsp;Play as Black</label>
 
-                <input type="radio" class="btn-check" name="piece" id="randomPiece" autocomplete="off" value="random" checked="checked"/>
-                <label class="btn" for="randomPiece"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
+                    <input type="radio" class="btn-check" name="piece" id="randomPiece" autocomplete="off" value="random" checked="checked"/>
+                    <label class="btn" for="randomPiece"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
 
-                <button type="button" class="btn btn-danger my-1" id="newGame"><i class="bi bi-play-fill"></i>&nbsp;New game</button>
-                <button type="button" class="btn btn-danger my-1 d-none" id="newOnlineGame"><i class="bi bi-play-fill"></i>&nbsp;New online game</button>
-                <button type="button" class="btn btn-warning my-1 d-none" id="resign"><i class="bi bi-flag-fill"></i>&nbsp;Resign</button>
-                <button type="button" class="btn btn-warning my-1 d-none" id="draw"><i class="bi bi-emoji-sunglasses"></i>&nbsp;Offer draw</button>
-                <hr/>
+                    <button type="button" class="btn btn-danger my-1" id="newGame"><i class="bi bi-play-fill"></i>&nbsp;New game</button>
+                    <button type="button" class="btn btn-danger my-1 d-none" id="newOnlineGame"><i class="bi bi-play-fill"></i>&nbsp;New online game</button>
+                    <button type="button" class="btn btn-warning my-1 d-none" id="resign"><i class="bi bi-flag-fill"></i>&nbsp;Resign</button>
+                    <button type="button" class="btn btn-warning my-1 d-none" id="draw"><i class="bi bi-emoji-sunglasses"></i>&nbsp;Offer draw</button>
+                    <hr/>
 
-                <div><strong><i class="bi bi-cloud-fill"></i>&nbsp;Online settings</strong></div>
-                <button type="button" class="btn btn-danger input-group-text connection" id="receive"><i class="bi bi-people-fill"></i>&nbsp;Share a link to connect to you</button>
-                <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>&nbsp;Receiving user ID...</button>
-                <div class="input-group mb-3 d-none connection" id="received">
-                    <span class="input-group-text">User ID:</span>
-                    <input type="text" id="user_id" class="form-control" value=""/>
-                    <button class="btn btn-primary" data-clipboard-target="#user_id" id="user_id_button">
-                        <i class="bi bi-clipboard-fill"></i>
-                    </button>
-                </div>
+                    <div><strong><i class="bi bi-cloud-fill"></i>&nbsp;Online settings</strong></div>
+                    <button type="button" class="btn btn-danger input-group-text connection" id="receive"><i class="bi bi-people-fill"></i>&nbsp;Share a link to connect to you</button>
+                    <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>&nbsp;Receiving user ID...</button>
+                    <div class="input-group mb-3 d-none connection" id="received">
+                        <span class="input-group-text">User ID:</span>
+                        <input type="text" id="user_id" class="form-control" value=""/>
+                        <button class="btn btn-primary" data-clipboard-target="#user_id" id="user_id_button">
+                            <i class="bi bi-clipboard-fill"></i>
+                        </button>
+                    </div>
 
-                <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="connecting"><i class="bi bi-people-fill"></i>&nbsp;Connecting...</button>
-                <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="waiting"><i class="bi bi-people-fill"></i>&nbsp;Waiting connection...</button>
-                <button type="button" class="btn btn-danger d-none connection" id="disconnect"><i class="bi bi-people-fill"></i>&nbsp;Disconnect</button>
-                <hr>
-                <div class="mb-1" id="openGame">
-                    <label for="upload" class="form-label"><strong><i class="bi bi-folder-fill"></i>&nbsp;Open game from file</strong></label>
-                    <input class="form-control form-control-sm" type="file" id="upload">
+                    <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="connecting"><i class="bi bi-people-fill"></i>&nbsp;Connecting...</button>
+                    <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="waiting"><i class="bi bi-people-fill"></i>&nbsp;Waiting connection...</button>
+                    <button type="button" class="btn btn-danger d-none connection" id="disconnect"><i class="bi bi-people-fill"></i>&nbsp;Disconnect</button>
+                    <hr>
+                    <div class="mb-1" id="openGame">
+                        <label for="upload" class="form-label"><strong><i class="bi bi-folder-fill"></i>&nbsp;Open game from file</strong></label>
+                        <input class="form-control form-control-sm" type="file" id="upload">
+                    </div>
                 </div>
             </div>
         </div>

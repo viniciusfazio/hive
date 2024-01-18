@@ -247,9 +247,9 @@ class Move {
 
         if (this.whitePiecesTimeLeft !== null && this.blackPiecesTimeLeft !== null) {
             if (board.round % 2 === 0) {
-                move += " # " + MoveList.timeToText(this.whitePiecesTimeLeft);
+                move += " " + MoveList.timeToText(this.whitePiecesTimeLeft);
             } else {
-                move += " # " + MoveList.timeToText(this.blackPiecesTimeLeft);
+                move += " " + MoveList.timeToText(this.blackPiecesTimeLeft);
             }
         }
         return move;

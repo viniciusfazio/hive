@@ -6,7 +6,6 @@ import MoveList from "./core/movelist.js";
 const BACKGROUND_COLOR = "rgb(150, 150, 150)";
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
 const WAITING_HUD_COLOR = "rgb(0, 0, 0, .25)";
-const TIMER_HEIGHT = 20;
 
 export default class HiveCanvas {
     board = new Board();
@@ -86,7 +85,7 @@ export default class HiveCanvas {
         this.#drawFirstFrames();
     }
     getPiecePosition(piece) {
-        const [rx, ry, offset] = this.getSize();
+        const [rx, ry, offset, th] = this.getSize();
         const [w, h] = [this.canvas.width, this.canvas.height];
         let x, y;
         let transition = piece.transition;
@@ -112,7 +111,7 @@ export default class HiveCanvas {
             x = w / 2 + px * rx + offset * pz - this.camera.x;
             y = h / 2 - py * ry * 3 - offset * pz + this.camera.y;
         } else {
-            const timerHeight = this.getMoveList().totalTime > 0 ? TIMER_HEIGHT : 0;
+            const timerHeight = this.getMoveList().totalTime > 0 ? th : 0;
             const marginX = w / 2 - (Object.keys(PieceType).length + 1) * rx;
             let position = 0;
             for (const key in PieceType) {
@@ -136,7 +135,8 @@ export default class HiveCanvas {
     getSize(scale = null) {
         const r = (scale ?? this.camera.scale) * this.canvas.width / 30;
         const offset = r / 4;
-        return [r * Math.sqrt(3), r, offset];
+        const timer = Math.round(this.canvas.width / 35);
+        return [r * Math.sqrt(3), r, offset, timer];
     }
     #drawFirstFrames() {
         this.redraw();
@@ -170,8 +170,8 @@ export default class HiveCanvas {
 
         // draw hud
         const moveList = this.getMoveList();
-        const [, ry, offset] = this.getSize();
-        const timerHeight = moveList.totalTime > 0 ? TIMER_HEIGHT : 0;
+        const [, ry, offset, th] = this.getSize();
+        const timerHeight = moveList.totalTime > 0 ? th : 0;
         const height = 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 4 + timerHeight / 2;
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
@@ -199,7 +199,7 @@ export default class HiveCanvas {
                 "white player: " + this.whitePlayer.constructor.name,
                 "black player: " + this.blackPlayer.constructor.name,
             ];
-            this.#drawText(text, 0, this.canvas.height / 2 - text.length * 6, "middle", "left", 12);
+            this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", 16);
         }
 
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
@@ -232,7 +232,8 @@ export default class HiveCanvas {
 
         const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(MoveList.timeToText);
 
-        const [w, h, th] = [this.canvas.width, this.canvas.height, TIMER_HEIGHT]
+        const [, , , th] = this.getSize();
+        const [w, h] = [this.canvas.width, this.canvas.height]
         // swap hud color for timer
         this.ctx.fillStyle = BACKGROUND_COLOR;
         this.ctx.fillRect(0, 0, w, th);
@@ -272,7 +273,7 @@ export default class HiveCanvas {
     }
     getPiecePath2D() {
         let path = new Path2D();
-        const [rx, ry, ] = this.getSize();
+        const [rx, ry, , ] = this.getSize();
 
         let [px, py] = [null, null];
         for (const [x, y] of Board.coordsAround(0, 0)) {
@@ -298,7 +299,7 @@ export default class HiveCanvas {
             } else {
                 [x, y] = this.getPiecePosition(piece);
             }
-            const [rx, ry, ] = this.getSize();
+            const [rx, ry, , ] = this.getSize();
             const path = this.getPiecePath2D();
 
             this.ctx.setTransform(1, 0, 0, 1, x, y);
@@ -322,7 +323,7 @@ export default class HiveCanvas {
             this.ctx.globalAlpha = 1;
 
             if (this.#debug) {
-                const h = Math.round(20 * this.camera.scale);
+                const h = Math.round(26 * this.camera.scale);
                 if (piece.inGame) {
                     let text = [piece.x + "," + piece.y + "," + piece.z];
                     if (piece.subNumber === 0) {
@@ -342,13 +343,13 @@ export default class HiveCanvas {
                     this.ctx.strokeStyle = "rgb(255, 128, 0)";
                 } else if (style.includes("5")) {
                     this.ctx.strokeStyle = "rgb(0, 255, 0)";
-                    this.ctx.lineWidth = 4;
+                    this.ctx.lineWidth = 3;
                 } else {
                     this.ctx.strokeStyle = "rgb(255, 0, 0)";
                 }
                 if (style.includes("2") || style.includes("4")) {
-                    this.ctx.setLineDash([4, 4]);
-                    this.ctx.lineWidth = 4;
+                    this.ctx.setLineDash([3, 3]);
+                    this.ctx.lineWidth = 3;
                 }
                 this.ctx.stroke(path);
                 this.ctx.setLineDash([]);
@@ -418,11 +419,19 @@ export default class HiveCanvas {
         this.#drawPiece(piece, []);
     }
     #drawText(text, x = 0, y = 0, valign = "middle", align = "center",
-             height = 20, cor = "rgb(255, 255, 255)", corBorda = "rgb(0, 0, 0)") {
+             height = 26, cor = "rgb(255, 255, 255)", corBorda = "rgb(0, 0, 0)") {
+        height = Math.ceil(height * this.canvas.width / 1000);
         this.ctx.font = height + "px Sans-serif";
         this.ctx.lineWidth = 2;
         this.ctx.textAlign = align;
         this.ctx.textBaseline = valign;
+        if (text.length > 1 && valign !== "top") {
+            if (valign === "bottom") {
+                y -= (text.length - 1) * height;
+            } else {
+                y -= Math.round((text.length - 1) * height / 2);
+            }
+        }
         text.forEach(txt => {
             this.ctx.strokeStyle = corBorda;
             this.ctx.strokeText(txt, x, y);
@@ -629,7 +638,7 @@ class Camera {
             minY = Math.min(p.y, minY);
             maxY = Math.max(p.y, maxY);
         });
-        const [rx, ry, ] = hive.getSize(1);
+        const [rx, ry, , ] = hive.getSize(1);
         const qtdX = 5 + maxX - minX; // number of pieces on x, adding extra piece space
         const qtdY = 7 + maxY - minY; // number of pieces on y, adding extra piece space and hud
         const maxInX = hive.canvas.width / rx;
