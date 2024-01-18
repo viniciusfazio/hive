@@ -201,7 +201,8 @@ export default class HiveCanvas {
 
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition > 0));
-        if (this.board.passRound && !this.gameOver && this.getPlayerPlaying() instanceof CanvasPlayer) {
+        const isLastRound = this.getMoveList().moves.length < this.board.round;
+        if (this.board.passRound && !this.gameOver && isLastRound && this.getPlayerPlaying() instanceof CanvasPlayer) {
             const [w2, h2] = [this.canvas.width / 2, this.canvas.height / 2];
             const fh = Math.round(w2 / 6);
             this.ctx.fillStyle = "rgb(0, 0, 0, 0.5)";
