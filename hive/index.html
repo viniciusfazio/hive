@@ -12,18 +12,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"></script>
-    <script type="module" src="js/app.js?v2"></script>
+    <script type="module" src="js/app.js?v3"></script>
     <link rel="icon" type="image/png" href="img/queen.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <style>
-        #hive {
-            border: 1px solid black;
-        }
-        #move-list li {
-            cursor: pointer;
-        }
-    </style>
 </head>
 <body>
     <img src="img/ant.png" style="display: none" alt="ant" id="pieceA"/>
@@ -31,39 +22,13 @@
     <img src="img/grasshopper.png" style="display: none" alt="grasshopper" id="pieceG"/>
     <img src="img/ladybug.png" style="display: none" alt="ladybug" id="pieceL"/>
     <img src="img/mosquito.png" style="display: none" alt="mosquito" id="pieceM"/>
-    <img src="img/pillbug.png" style="display: none" alt="pill bug" id="pieceP"/>
+    <img src="img/pill_bug.png" style="display: none" alt="pill bug" id="pieceP"/>
     <img src="img/queen.png" style="display: none" alt="queen" id="pieceQ"/>
     <img src="img/spider.png" style="display: none" alt="queen" id="pieceS"/>
     <div class="container-fluid p-0 m-0">
-        <div class="row m-0">
+        <div class="row m-0 py-0">
             <div class="col m-0 p-0">
-                <canvas id="hive" tabindex="1"></canvas>
-            </div>
-            <div class="col">
-                <div class="d-grid">
-                    <button id="download" type="button" class="btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>&nbsp;Download current game</button>
-                    <hr>
-                    <label for="round" class="form-label"><i class="bi bi-skip-forward-fill"></i>&nbsp;<b>Move navigator</b></label>
-                    <input type="range" class="form-range" min="1" max="1" id="round" step="1"/>
-                    <div class="row text-center">
-                        <div class="col">
-                            <button id="firstMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-backward-fill"></i></button>
-                        </div>
-                        <div class="col">
-                        <button id="previousMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-start-fill"></i></button>
-                        </div>
-                        <div class="col">
-                        <button id="nextMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-end-fill"></i></button>
-                        </div>
-                        <div class="col">
-                        <button id="lastMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-forward-fill"></i></button>
-                        </div>
-                    </div>
-                    <div><i class="bi bi-list-ul"></i>&nbsp;<b>Move list</b></div>
-                    <div id="move-list" tabindex="2">
-                    </div>
-                    <hr>
-                </div>
+                <canvas id="hive" tabindex="1" style="border: 1px solid black"></canvas>
             </div>
             <div class="col">
                 <div class="d-grid">
@@ -113,10 +78,35 @@
                     <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="connecting"><i class="bi bi-people-fill"></i>&nbsp;Connecting...</button>
                     <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="waiting"><i class="bi bi-people-fill"></i>&nbsp;Waiting connection...</button>
                     <button type="button" class="btn btn-danger d-none connection" id="disconnect"><i class="bi bi-people-fill"></i>&nbsp;Disconnect</button>
-                    <hr>
+                    <hr/>
                     <div class="mb-1" id="openGame">
                         <label for="upload" class="form-label"><strong><i class="bi bi-folder-fill"></i>&nbsp;Open game from file</strong></label>
                         <input class="form-control form-control-sm" type="file" id="upload">
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="d-grid">
+                    <button id="download" type="button" class="btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>&nbsp;Download current game</button>
+                    <hr>
+                    <label for="round" class="form-label"><i class="bi bi-skip-forward-fill"></i>&nbsp;<b>Move navigator</b></label>
+                    <input type="range" class="form-range" min="1" max="1" id="round" step="1"/>
+                    <div class="row text-center">
+                        <div class="col">
+                            <button id="firstMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-backward-fill"></i></button>
+                        </div>
+                        <div class="col">
+                            <button id="previousMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-start-fill"></i></button>
+                        </div>
+                        <div class="col">
+                            <button id="nextMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-end-fill"></i></button>
+                        </div>
+                        <div class="col">
+                            <button id="lastMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-forward-fill"></i></button>
+                        </div>
+                    </div>
+                    <div><i class="bi bi-list-ul"></i>&nbsp;<b>Move list</b></div>
+                    <div id="move-list" tabindex="2">
                     </div>
                 </div>
             </div>

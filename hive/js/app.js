@@ -82,7 +82,7 @@ function addRound(round) {
     setRound(hive.board.round + round);
 }
 function appendMoveList(round, move) {
-    const li = '<li class="list-group-item list-group-item-action py-0">' + move + '</li>';
+    const li = '<li style="cursor: pointer" class="list-group-item list-group-item-action py-0">' + move + '</li>';
     const $ul = $("#move-list > ul:last-child");
     if (round <= 2 || $ul.find("li").length > 1) {
         $("#move-list").append('<ul class="list-group list-group-horizontal">' + li + '</ul>');
