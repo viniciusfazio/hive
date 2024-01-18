@@ -277,7 +277,7 @@ function onlineCallbacks() {
             new ClipboardJS("#user_id_button");
         },
         connected: () => {
-            $("#newGame, #waiting, #connecting, #received").addClass("d-none");
+            $("#newGame, #waiting, #connecting, #received, #receive").addClass("d-none");
             $("#newOnlineGame, #disconnect").removeClass("d-none");
             showMessage("Connected!");
         },
