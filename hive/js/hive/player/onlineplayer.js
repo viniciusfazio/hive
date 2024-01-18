@@ -35,13 +35,12 @@ export default class OnlinePlayer extends Player {
         this.#initPeer(callbacks);
         this.#peer.on("open", () => {
             this.#conn = null;
-            this.hive.resign();
             this.#initConn(this.#peer.connect(remote), callbacks);
-            this.#conn.on("open", () => callbacks.connected());
+            this.#conn.on("open", () => this.#conn.send({type: "connect"}));
         });
         this.#peer.on("connection", conn => {
             conn.on("open", () => {
-                conn.send("Sender does not accept incoming connections");
+                conn.send("quit");
                 setTimeout(() => { conn.close(); }, 500);
             });
         });
@@ -53,15 +52,13 @@ export default class OnlinePlayer extends Player {
             // Allow only a single connection
             if (this.#conn?.open) {
                 conn.on('open', () => {
-                    conn.send("Already connected to another client");
+                    conn.send("quit");
                     setTimeout(() => { conn.close(); }, 500);
                 });
                 return;
             }
             this.#conn = null;
-            this.hive.resign();
             this.#initConn(conn, callbacks);
-            callbacks.connected();
         });
 
     }
@@ -75,6 +72,15 @@ export default class OnlinePlayer extends Player {
         this.#conn = conn;
         conn.on("data", data => {
             switch (data.type) {
+                case "connect":
+                    this.#conn.send({type: "connected"});
+                    this.hive.resign();
+                    callbacks.connected();
+                    break;
+                case "connected":
+                    this.hive.resign();
+                    callbacks.connected();
+                    break;
                 case "quit":
                     callbacks.opponentDisconnects();
                     this.#resetConnection(callbacks, false);

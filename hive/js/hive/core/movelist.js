@@ -144,12 +144,12 @@ export default class MoveList {
             t = Math.floor(t / 1000);
             const m = Math.floor(t / 60);
             const s = t % 60;
-            return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+            return m + ":" + (s < 10 ? "0" : "") + s;
         } else {
             t = Math.floor(t / 100);
             const s = Math.floor(t / 10);
             const ms = t % 10;
-            return "00:0" + s + "." + ms;
+            return "0:0" + s + "." + ms;
         }
     }
 

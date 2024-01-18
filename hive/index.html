@@ -55,31 +55,31 @@
             </div>
             <div class="col">
                 <div class="d-grid">
-                    <div><strong><i class="bi bi-gear-fill"></i>&nbsp;Game settings</strong></div>
-                    <div class="form-check form-switch">
+                    <div class="gameSettings"><strong><i class="bi bi-gear-fill"></i>&nbsp;Game settings</strong></div>
+                    <div class="form-check form-switch gameSettings">
                         <input class="form-check-input" type="checkbox" id="autoMove" checked="checked"/>
                         <label class="form-check-label" for="autoMove">Auto move first piece</label>
                     </div>
-                    <div class="form-check form-switch">
+                    <div class="form-check form-switch gameSettings">
                         <input class="form-check-input" type="checkbox" id="timer" onchange="$('#increment, #totalTime').prop('disabled', !$('#timer').prop('checked'))" checked="checked"/>
                         <label class="form-check-label" for="timer">Time control</label>
                     </div>
-                    <div class="form-floating mb-1">
+                    <div class="form-floating mb-1 gameSettings">
                         <input type="number" class="form-control" min="1" max="300" id="totalTime" value="5"/>
                         <label for="totalTime">Time (in minutes)</label>
                     </div>
-                    <div class="form-floating mb-1">
+                    <div class="form-floating mb-1 gameSettings">
                         <input type="number" class="form-control" min="0" max="300" id="increment" value="3"/>
                         <label for="increment">Increment per move (in seconds)</label>
                     </div>
-                    <input type="radio" class="btn-check" name="piece" id="whitePiece" autocomplete="off" value="w"/>
-                    <label class="btn" for="whitePiece"><i class="bi bi-bug"></i>&nbsp;Play as White</label>
+                    <input type="radio" class="btn-check gameSettings" name="piece" id="whitePiece" autocomplete="off" value="w"/>
+                    <label class="btn gameSettings" for="whitePiece"><i class="bi bi-bug"></i>&nbsp;Play as White</label>
 
-                    <input type="radio" class="btn-check" name="piece" id="blackPiece" autocomplete="off" value="b"/>
-                    <label class="btn" for="blackPiece"><i class="bi bi-bug-fill"></i>&nbsp;Play as Black</label>
+                    <input type="radio" class="btn-check gameSettings" name="piece" id="blackPiece" autocomplete="off" value="b"/>
+                    <label class="btn gameSettings" for="blackPiece"><i class="bi bi-bug-fill"></i>&nbsp;Play as Black</label>
 
-                    <input type="radio" class="btn-check" name="piece" id="randomPiece" autocomplete="off" value="random" checked="checked"/>
-                    <label class="btn" for="randomPiece"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
+                    <input type="radio" class="btn-check gameSettings" name="piece" id="randomPiece" autocomplete="off" value="random" checked="checked"/>
+                    <label class="btn gameSettings" for="randomPiece"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
 
                     <button type="button" class="text-nowrap btn btn-danger my-1" id="newGame"><i class="bi bi-play-fill"></i>&nbsp;New game</button>
                     <button type="button" class="text-nowrap btn btn-danger my-1 d-none" id="newOnlineGame"><i class="bi bi-play-fill"></i>&nbsp;New online game</button>

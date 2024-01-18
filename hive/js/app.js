@@ -5,6 +5,7 @@ import OnlinePlayer from "./hive/player/onlineplayer.js";
 
 let hive, canvasPlayer, onlinePlayer;
 $(() => {
+    window.onbeforeunload = () => "-";
     hive = new HiveCanvas(localCallbacks());
     canvasPlayer = new CanvasPlayer(hive);
     $("#resign").click(resign);
@@ -223,7 +224,7 @@ function localCallbacks() {
             $("#move-list").html("");
             appendMoveList(1, "Start - " + timeControl);
             if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
-                $("#newGame, #newOnlineGame").addClass("d-none");
+                $("#newGame, #newOnlineGame, .gameSettings").addClass("d-none");
                 $("#resign, #draw").removeClass("d-none");
             }
         },
@@ -261,7 +262,7 @@ function localCallbacks() {
 }
 function gameOver() {
     if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
-        $("#newOnlineGame").removeClass("d-none");
+        $("#newOnlineGame, .gameSettings").removeClass("d-none");
         $("#resign, #draw").addClass("d-none");
     }
 }
@@ -303,8 +304,8 @@ function connectionBroken(showNotification) {
     if (showNotification) {
         showMessage("Connection broken")
     }
-    $(".connection, #openGame, #newOnlineGame, #resign, #draw").addClass("d-none");
-    $("#receive, #newGame, #openGame").removeClass("d-none");
+    $(".connection, #openGame, #newOnlineGame, #resign, #draw, #disconnect").addClass("d-none");
+    $("#receive, #newGame, #openGame, .gameSettings").removeClass("d-none");
     if (hive.whitePlayer instanceof OnlinePlayer) {
         hive.whitePlayer = canvasPlayer;
     }
@@ -312,4 +313,3 @@ function connectionBroken(showNotification) {
         hive.blackPlayer = canvasPlayer;
     }
 }
-window.onbeforeunload = () => {return "-"};
