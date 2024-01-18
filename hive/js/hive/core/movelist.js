@@ -86,7 +86,7 @@ export default class MoveList {
                 const s = totalTime % 60;
                 txt += s + "s";
             }
-            return txt + "+" + increment + "s";
+            return "time control: " + txt + "+" + increment + "s";
         }
     }
     computeTime(time = null) {

@@ -81,15 +81,15 @@
                     <input type="radio" class="btn-check" name="piece" id="randomPiece" autocomplete="off" value="random" checked="checked"/>
                     <label class="btn" for="randomPiece"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
 
-                    <button type="button" class="btn btn-danger my-1" id="newGame"><i class="bi bi-play-fill"></i>&nbsp;New game</button>
-                    <button type="button" class="btn btn-danger my-1 d-none" id="newOnlineGame"><i class="bi bi-play-fill"></i>&nbsp;New online game</button>
-                    <button type="button" class="btn btn-warning my-1 d-none" id="resign"><i class="bi bi-flag-fill"></i>&nbsp;Resign</button>
-                    <button type="button" class="btn btn-warning my-1 d-none" id="draw"><i class="bi bi-emoji-sunglasses"></i>&nbsp;Offer draw</button>
+                    <button type="button" class="text-nowrap btn btn-danger my-1" id="newGame"><i class="bi bi-play-fill"></i>&nbsp;New game</button>
+                    <button type="button" class="text-nowrap btn btn-danger my-1 d-none" id="newOnlineGame"><i class="bi bi-play-fill"></i>&nbsp;New online game</button>
+                    <button type="button" class="text-nowrap btn btn-warning my-1 d-none" id="resign"><i class="bi bi-flag-fill"></i>&nbsp;Resign</button>
+                    <button type="button" class="text-nowrap btn btn-warning my-1 d-none" id="draw"><i class="bi bi-emoji-sunglasses"></i>&nbsp;Offer draw</button>
                     <hr/>
 
                     <div><strong><i class="bi bi-cloud-fill"></i>&nbsp;Online settings</strong></div>
-                    <button type="button" class="btn btn-danger input-group-text connection" id="receive"><i class="bi bi-people-fill"></i>&nbsp;Share a link to connect to you</button>
-                    <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>&nbsp;Receiving user ID...</button>
+                    <button type="button" class="text-nowrap btn btn-danger input-group-text connection" id="receive"><i class="bi bi-people-fill"></i>&nbsp;Share a link to connect to you</button>
+                    <button type="button" class="text-nowrap btn btn-secondary d-none connection" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>&nbsp;Receiving user ID...</button>
                     <div class="input-group mb-3 d-none connection" id="received">
                         <span class="input-group-text">User ID:</span>
                         <input type="text" id="user_id" class="form-control" value=""/>
@@ -98,11 +98,11 @@
                         </button>
                     </div>
 
-                    <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="connecting"><i class="bi bi-people-fill"></i>&nbsp;Connecting...</button>
-                    <button type="button" class="btn btn-secondary d-none connection" disabled="disabled" id="waiting"><i class="bi bi-people-fill"></i>&nbsp;Waiting connection...</button>
-                    <button type="button" class="btn btn-danger d-none connection" id="disconnect"><i class="bi bi-people-fill"></i>&nbsp;Disconnect</button>
+                    <button type="button" class="text-nowrap btn btn-secondary d-none connection" disabled="disabled" id="connecting"><i class="bi bi-people-fill"></i>&nbsp;Connecting...</button>
+                    <button type="button" class="text-nowrap btn btn-secondary d-none connection" disabled="disabled" id="waiting"><i class="bi bi-people-fill"></i>&nbsp;Waiting connection...</button>
+                    <button type="button" class="text-nowrap btn btn-danger d-none connection" id="disconnect"><i class="bi bi-people-fill"></i>&nbsp;Disconnect</button>
                     <hr/>
-                    <button id="download" type="button" class="btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>&nbsp;Download current game</button>
+                    <button id="download" type="button" class="text-nowrap btn btn-primary my-1"><i class="bi bi-cloud-download-fill"></i>&nbsp;Download current game</button>
                     <div class="mb-1" id="openGame">
                         <label for="upload" class="form-label"><strong><i class="bi bi-folder-fill"></i>&nbsp;Open game from file</strong></label>
                         <input class="form-control form-control-sm" type="file" id="upload">
