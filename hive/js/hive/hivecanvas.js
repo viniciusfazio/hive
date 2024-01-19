@@ -152,8 +152,6 @@ export default class HiveCanvas {
         // draw in hud, not in animation, pieces
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
 
-        this.#drawXOverFallenQueens();
-
         this.#drawTime();
 
         this.#drawDebug();
@@ -167,6 +165,8 @@ export default class HiveCanvas {
 
         // draw in hud, in animation, pieces
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition > 0));
+
+        this.#drawXOverFallenQueens();
 
         // draw dragging piece
         const player = this.getPlayerPlaying();
