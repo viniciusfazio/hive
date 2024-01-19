@@ -134,10 +134,11 @@ export default class HiveCanvas {
         return [r * Math.sqrt(3), r, offset];
     }
     #redraw() {
-        this.#frameQtd = (++this.#frameQtd) % 100;
+        const FRAMES = 20;
+        this.#frameQtd = (++this.#frameQtd) % FRAMES;
         if (this.#frameQtd === 0) {
             const now = (new Date()).getTime();
-            this.#framesPerSecond = Math.round(1 / ((now - this.#frameTime) / 100000));
+            this.#framesPerSecond = Math.round(1 / ((now - this.#frameTime) / (FRAMES * 1000)));
             this.#frameTime = now;
         }
 
