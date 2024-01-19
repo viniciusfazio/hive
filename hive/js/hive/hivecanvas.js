@@ -11,7 +11,9 @@ export default class HiveCanvas {
     board = new Board();
 
     #debug = false;
-    #frame = 0;
+    #frameQtd = 0;
+    #frameTime;
+    #framesPerSecond = 0;
 
     camera = new Camera();
 
@@ -44,12 +46,13 @@ export default class HiveCanvas {
         }
         this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0);
 
+        this.#frameTime = (new Date()).getTime();
         this.#mainLoop();
     }
     #mainLoop() {
         this.#update();
         this.#redraw();
-        setTimeout(() => this.#mainLoop(), 20);
+        setTimeout(() => this.#mainLoop(), 10);
     }
 
     #update() {
@@ -59,11 +62,7 @@ export default class HiveCanvas {
                 this.timeout();
             }
         }
-        const inTransition = this.board.pieces.filter(p => p.transition > 0);
-
-        if (inTransition.length > 0) {
-            inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .85);
-        }
+        this.board.pieces.filter(p => p.transition > 0).forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .85);
         this.camera.update();
     }
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
@@ -135,7 +134,12 @@ export default class HiveCanvas {
         return [r * Math.sqrt(3), r, offset];
     }
     #redraw() {
-        this.#frame++;
+        this.#frameQtd = (++this.#frameQtd) % 100;
+        if (this.#frameQtd === 0) {
+            const now = (new Date()).getTime();
+            this.#framesPerSecond = Math.round(1 / ((now - this.#frameTime) / 100000));
+            this.#frameTime = now;
+        }
 
         // clear screen
         this.ctx.fillStyle = BACKGROUND_COLOR;
@@ -175,10 +179,10 @@ export default class HiveCanvas {
         }
         this.ctx.fillRect(0, this.canvas.height - height, this.canvas.width, height);
 
+        const debugFH = Math.ceil(16 * this.canvas.width / 1000);
         if (this.#debug) {
             const moveList = this.getMoveList();
             let text = [
-                "Frame: " + this.#frame,
                 "Selected: " + player.selectedPieceId,
                 "Hover: " + player.hoverPieceId,
                 "White: " + moveList.whitePiecesTimeLeft,
@@ -189,9 +193,9 @@ export default class HiveCanvas {
                 "white player: " + this.whitePlayer.constructor.name,
                 "black player: " + this.blackPlayer.constructor.name,
             ];
-            const fh = Math.ceil(16 * this.canvas.width / 1000);
-            this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
+            this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", debugFH);
         }
+        this.#drawText([this.#framesPerSecond + " FPS"], 0, 0, "top", "left", debugFH);
 
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition > 0));
@@ -702,8 +706,6 @@ class Camera {
             this.x += diffX;
             this.y += diffY;
             this.scale += diffScale;
-            return true;
         }
-        return false;
     }
 }
