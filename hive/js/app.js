@@ -45,11 +45,12 @@ $(() => {
     });
     const size = Math.min(window.innerWidth, window.innerHeight) - 2;
     const $autoMove = $("#autoMove");
-    hive.init($("#hive").prop("width", size).prop("height", size)
-    .mousemove(event => canvasPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1))
-    .mousedown(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked")))
-    .mouseup(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked"), true))
-    .keydown(event => {
+    const $hive = $("#hive");
+    $hive.css("border", "1px solid black").prop("width", size).prop("height", size);
+    $hive.mousemove(event => canvasPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1));
+    $hive.mousedown(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked")));
+    $hive.mouseup(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked"), true));
+    $hive.keydown(event => {
         switch (event.key) {
             case "ArrowLeft":
                 addRound(-1);
@@ -68,7 +69,9 @@ $(() => {
                 hive.redraw();
                 break;
         }
-    }), canvasPlayer);
+    });
+    hive.init($hive, canvasPlayer);
+
     const id = getParam("id");
     if (id !== null) {
         connect(id);

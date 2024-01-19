@@ -13,22 +13,31 @@
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"></script>
     <script type="module" src="js/app.js?v6"></script>
+    <script>
+        $(() => {
+            const $body = $("body");
+            if (window.location.protocol === "file:") {
+                $body.html("It's not possible to run as a file.");
+            }
+            $body.removeClass("d-none");
+        });
+    </script>
     <link rel="icon" type="image/png" href="img/queen.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body>
-    <img src="img/ant.png" style="display: none" alt="ant" id="pieceA"/>
-    <img src="img/beetle.png" style="display: none" alt="beetle" id="pieceB"/>
-    <img src="img/grasshopper.png" style="display: none" alt="grasshopper" id="pieceG"/>
-    <img src="img/ladybug.png" style="display: none" alt="ladybug" id="pieceL"/>
-    <img src="img/mosquito.png" style="display: none" alt="mosquito" id="pieceM"/>
-    <img src="img/pill_bug.png" style="display: none" alt="pill bug" id="pieceP"/>
-    <img src="img/queen.png" style="display: none" alt="queen" id="pieceQ"/>
-    <img src="img/spider.png" style="display: none" alt="queen" id="pieceS"/>
+<body class="d-none">
+    <img src="img/ant.png" class="d-none" alt="ant" id="pieceA"/>
+    <img src="img/beetle.png" class="d-none" alt="beetle" id="pieceB"/>
+    <img src="img/grasshopper.png" class="d-none" alt="grasshopper" id="pieceG"/>
+    <img src="img/ladybug.png" class="d-none" alt="ladybug" id="pieceL"/>
+    <img src="img/mosquito.png" class="d-none" alt="mosquito" id="pieceM"/>
+    <img src="img/pill_bug.png" class="d-none" alt="pill bug" id="pieceP"/>
+    <img src="img/queen.png" class="d-none" alt="queen" id="pieceQ"/>
+    <img src="img/spider.png" class="d-none" alt="queen" id="pieceS"/>
     <div class="container-fluid p-0 m-0">
         <div class="row m-0 py-0">
             <div class="col m-0 p-0">
-                <canvas id="hive" tabindex="1" style="border: 1px solid black"></canvas>
+                <canvas id="hive" tabindex="1"></canvas>
             </div>
             <div class="col">
                 <div class="d-grid">
