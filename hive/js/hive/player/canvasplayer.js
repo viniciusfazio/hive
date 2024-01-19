@@ -7,6 +7,14 @@ export default class CanvasPlayer extends Player {
     hoverPieceId = null;
     dragging = null;
 
+    reset() {
+        this.selectedPieceId = null;
+        this.hoverPieceId = null;
+        this.dragging = null;
+        this.mouseX = 0;
+        this.mouseY = 0;
+    }
+
     hover(x, y, dragging = false) {
         if (this.hive.board.round <= this.hive.getMoveList().moves.length ||
             this.hive.gameOver ||

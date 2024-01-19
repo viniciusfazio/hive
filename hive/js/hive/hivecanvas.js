@@ -70,6 +70,8 @@ export default class HiveCanvas {
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
         [this.#bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.#moveLists, this.#currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
+        this.whitePlayer.reset();
+        this.blackPlayer.reset();
         this.camera.reset();
         this.gameOver = false;
         this.board.reset();
@@ -136,6 +138,72 @@ export default class HiveCanvas {
         return [r * Math.sqrt(3), r, offset];
     }
     #redraw() {
+        this.#updateFPS();
+
+        // clear screen
+        this.ctx.fillStyle = BACKGROUND_COLOR;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // draw in game, not in animation, pieces
+        this.#drawPieces(this.board.pieces.filter(p => p.inGame && p.transition === 0));
+
+        this.#drawHud();
+
+        // draw in hud, not in animation, pieces
+        this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
+
+        this.#drawXOverFallenQueens();
+
+        this.#drawTime();
+
+        this.#drawDebug();
+
+        this.#drawFPS();
+
+        this.#drawTargets();
+
+        // draw in game, in animation, pieces
+        this.#drawPieces(this.board.pieces.filter(p => p.inGame && p.transition > 0));
+
+        // draw in hud, in animation, pieces
+        this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition > 0));
+
+        // draw dragging piece
+        const player = this.getPlayerPlaying();
+        if (player instanceof CanvasPlayer && player.dragging && player.selectedPieceId !== null) {
+            this.#drawPiece(this.board.pieces.find(p => p.id === player.selectedPieceId));
+        }
+
+        this.#drawPassAlert();
+
+        setTimeout(() => this.#redraw(), 10);
+    }
+    #drawPassAlert() {
+        const isLastRound = this.getMoveList().moves.length < this.board.round;
+        if (this.board.passRound && !this.gameOver && isLastRound && this.getPlayerPlaying() instanceof CanvasPlayer) {
+            const [w2, h2] = [this.canvas.width / 2, this.canvas.height / 2];
+            const fh = Math.round(w2 / 6);
+            this.ctx.fillStyle = "rgb(0, 0, 0, 0.5)";
+            this.ctx.fillRect(0, h2 - fh, w2 * 2, fh * 2);
+            this.#drawText(["Click anywhere to pass"], w2, h2, "middle", "center", fh);
+        }
+    }
+    #drawFPS() {
+        if (this.#tooSlow || this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
+            const hudHeight = this.#getHudHeight();
+            const fh = Math.ceil(20 * this.canvas.width / 1000);
+            const color = "rgb(255, 0, 0)";
+            let txts = [];
+            if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
+                txts.push(this.#framesPerSecond + " FPS");
+            }
+            if (this.#tooSlow) {
+                txts.push("SLOW PERFORMANCE");
+            }
+            this.#drawText(txts, this.canvas.width - 2, hudHeight + 2, "top", "right", fh, color);
+        }
+    }
+    #updateFPS() {
         const CALCULATE_FPS_EVERY_N_FRAMES = 20;
         this.#frameQtd++;
         if (this.#frameQtd === CALCULATE_FPS_EVERY_N_FRAMES) {
@@ -144,15 +212,8 @@ export default class HiveCanvas {
             this.#frameTime = now;
             this.#frameQtd = 0;
         }
-
-        // clear screen
-        this.ctx.fillStyle = BACKGROUND_COLOR;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // draw pieces in game
-        this.#drawPieces(this.board.pieces.filter(p => p.inGame && p.transition === 0));
-        this.#drawPieces(this.board.pieces.filter(p => p.inGame && p.transition > 0));
-
+    }
+    #drawTargets() {
         const player = this.getPlayerPlaying();
         if (player instanceof CanvasPlayer) {
             const hoverPiece = this.board.pieces.find(p => p.id === player.hoverPieceId);
@@ -165,25 +226,10 @@ export default class HiveCanvas {
                 this.#drawPieces(hoverPiece.targets);
             }
         }
-
-        this.#drawGameOver();
-
-        // draw hud
-        const hudHeight = this.#getHudHeight();
-        if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
-            this.ctx.fillStyle = PLAYING_HUD_COLOR;
-        } else {
-            this.ctx.fillStyle = WAITING_HUD_COLOR;
-        }
-        this.ctx.fillRect(0, 0, this.canvas.width, hudHeight);
-        if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
-            this.ctx.fillStyle = WAITING_HUD_COLOR;
-        } else {
-            this.ctx.fillStyle = PLAYING_HUD_COLOR;
-        }
-        this.ctx.fillRect(0, this.canvas.height - hudHeight, this.canvas.width, hudHeight);
-
+    }
+    #drawDebug() {
         if (this.#debug) {
+            const player = this.getPlayerPlaying();
             const moveList = this.getMoveList();
             let text = [
                 "Selected: " + player.selectedPieceId,
@@ -199,37 +245,24 @@ export default class HiveCanvas {
             const fh = Math.ceil(16 * this.canvas.width / 1000);
             this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
         }
-        if (this.#tooSlow || this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
-            const fh = Math.ceil(20 * this.canvas.width / 1000);
-            const color = "rgb(255, 0, 0)";
-            let txts = [];
-            if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
-                txts.push(this.#framesPerSecond + " FPS");
-            }
-            if (this.#tooSlow) {
-                txts.push("SLOW PERFORMANCE");
-            }
-            this.#drawText(txts, this.canvas.width - 2, hudHeight + 2, "top", "right", fh, color);
-        }
-
-        this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
-        this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition > 0));
-        const isLastRound = this.getMoveList().moves.length < this.board.round;
-        if (this.board.passRound && !this.gameOver && isLastRound && this.getPlayerPlaying() instanceof CanvasPlayer) {
-            const [w2, h2] = [this.canvas.width / 2, this.canvas.height / 2];
-            const fh = Math.round(w2 / 6);
-            this.ctx.fillStyle = "rgb(0, 0, 0, 0.5)";
-            this.ctx.fillRect(0, h2 - fh, w2 * 2, fh * 2);
-            this.#drawText(["Click anywhere to pass"], w2, h2, "middle", "center", fh);
-        }
-
-        if (player instanceof CanvasPlayer && player.dragging && player.selectedPieceId !== null) {
-            this.#drawPiece(this.board.pieces.find(p => p.id === player.selectedPieceId));
-        }
-        this.#drawTime();
-        setTimeout(() => this.#redraw(), 10);
     }
-    #drawGameOver() {
+    #drawHud() {
+        const hudHeight = this.#getHudHeight();
+        if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
+            this.ctx.fillStyle = PLAYING_HUD_COLOR;
+        } else {
+            this.ctx.fillStyle = WAITING_HUD_COLOR;
+        }
+        this.ctx.fillRect(0, 0, this.canvas.width, hudHeight);
+
+        if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
+            this.ctx.fillStyle = WAITING_HUD_COLOR;
+        } else {
+            this.ctx.fillStyle = PLAYING_HUD_COLOR;
+        }
+        this.ctx.fillRect(0, this.canvas.height - hudHeight, this.canvas.width, hudHeight);
+    }
+    #drawXOverFallenQueens() {
         if (!this.gameOver) {
             return;
         }
@@ -267,6 +300,8 @@ export default class HiveCanvas {
         if (moveList.totalTime === 0) {
             return;
         }
+
+        // gets both times in text
         let topTime, bottomTime;
         if (this.gameOver) {
             if (this.board.round === 1) {
@@ -281,22 +316,18 @@ export default class HiveCanvas {
         if (this.#bottomPlayerColor.id === PieceColor.white.id) {
             [topTime, bottomTime] = [bottomTime, topTime];
         }
-
         const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(MoveList.timeToText);
 
+        // get coords to draw the timers
         const [, , ] = this.getSize();
         const [w, h] = [this.canvas.width, this.canvas.height]
         const hh = this.#getHudHeight();
         const fh = Math.round(w / 10);
         const fx = Math.round(w / 7);
-        const [tyTop, twTop, thTop] = [hh, 2 * fx, fh + 2];
-        const [tyBottom, twBottom, thBottom] = [h - hh - fh - 2, 2 * fx, fh + 2];
+        const [tyTop, twTop, thTop] = [hh, 2 * fx, fh];
+        const [tyBottom, twBottom, thBottom] = [h - hh - fh, 2 * fx, fh];
 
-        this.ctx.strokeStyle = "rgb(0, 0, 0)";
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(1, tyTop + 1, twTop - 2, thTop - 2);
-        this.ctx.strokeRect(1, tyBottom + 1, twBottom - 2, thBottom - 2);
-
+        // get the background color of each timer
         let color = (this.gameOver ? this.board.round + 1 : moveList.moves.length) % 2 === 1 ? PieceColor.white.id : PieceColor.black.id;
         if (color === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = WAITING_HUD_COLOR;
@@ -310,11 +341,15 @@ export default class HiveCanvas {
             this.ctx.fillRect(0, tyBottom, twBottom, thBottom);
         }
 
-        // change color if time is short
+        // change font color if time is short
         const topColor = topTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
         const bottomColor = bottomTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
+
+        // change font size if time is too long
         const tfh = HiveCanvas.#scaleTimeFontHeight(topTimeTxt, fh);
         const bfh = HiveCanvas.#scaleTimeFontHeight(bottomTimeTxt, fh);
+
+        // draw timer
         this.#drawText([topTimeTxt], fx, tyTop + fh / 2 + 1, "middle", "center", tfh, topColor);
         this.#drawText([bottomTimeTxt], fx, tyBottom + fh / 2 + 1, "middle", "center", bfh, bottomColor);
     }

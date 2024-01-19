@@ -18,7 +18,6 @@ export default class OnlinePlayer extends Player {
             });
         }
     }
-
     disconnect(callbacks) {
         if (this.#conn) {
             this.#conn.send({type: "quit"});

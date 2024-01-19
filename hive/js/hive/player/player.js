@@ -5,4 +5,7 @@ export default class Player {
     }
     initPlayerTurn() {
     }
+    reset() {
+
+    }
 }
