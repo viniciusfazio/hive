@@ -6,6 +6,7 @@ import MoveList from "./core/movelist.js";
 const BACKGROUND_COLOR = "rgb(150, 150, 150)";
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
 const WAITING_HUD_COLOR = "rgb(0, 0, 0, .25)";
+const MIN_FPS = 40;
 
 export default class HiveCanvas {
     board = new Board();
@@ -13,7 +14,8 @@ export default class HiveCanvas {
     #debug = false;
     #frameQtd = 0;
     #frameTime;
-    #framesPerSecond = 0;
+    #framesPerSecond = null;
+    #tooSlow = false;
 
     camera = new Camera();
 
@@ -47,15 +49,12 @@ export default class HiveCanvas {
         this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0);
 
         this.#frameTime = (new Date()).getTime();
-        this.#mainLoop();
-    }
-    #mainLoop() {
         this.#update();
         this.#redraw();
-        setTimeout(() => this.#mainLoop(), 10);
     }
 
     #update() {
+        const start = (new Date()).getTime();
         const moveList = this.getMoveList();
         if (!this.gameOver && moveList.computeTime()) {
             if (moveList.whitePiecesTimeLeft === 0 || moveList.blackPiecesTimeLeft === 0) {
@@ -64,6 +63,9 @@ export default class HiveCanvas {
         }
         this.board.pieces.filter(p => p.transition > 0).forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .85);
         this.camera.update();
+        const waitTime = 20 - ((new Date()).getTime() - start);
+        this.#tooSlow = waitTime < 1;
+        setTimeout(() => this.#update(), Math.max(1, waitTime));
     }
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
         [this.#bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
@@ -134,11 +136,11 @@ export default class HiveCanvas {
         return [r * Math.sqrt(3), r, offset];
     }
     #redraw() {
-        const FRAMES = 20;
+        const CALCULATE_FPS_EVERY_N_FRAMES = 20;
         this.#frameQtd++;
-        if (this.#frameQtd === FRAMES) {
+        if (this.#frameQtd === CALCULATE_FPS_EVERY_N_FRAMES) {
             const now = (new Date()).getTime();
-            this.#framesPerSecond = Math.round(1 / ((now - this.#frameTime) / (FRAMES * 1000)));
+            this.#framesPerSecond = Math.round(1 / ((now - this.#frameTime) / (CALCULATE_FPS_EVERY_N_FRAMES * 1000)));
             this.#frameTime = now;
             this.#frameQtd = 0;
         }
@@ -167,21 +169,20 @@ export default class HiveCanvas {
         this.#drawGameOver();
 
         // draw hud
-        const height = this.#getHudHeight();
+        const hudHeight = this.#getHudHeight();
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
         } else {
             this.ctx.fillStyle = WAITING_HUD_COLOR;
         }
-        this.ctx.fillRect(0, 0, this.canvas.width, height);
+        this.ctx.fillRect(0, 0, this.canvas.width, hudHeight);
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = WAITING_HUD_COLOR;
         } else {
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
         }
-        this.ctx.fillRect(0, this.canvas.height - height, this.canvas.width, height);
+        this.ctx.fillRect(0, this.canvas.height - hudHeight, this.canvas.width, hudHeight);
 
-        const debugFH = Math.ceil(16 * this.canvas.width / 1000);
         if (this.#debug) {
             const moveList = this.getMoveList();
             let text = [
@@ -195,9 +196,21 @@ export default class HiveCanvas {
                 "white player: " + this.whitePlayer.constructor.name,
                 "black player: " + this.blackPlayer.constructor.name,
             ];
-            this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", debugFH);
+            const fh = Math.ceil(16 * this.canvas.width / 1000);
+            this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
         }
-        this.#drawText([this.#framesPerSecond + " FPS"], 0, 0, "top", "left", debugFH);
+        if (this.#tooSlow || this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
+            const fh = Math.ceil(20 * this.canvas.width / 1000);
+            const color = "rgb(255, 0, 0)";
+            let txts = [];
+            if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
+                txts.push(this.#framesPerSecond + " FPS");
+            }
+            if (this.#tooSlow) {
+                txts.push("SLOW PERFORMANCE");
+            }
+            this.#drawText(txts, this.canvas.width - 2, hudHeight + 2, "top", "right", fh, color);
+        }
 
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
         this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition > 0));
@@ -214,6 +227,7 @@ export default class HiveCanvas {
             this.#drawPiece(this.board.pieces.find(p => p.id === player.selectedPieceId));
         }
         this.#drawTime();
+        setTimeout(() => this.#redraw(), 10);
     }
     #drawGameOver() {
         if (!this.gameOver) {
