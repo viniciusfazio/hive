@@ -145,9 +145,16 @@ export default class MoveList {
     static timeToText(t) {
         if (t >= 10000) {
             t = Math.floor(t / 1000);
-            const m = Math.floor(t / 60);
+            const h = Math.floor(t / 3600);
+            const m = Math.floor((t % 3600) / 60);
             const s = t % 60;
-            return m + ":" + (s < 10 ? "0" : "") + s;
+            let hm;
+            if (h > 0) {
+                hm = h + ":" + (m < 10 ? "0" : "") + m
+            } else {
+                hm = m;
+            }
+            return hm + ":" + (s < 10 ? "0" : "") + s;
         } else {
             t = Math.floor(t / 100);
             const s = Math.floor(t / 10);

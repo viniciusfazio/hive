@@ -303,8 +303,17 @@ export default class HiveCanvas {
         // change color if time is short
         const topColor = topTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
         const bottomColor = bottomTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
-        this.#drawText([topTimeTxt], fx, ty1 + fh + 2, "bottom", "center", fh - 2, topColor);
-        this.#drawText([bottomTimeTxt], fx, ty2 + fh + 2, "bottom", "center", fh - 2, bottomColor);
+        const tfh = HiveCanvas.#scaleTimeFontHeight(topTimeTxt, fh);
+        const bfh = HiveCanvas.#scaleTimeFontHeight(bottomTimeTxt, fh);
+        this.#drawText([topTimeTxt], fx, ty1 + fh / 2 + 1, "middle", "center", tfh, topColor);
+        this.#drawText([bottomTimeTxt], fx, ty2 + fh / 2 + 1, "middle", "center", bfh, bottomColor);
+    }
+    static #scaleTimeFontHeight(txt, fh) {
+        let tfh = fh;
+        for (let i = 6; i < txt.length; i++) {
+            tfh *= 1 - 1 / i;
+        }
+        return tfh;
     }
 
     #drawPieces(pieces, z = 0) {
