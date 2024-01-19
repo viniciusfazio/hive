@@ -35,7 +35,6 @@ export default class CanvasPlayer extends Player {
 
         if (this.dragging || this.hoverPieceId !== pieceHoverId) {
             this.hoverPieceId = pieceHoverId;
-            this.hive.redraw();
         }
         return true;
     }
@@ -88,8 +87,6 @@ export default class CanvasPlayer extends Player {
                 this.hoverPieceId = null;
             }
         }
-        this.hive.redraw();
-
     }
 
 }

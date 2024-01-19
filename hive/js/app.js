@@ -66,7 +66,6 @@ $(() => {
                 break;
             case "D":
                 hive.toggleDebug();
-                hive.redraw();
                 break;
         }
     });

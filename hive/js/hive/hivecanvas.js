@@ -44,27 +44,27 @@ export default class HiveCanvas {
         }
         this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0);
 
-        this.#update();
+        this.#mainLoop();
     }
+    #mainLoop() {
+        this.#update();
+        this.#redraw();
+        setTimeout(() => this.#mainLoop(), 20);
+    }
+
     #update() {
         const moveList = this.getMoveList();
         if (!this.gameOver && moveList.computeTime()) {
-            this.#drawTime();
             if (moveList.whitePiecesTimeLeft === 0 || moveList.blackPiecesTimeLeft === 0) {
                 this.timeout();
             }
         }
         const inTransition = this.board.pieces.filter(p => p.transition > 0);
-        let redraw = false;
+
         if (inTransition.length > 0) {
             inTransition.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .85);
-            redraw = true;
         }
-        redraw |= this.camera.update();
-        if (redraw) {
-            this.redraw();
-        }
-        setTimeout(() => this.#update(), 20);
+        this.camera.update();
     }
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
         [this.#bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
@@ -81,8 +81,6 @@ export default class HiveCanvas {
 
         this.#initRound();
         this.#callbacks.newGame(this.getMoveList().timeControlToText());
-
-        this.#drawFirstFrames();
     }
     getPiecePosition(piece) {
         const [rx, ry, offset] = this.getSize();
@@ -136,13 +134,7 @@ export default class HiveCanvas {
         const offset = r / 4;
         return [r * Math.sqrt(3), r, offset];
     }
-    #drawFirstFrames() {
-        this.redraw();
-        if (this.#frame < 10) {
-            setTimeout(() => this.#drawFirstFrames(), 100);
-        }
-    }
-    redraw() {
+    #redraw() {
         this.#frame++;
 
         // clear screen
@@ -215,7 +207,6 @@ export default class HiveCanvas {
         if (player instanceof CanvasPlayer && player.dragging && player.selectedPieceId !== null) {
             this.#drawPiece(this.board.pieces.find(p => p.id === player.selectedPieceId));
         }
-
         this.#drawTime();
     }
     #drawGameOver() {
@@ -250,6 +241,7 @@ export default class HiveCanvas {
     getMoveList() {
         return this.#moveLists[this.#currentMoveListId];
     }
+
     #drawTime() {
         const moveList = this.getMoveList();
         if (moveList.totalTime === 0) {
@@ -277,27 +269,25 @@ export default class HiveCanvas {
         const hh = this.#getHudHeight();
         const fh = Math.round(w / 10);
         const fx = Math.round(w / 7);
-        const [ty1, tw1, th1] = [hh, 2 * fx, fh + 2];
-        const [ty2, tw2, th2] = [h - hh - fh - 2, 2 * fx, fh + 2];
-        this.ctx.fillStyle = BACKGROUND_COLOR;
-        this.ctx.fillRect(0, ty1, tw1, th1);
-        this.ctx.fillRect(0, ty2, tw2, th2);
+        const [tyTop, twTop, thTop] = [hh, 2 * fx, fh + 2];
+        const [tyBottom, twBottom, thBottom] = [h - hh - fh - 2, 2 * fx, fh + 2];
+
         this.ctx.strokeStyle = "rgb(0, 0, 0)";
         this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(1, ty1 + 1, tw1 - 2, th1 - 2);
-        this.ctx.strokeRect(1, ty2 + 1, tw2 - 2, th2 - 2);
+        this.ctx.strokeRect(1, tyTop + 1, twTop - 2, thTop - 2);
+        this.ctx.strokeRect(1, tyBottom + 1, twBottom - 2, thBottom - 2);
 
         let color = (this.gameOver ? this.board.round + 1 : moveList.moves.length) % 2 === 1 ? PieceColor.white.id : PieceColor.black.id;
         if (color === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = WAITING_HUD_COLOR;
-            this.ctx.fillRect(0, ty1, tw1, th1);
+            this.ctx.fillRect(0, tyTop, twTop, thTop);
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
-            this.ctx.fillRect(0, ty2, tw2, th2);
+            this.ctx.fillRect(0, tyBottom, twBottom, thBottom);
         } else {
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
-            this.ctx.fillRect(0, ty1, tw1, th1);
+            this.ctx.fillRect(0, tyTop, twTop, thTop);
             this.ctx.fillStyle = WAITING_HUD_COLOR;
-            this.ctx.fillRect(0, ty2, tw2, th2);
+            this.ctx.fillRect(0, tyBottom, twBottom, thBottom);
         }
 
         // change color if time is short
@@ -305,8 +295,8 @@ export default class HiveCanvas {
         const bottomColor = bottomTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
         const tfh = HiveCanvas.#scaleTimeFontHeight(topTimeTxt, fh);
         const bfh = HiveCanvas.#scaleTimeFontHeight(bottomTimeTxt, fh);
-        this.#drawText([topTimeTxt], fx, ty1 + fh / 2 + 1, "middle", "center", tfh, topColor);
-        this.#drawText([bottomTimeTxt], fx, ty2 + fh / 2 + 1, "middle", "center", bfh, bottomColor);
+        this.#drawText([topTimeTxt], fx, tyTop + fh / 2 + 1, "middle", "center", tfh, topColor);
+        this.#drawText([bottomTimeTxt], fx, tyBottom + fh / 2 + 1, "middle", "center", bfh, bottomColor);
     }
     static #scaleTimeFontHeight(txt, fh) {
         let tfh = fh;
@@ -665,7 +655,6 @@ export default class HiveCanvas {
         this.board.pieces.forEach(p => p.targets.forEach(t => t.transition = 0));
         this.getPlayerPlaying().initPlayerTurn();
         this.camera.recenter(this);
-        this.redraw();
     }
     #resetPieceAnimation(piece) {
         [piece.fromX, piece.fromY] = this.getPiecePosition(piece);
