@@ -22,7 +22,10 @@ export default class MoveList {
     #pushMoveWithTime(move, time, withIncrement = false) {
         if (this.totalTime > 0) {
             const now = (new Date()).getTime();
-            if (time === null) {
+            // first move doesn't compute time
+            if (this.moves.length === 0) {
+                move.time = 0;
+            } else if (time === null) {
                 move.time = now - this.#lastMoveTimestamp;
             } else {
                 move.time = time;
@@ -93,20 +96,24 @@ export default class MoveList {
         if (this.totalTime === 0 || this.whitePiecesTimeLeft === 0 || this.blackPiecesTimeLeft === 0) {
             return false;
         }
-        let totalTime = (this.totalTime + Math.floor(this.moves.length / 2) * this.#increment) * 1000;
+        // first move doesn't have increment
+        let totalTime = (this.totalTime + Math.floor(Math.max(0, this.moves.length - 1) / 2) * this.#increment) * 1000;
         if (!withIncrement) {
             totalTime -= this.#increment * 1000;
         }
         let timePast = 0;
-        this.moves.forEach((move, i) => {
-            if (i % 2 === this.moves.length % 2) {
-                timePast += move.time;
+        // first move doesn't compute time
+        if (this.moves.length > 0) {
+            this.moves.forEach((move, i) => {
+                if (i % 2 === this.moves.length % 2) {
+                    timePast += move.time;
+                }
+            });
+            if (time === null) {
+                timePast += (new Date()).getTime() - this.#lastMoveTimestamp;
+            } else {
+                timePast += time;
             }
-        });
-        if (time === null) {
-            timePast += (new Date()).getTime() - this.#lastMoveTimestamp;
-        } else {
-            timePast += time;
         }
         const timeLeft = Math.max(0, totalTime - timePast);
         if (this.moves.length % 2 === 0) {
