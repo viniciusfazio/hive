@@ -14,7 +14,7 @@ export default class Piece {
     type;
     number;
     subNumber;
-    id
+    id;
 
     constructor(color, type, number, subNumber = 0) {
         this.color = color;

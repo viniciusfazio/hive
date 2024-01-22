@@ -3,10 +3,16 @@ import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList from "./core/movelist.js";
 
-const BACKGROUND_COLOR = "rgb(150, 150, 150)";
+
+const CAMERA_SPEED = .2; // between 0 and 1, higher is faster
+const PIECE_SPEED = .15; // between 0 and 1, higher is faster
+const UPDATE_IN_MS = 20; // update frame time. Every speed depends of it
+const REDRAW_IN_MS = 10; // draw frame time. Affects FPS only
+const MIN_FPS = 40;      // below MIN_FPS, it prints FPS on screen
+
+
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
 const WAITING_HUD_COLOR = "rgb(0, 0, 0, .25)";
-const MIN_FPS = 40;
 
 export default class HiveCanvas {
     board = new Board();
@@ -55,15 +61,24 @@ export default class HiveCanvas {
 
     #update() {
         const start = (new Date()).getTime();
+
+        // update timer
         const moveList = this.getMoveList();
         if (!this.gameOver && moveList.computeTime()) {
             if (moveList.whitePiecesTimeLeft === 0 || moveList.blackPiecesTimeLeft === 0) {
                 this.timeout();
             }
         }
-        this.board.pieces.filter(p => p.transition > 0).forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * .85);
+
+        // update piece animation
+        const inAnimation = this.board.pieces.filter(p => p.transition > 0);
+        inAnimation.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * (1 - PIECE_SPEED));
+
+        // update camera animation
         this.camera.update();
-        const waitTime = 20 - ((new Date()).getTime() - start);
+
+        // setup next update
+        const waitTime = UPDATE_IN_MS - ((new Date()).getTime() - start);
         this.#tooSlow = waitTime < 1;
         setTimeout(() => this.#update(), Math.max(1, waitTime));
     }
@@ -138,19 +153,21 @@ export default class HiveCanvas {
         return [r * Math.sqrt(3), r, offset];
     }
     #redraw() {
+        const start = (new Date()).getTime();
         this.#updateFPS();
 
         // clear screen
-        this.ctx.fillStyle = BACKGROUND_COLOR;
+        this.ctx.fillStyle = "rgb(150, 150, 150)";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // draw in game, not in animation, pieces
-        this.#drawPieces(this.board.pieces.filter(p => p.inGame && p.transition === 0));
-
+        const inGameNotInAnimationPieces = this.board.pieces.filter(p => p.inGame && p.transition === 0);
+        this.#lastMovedPieceAtTheEnd(inGameNotInAnimationPieces);
+        this.#drawPieces(inGameNotInAnimationPieces.filter(p => p.targets.length === 0));
+        this.#drawPieces(inGameNotInAnimationPieces.filter(p => p.targets.length > 0));
         this.#drawHud();
 
-        // draw in hud, not in animation, pieces
-        this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition === 0));
+        const inHudNotInAnimationPieces = this.board.pieces.filter(p => !p.inGame && p.transition === 0);
+        this.#drawPieces(inHudNotInAnimationPieces);
 
         this.#drawTime();
 
@@ -160,11 +177,13 @@ export default class HiveCanvas {
 
         this.#drawTargets();
 
-        // draw in game, in animation, pieces
-        this.#drawPieces(this.board.pieces.filter(p => p.inGame && p.transition > 0));
+        const inGameInAnimationPieces = this.board.pieces.filter(p => p.inGame && p.transition > 0);
+        this.#lastMovedPieceAtTheEnd(inGameInAnimationPieces);
+        this.#drawPieces(inGameInAnimationPieces.filter(p => p.id !== this.board.lastMovePieceId));
+        this.#drawPieces(inGameInAnimationPieces.filter(p => p.id === this.board.lastMovePieceId));
 
-        // draw in hud, in animation, pieces
-        this.#drawPieces(this.board.pieces.filter(p => !p.inGame && p.transition > 0));
+        const inHudInAnimationPieces = this.board.pieces.filter(p => !p.inGame && p.transition > 0);
+        this.#drawPieces(inHudInAnimationPieces);
 
         this.#drawXOverFallenQueens();
 
@@ -176,7 +195,11 @@ export default class HiveCanvas {
 
         this.#drawPassAlert();
 
-        setTimeout(() => this.#redraw(), 10);
+        const waitTime = REDRAW_IN_MS - ((new Date()).getTime() - start);
+        setTimeout(() => this.#redraw(), Math.max(1, waitTime));
+    }
+    #lastMovedPieceAtTheEnd(pieces) {
+        pieces.sort((a, b) => a.id === this.board.lastMovePieceId ? 1 : (b.id === this.board.lastMovePieceId ? -1 : 0));
     }
     #drawPassAlert() {
         const isLastRound = this.getMoveList().moves.length < this.board.round;
@@ -193,14 +216,14 @@ export default class HiveCanvas {
             const hudHeight = this.#getHudHeight();
             const fh = Math.ceil(20 * this.canvas.width / 1000);
             const color = "rgb(255, 0, 0)";
-            let txts = [];
+            let texts = [];
             if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
-                txts.push(this.#framesPerSecond + " FPS");
+                texts.push(this.#framesPerSecond + " FPS");
             }
             if (this.#tooSlow) {
-                txts.push("SLOW PERFORMANCE");
+                texts.push("SLOW PERFORMANCE");
             }
-            this.#drawText(txts, this.canvas.width - 2, hudHeight + 2, "top", "right", fh, color);
+            this.#drawText(texts, this.canvas.width - 2, hudHeight + 2, "top", "right", fh, color);
         }
     }
     #updateFPS() {
@@ -278,10 +301,10 @@ export default class HiveCanvas {
             path.moveTo(r, -r);
             path.lineTo(-r, r);
             path.closePath();
-            this.ctx.lineWidth = 12;
+            this.ctx.lineWidth = ry / 2;
             this.ctx.strokeStyle = "rgb(0, 0, 0)";
             this.ctx.stroke(path);
-            this.ctx.lineWidth = 8;
+            this.ctx.lineWidth = ry / 3;
             this.ctx.strokeStyle = "rgb(255, 0, 0)";
             this.ctx.stroke(path);
             this.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -289,7 +312,7 @@ export default class HiveCanvas {
     }
     #getHudHeight() {
         const [, ry, offset] = this.getSize();
-        return 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 4;
+        return 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 1;
     }
     getMoveList() {
         return this.#moveLists[this.#currentMoveListId];
@@ -447,7 +470,6 @@ export default class HiveCanvas {
                     this.ctx.strokeStyle = "rgb(255, 128, 0)";
                 } else if (style.includes("5")) {
                     this.ctx.strokeStyle = "rgb(0, 255, 0)";
-                    this.ctx.lineWidth = 3;
                 } else {
                     this.ctx.strokeStyle = "rgb(255, 0, 0)";
                 }
@@ -518,6 +540,7 @@ export default class HiveCanvas {
         if (piece.type.id === PieceType.queen.id && piece.inGame && !this.board.inGameTopPieces.find(p => p.id === piece.id)) {
             // there are pieces above queen
             this.#drawPiece(piece, ["boarded", "5"]);
+            return;
         }
         // drawing piece in other cases
         this.#drawPiece(piece, []);
@@ -750,9 +773,9 @@ class Camera {
         this.#toY = 3 * ry * this.#toScale * (maxY + minY) / 2;
     }
     update() {
-        const diffX = (this.#toX - this.x) * .2;
-        const diffY = (this.#toY - this.y) * .2;
-        const diffScale = (this.#toScale - this.scale) * .2;
+        const diffX = (this.#toX - this.x) * CAMERA_SPEED;
+        const diffY = (this.#toY - this.y) * CAMERA_SPEED;
+        const diffScale = (this.#toScale - this.scale) * CAMERA_SPEED;
         if (Math.abs(diffX) > 1e-4 || Math.abs(diffY) > 1e-4 || Math.abs(diffScale) > 1e-4) {
             this.x += diffX;
             this.y += diffY;
