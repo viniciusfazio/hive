@@ -156,50 +156,22 @@ export default class HiveCanvas {
         const start = (new Date()).getTime();
         this.#updateFPS();
 
-        // clear screen
-        this.ctx.fillStyle = "rgb(150, 150, 150)";
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        const inGameNotInAnimationPieces = this.board.pieces.filter(p => p.inGame && p.transition === 0);
-        this.#lastMovedPieceAtTheEnd(inGameNotInAnimationPieces);
-        this.#drawPieces(inGameNotInAnimationPieces.filter(p => p.targets.length === 0));
-        this.#drawPieces(inGameNotInAnimationPieces.filter(p => p.targets.length > 0));
         this.#drawHud();
-
-        const inHudNotInAnimationPieces = this.board.pieces.filter(p => !p.inGame && p.transition === 0);
-        this.#drawPieces(inHudNotInAnimationPieces);
 
         this.#drawTime();
 
-        this.#drawDebug();
-
         this.#drawFPS();
 
-        this.#drawTargets();
-
-        const inGameInAnimationPieces = this.board.pieces.filter(p => p.inGame && p.transition > 0);
-        this.#lastMovedPieceAtTheEnd(inGameInAnimationPieces);
-        this.#drawPieces(inGameInAnimationPieces.filter(p => p.id !== this.board.lastMovePieceId));
-        this.#drawPieces(inGameInAnimationPieces.filter(p => p.id === this.board.lastMovePieceId));
-
-        const inHudInAnimationPieces = this.board.pieces.filter(p => !p.inGame && p.transition > 0);
-        this.#drawPieces(inHudInAnimationPieces);
+        this.#drawPieces();
 
         this.#drawXOverFallenQueens();
 
-        // draw dragging piece
-        const player = this.getPlayerPlaying();
-        if (player instanceof CanvasPlayer && player.dragging && player.selectedPieceId !== null) {
-            this.#drawPiece(this.board.pieces.find(p => p.id === player.selectedPieceId));
-        }
-
         this.#drawPassAlert();
+
+        this.#drawDebug();
 
         const waitTime = REDRAW_IN_MS - ((new Date()).getTime() - start);
         setTimeout(() => this.#redraw(), Math.max(1, waitTime));
-    }
-    #lastMovedPieceAtTheEnd(pieces) {
-        pieces.sort((a, b) => a.id === this.board.lastMovePieceId ? 1 : (b.id === this.board.lastMovePieceId ? -1 : 0));
     }
     #drawPassAlert() {
         const isLastRound = this.getMoveList().moves.length < this.board.round;
@@ -236,20 +208,6 @@ export default class HiveCanvas {
             this.#frameQtd = 0;
         }
     }
-    #drawTargets() {
-        const player = this.getPlayerPlaying();
-        if (player instanceof CanvasPlayer) {
-            const hoverPiece = this.board.pieces.find(p => p.id === player.hoverPieceId);
-            if (player.selectedPieceId !== null && !hoverPiece) {
-                // there is a selected piece and no other piece being hovered (except targets)
-                // draw targets from selected piece
-                this.#drawPieces(this.board.pieces.find(p => p.id === player.selectedPieceId).targets);
-            } else if (hoverPiece) {
-                // draw targets from hovered piece
-                this.#drawPieces(hoverPiece.targets);
-            }
-        }
-    }
     #drawDebug() {
         if (this.#debug) {
             const player = this.getPlayerPlaying();
@@ -270,6 +228,10 @@ export default class HiveCanvas {
         }
     }
     #drawHud() {
+        // clear screen
+        this.ctx.fillStyle = "rgb(150, 150, 150)";
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
         const hudHeight = this.#getHudHeight();
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
@@ -384,19 +346,52 @@ export default class HiveCanvas {
         return tfh;
     }
 
-    #drawPieces(pieces, z = 0) {
-        let piecesAbove = [];
-        pieces.forEach(p => {
-            if (p.z > z) {
-                piecesAbove.push(p); // pieces above go to the next iteration
-            } else {
-                this.#drawPiece(p);
+    #drawPieces() {
+        // get targets to draw
+        const player = this.getPlayerPlaying();
+        let targets = [];
+        if (player instanceof CanvasPlayer) {
+            const hoverPiece = this.board.pieces.find(p => p.id === player.hoverPieceId);
+            if (player.selectedPieceId !== null && !hoverPiece) {
+                // there is a selected piece and no other piece being hovered (except targets)
+                // draw targets from selected piece
+                targets = this.board.pieces.find(p => p.id === player.selectedPieceId).targets;
+            } else if (hoverPiece) {
+                // draw targets from hovered piece
+                targets = hoverPiece.targets;
             }
-        });
-        if (piecesAbove.length > 0) {
-            this.#drawPieces(piecesAbove, z + 1);
         }
-
+        // sort pieces to draw in correct order
+        const dragId = player instanceof CanvasPlayer && player.dragging ? player.selectedPieceId : null;
+        this.board.pieces.concat(targets).sort((a, b) => {
+            // dragging pieces draw at the end
+            if (a.id === dragId) {
+                return 1;
+            }
+            if (b.id === dragId) {
+                return -1;
+            }
+            // draw top pieces at the end
+            if (a.z !== b.z) {
+                return a.z - b.z;
+            }
+            // draw targets at the end
+            if (a.subNumber !== b.subNumber) {
+                return a.subNumber - b.subNumber;
+            }
+            // draw pieces in animation at the end
+            if (Math.abs(a.transition - b.transition) > 1e-4) {
+                return a.transition - b.transition;
+            }
+            // draw last moved piece at the end
+            if (a.id === this.board.lastMovePieceId) {
+                return 1;
+            }
+            if (b.id === this.board.lastMovePieceId) {
+                return -1;
+            }
+            return 0;
+        }).forEach(p => this.#drawPiece(p));
     }
     getPiecePath2D() {
         let path = new Path2D();
@@ -435,7 +430,7 @@ export default class HiveCanvas {
             }
 
 
-            this.ctx.fillStyle = piece.color.id === "w" ? "rgb(250, 230, 210)" : "rgb(50, 70, 90)";
+            this.ctx.fillStyle = piece.color.id === "w" ? "rgb(230, 210, 190)" : "rgb(50, 70, 90)";
             this.ctx.fill(path);
 
             this.ctx.strokeStyle = "rgb(0, 0, 0)";
