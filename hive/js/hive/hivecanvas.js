@@ -52,7 +52,7 @@ export default class HiveCanvas {
         for (const keyType in PieceType) {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
-        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0);
+        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, false);
 
         this.#frameTime = (new Date()).getTime();
         this.#update();
@@ -82,7 +82,7 @@ export default class HiveCanvas {
         this.#tooSlow = waitTime < 1;
         setTimeout(() => this.#update(), Math.max(1, waitTime));
     }
-    newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment) {
+    newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment, alternativeRules) {
         [this.#bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.#moveLists, this.#currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
         this.whitePlayer.reset();

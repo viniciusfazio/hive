@@ -128,7 +128,7 @@ function upload() {
         $file.val(null);
         return;
     }
-    hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer);
+    hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, $('#alternativeRules').prop('checked'));
     const files = $file.prop("files");
     if (files.length === 1) {
         const fileReader = new FileReader();
@@ -174,7 +174,7 @@ function newGame() {
     const color = piece === "b" || piece !== "w" && Math.random() < .5 ? PieceColor.black : PieceColor.white;
     const totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : 0;
     const increment = $("#increment").val();
-    hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment);
+    hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment, $('#alternativeRules').prop('checked'));
 }
 function draw () {
     onlinePlayer.draw();
@@ -185,7 +185,8 @@ function newOnlineGame() {
     const piece = $("[name='piece']:checked").val();
     const totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : 0;
     const increment = $("#increment").val();
-    onlinePlayer.newGame(piece, totalTime, increment);
+    const alternativeRules = $('#alternativeRules').prop('checked');
+    onlinePlayer.newGame(piece, totalTime, increment, alternativeRules);
     // noinspection JSUnresolvedReference
     $("#challengeSentToast").toast("show");
 }
@@ -295,17 +296,21 @@ function onlineCallbacks() {
             $("#newOnlineGame, #disconnect").removeClass("d-none");
             showMessage("Connected!");
         },
-        opponentOffersNewGame: (color, totalTime, increment) => {
+        opponentOffersNewGame: (color, totalTime, increment, alternativeRules) => {
             const you = color === "random" ? "Random" : (color === "w" ? "Black" : "White");
             const timeControl = hive.getMoveList().timeControlToText(totalTime, increment);
-            $("#challenge").text("You play as " + you + " with " + timeControl + ".  Do you accept?");
+            let text = "You play as " + you + " with " + timeControl;
+            if (alternativeRules) {
+                text += " and alternative rules";
+            }
+            $("#challenge").text(text + ".  Do you accept?");
             // noinspection JSUnresolvedReference,SpellCheckingInspection
             $("#challengeToast").toast("show", { autohide: false });
         },
-        newGame: (bottomColor, totalTime, increment) => {
+        newGame: (bottomColor, totalTime, increment, alternativeRules) => {
             const whitePlayer = bottomColor.id === "w" ? canvasPlayer : onlinePlayer;
             const blackPlayer = bottomColor.id === "b" ? canvasPlayer : onlinePlayer;
-            hive.newGame(bottomColor, whitePlayer, blackPlayer, totalTime, increment)
+            hive.newGame(bottomColor, whitePlayer, blackPlayer, totalTime, increment, alternativeRules);
         },
         disconnect: () => showMessage("Disconnected"),
         opponentDisconnects: () => showMessage("Your opponent disconnected"),
