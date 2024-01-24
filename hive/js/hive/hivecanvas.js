@@ -348,21 +348,18 @@ export default class HiveCanvas {
 
     #drawPieces() {
         // get targets to draw
-        const player = this.getPlayerPlaying();
         let targets = [];
+        const player = this.getPlayerPlaying();
         if (player instanceof CanvasPlayer) {
-            const hoverPiece = this.board.pieces.find(p => p.id === player.hoverPieceId);
-            if (player.selectedPieceId !== null && !hoverPiece) {
-                // there is a selected piece and no other piece being hovered (except targets)
-                // draw targets from selected piece
-                targets = this.board.pieces.find(p => p.id === player.selectedPieceId).targets;
-            } else if (hoverPiece) {
-                // draw targets from hovered piece
-                targets = hoverPiece.targets;
+            const id = player.selectedPieceId ?? player.hoverPieceId;
+            if (id !== null) {
+                targets = this.board.pieces.find(p => p.id === id).targets;
             }
         }
         // sort pieces to draw in correct order
-        const dragId = player instanceof CanvasPlayer && player.dragging ? player.selectedPieceId : null;
+        const dragId = player?.dragging ? player.selectedPieceId : null;
+        const queensCovered = this.board.pieces.filter(p => p.type.id === PieceType.queen.id && p.inGame
+            && !this.board.inGameTopPieces.find(t => t.id === p.id)).map(p => p.id);
         this.board.pieces.concat(targets).sort((a, b) => {
             // dragging pieces draw at the end
             if (a.id === dragId) {
@@ -382,6 +379,19 @@ export default class HiveCanvas {
             // draw pieces in animation at the end
             if (Math.abs(a.transition - b.transition) > 1e-4) {
                 return a.transition - b.transition;
+            }
+            // draw queens covered at the end
+            const aCovered = queensCovered.includes(a.id);
+            const bCovered = queensCovered.includes(b.id);
+            if (aCovered && !bCovered) {
+                return 1;
+            }
+            if (!aCovered && bCovered) {
+                return -1;
+            }
+            // draw movable pieces at the end
+            if (a.targets.length !== b.targets.length) {
+                return a.targets.length - b.targets.length;
             }
             // draw last moved piece at the end
             if (a.id === this.board.lastMovePieceId) {
@@ -412,133 +422,115 @@ export default class HiveCanvas {
         return path;
     }
 
-    #drawPiece(piece, style = null) {
-        if (style !== null) {
-            let x, y;
-            if (style.includes("hover")) {
-                const player = this.getPlayerPlaying();
-                [x, y] = [player.mouseX, player.mouseY];
-            } else {
-                [x, y] = this.getPiecePosition(piece);
-            }
-            const [rx, ry, ] = this.getSize();
-            const path = this.getPiecePath2D();
-
-            this.ctx.setTransform(1, 0, 0, 1, x, y);
-            if (style.includes("transparent")) {
-                this.ctx.globalAlpha = .25;
-            }
-
-
-            this.ctx.fillStyle = piece.color.id === "w" ? "rgb(230, 210, 190)" : "rgb(50, 70, 90)";
-            this.ctx.fill(path);
-
-            this.ctx.strokeStyle = "rgb(0, 0, 0)";
-            this.ctx.lineWidth = 1;
-            this.ctx.stroke(path);
-
-            const r = Math.min(rx, ry);
-            this.ctx.rotate(-Math.PI / 2 + (Math.max(1, piece.number) - 1) * Math.PI / 3);
-            this.ctx.drawImage(document.getElementById("piece" + piece.type.id), -r, -r, 2 * r, 2 * r);
-            this.ctx.setTransform(1, 0, 0, 1, x, y);
-
-            this.ctx.globalAlpha = 1;
-
-            if (this.#debug) {
-                const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
-                if (piece.inGame) {
-                    let text = [piece.x + "," + piece.y + "," + piece.z];
-                    if (piece.subNumber === 0) {
-                        text.push(piece.id);
-                    }
-                    this.#drawText(text, 0, 0, "middle", "center", h);
-                } else {
-                    this.#drawText(["", piece.id], 0, 0, "middle", "center", h);
-                }
-            }
-
-            if (style.includes("boarded")) {
-                this.ctx.lineWidth = 2;
-                if (style.includes("3")) {
-                    this.ctx.strokeStyle = "rgb(0, 255, 255)";
-                } else if (style.includes("4")) {
-                    this.ctx.strokeStyle = "rgb(255, 128, 0)";
-                } else if (style.includes("5")) {
-                    this.ctx.strokeStyle = "rgb(0, 255, 0)";
-                } else {
-                    this.ctx.strokeStyle = "rgb(255, 0, 0)";
-                }
-                if (style.includes("2") || style.includes("4")) {
-                    this.ctx.setLineDash([3, 3]);
-                    this.ctx.lineWidth = 3;
-                }
-                this.ctx.stroke(path);
-                this.ctx.setLineDash([]);
-            }
-
-            this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-            return;
-        }
+    #drawPiece(piece) {
         const player = this.getPlayerPlaying();
-        const playable = this.board.round > this.getMoveList().moves.length;
-        if (playable && player instanceof CanvasPlayer) {
-            if (piece.id === player.selectedPieceId) {
-                if (player.hoverPieceId === null) {
-                    if (player.dragging) {
-                        // drawing selected piece when not hovering target but dragging
-                        this.#drawPiece(piece, ["transparent", "boarded", "2"]);
-                        this.#drawPiece(piece, ["boarded", "2", "hover"]);
-                    } else {
-                        // drawing selected piece when not hovering target
-                        this.#drawPiece(piece, ["boarded", "2"]);
-                    }
-                } else if (piece.targets.find(p => p.id === player.hoverPieceId)) {
-                    // drawing selected piece when hovering target
-                    this.#drawPiece(piece, ["transparent", "boarded", "2"]);
+        const playable = this.board.round > this.getMoveList().moves.length && player instanceof CanvasPlayer;
+        if (playable && piece.id === player.selectedPieceId) {
+            if (player.hoverPieceId === null && player.dragging) {
+                // drawing selected piece dragging
+                this.#drawPieceWithStyle(piece, "selected-hover");
+            } else if (!piece.targets.find(p => p.id === player.hoverPieceId)) {
+                // drawing selected piece only if not hovering target
+                this.#drawPieceWithStyle(piece, "selected");
+            }
+        } else if (playable && piece.id === player.hoverPieceId) {
+            if (piece.selectedPieceId !== null) {
+                if (this.board.pieces.find(p => p.id === player.hoverPieceId)) {
+                    // drawing another piece being hovered while a piece has been selected
+                    this.#drawPieceWithStyle(piece, "selected");
                 } else {
-                    // drawing selected piece when hovering another piece
-                    this.#drawPiece(piece, ["boarded", "2"]);
+                    // drawing target being hovered
+                    this.#drawPieceWithStyle(piece, "target-hover");
                 }
-                return
+            } else {
+                // drawing piece being hovered while no piece has been selected
+                this.#drawPieceWithStyle(piece, "selected");
             }
-            if (piece.id === player.hoverPieceId) {
-                if (piece.selectedPieceId !== null) {
-                    if (this.board.pieces.find(p => p.id === player.hoverPieceId)) {
-                        // drawing another piece being hovered while a piece has been selected
-                        this.#drawPiece(piece, ["boarded", "2"]);
-                    } else {
-                        // drawing target being hovered
-                        this.#drawPiece(piece, ["boarded", "1"]);
-                    }
-                } else {
-                    // drawing piece being hovered while no piece has been selected
-                    this.#drawPiece(piece, ["boarded", "2"]);
-                }
-                return
-            }
-            if (piece.subNumber > 0) {
-                // drawing target not being hovered
-                this.#drawPiece(piece, ["transparent"]);
-                return
-            }
-        }
-        if (this.board.lastMovePieceId === piece.id) {
+        } else if (piece.subNumber > 0) {
+            // drawing target not being hovered
+            this.#drawPieceWithStyle(piece, "target");
+        } else if (this.board.lastMovePieceId === piece.id) {
             // drawing last piece moved
-            this.#drawPiece(piece, ["boarded", "3"]);
-            return;
-        }
-        if (playable && piece.targets.length > 0) {
+            this.#drawPieceWithStyle(piece, "last-piece");
+        } else if (playable && piece.targets.length > 0) {
             // drawing movable piece
-            this.#drawPiece(piece, ["boarded", "4"]);
-            return;
-        }
-        if (piece.type.id === PieceType.queen.id && piece.inGame && !this.board.inGameTopPieces.find(p => p.id === piece.id)) {
+            this.#drawPieceWithStyle(piece, "movable");
+        } else if (piece.type.id === PieceType.queen.id && piece.inGame && !this.board.inGameTopPieces.find(p => p.id === piece.id)) {
             // there are pieces above queen
-            this.#drawPiece(piece, ["boarded", "5"]);
-            return;
+            this.#drawPieceWithStyle(piece, "queen");
+        } else {
+            // drawing piece in other cases
+            this.#drawPieceWithStyle(piece);
         }
-        // drawing piece in other cases
-        this.#drawPiece(piece, []);
+    }
+    #drawPieceWithStyle(piece, style = "") {
+        // get position
+        let x, y;
+        if (style === "selected-hover") {
+            const player = this.getPlayerPlaying();
+            [x, y] = [player.mouseX, player.mouseY];
+        } else {
+            [x, y] = this.getPiecePosition(piece);
+        }
+
+        const [rx, ry, ] = this.getSize();
+        const path = this.getPiecePath2D();
+
+        this.ctx.setTransform(1, 0, 0, 1, x, y);
+        if (style === "target") {
+            this.ctx.globalAlpha = .25;
+        }
+
+        // fill color
+        this.ctx.fillStyle = piece.color.id === "w" ? "rgb(230, 210, 190)" : "rgb(50, 70, 90)";
+        this.ctx.fill(path);
+
+        // draw piece image, rotating according to the number identification
+        const r = Math.min(rx, ry);
+        this.ctx.rotate(-Math.PI / 2 + (Math.max(1, piece.number) - 1) * Math.PI / 3);
+        this.ctx.drawImage(document.getElementById("piece" + piece.type.id), -r, -r, 2 * r, 2 * r);
+        this.ctx.setTransform(1, 0, 0, 1, x, y);
+
+        // draw border
+        if (style === "last-piece") {
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = "rgb(0, 255, 255)";
+        } else if (style === "movable") {
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = "rgb(255, 128, 0)";
+        } else if (style === "queen") {
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = "rgb(0, 255, 0)";
+        } else if (style === "selected" || style === "selected-hover") {
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = "rgb(255, 0, 0)";
+        } else if (style === "target" || style === "target-hover") {
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([3, 3]);
+            this.ctx.strokeStyle = "rgb(255, 0, 0)";
+        } else {
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeStyle = "rgb(0, 0, 0)";
+        }
+        this.ctx.stroke(path);
+
+        // reset
+        this.ctx.setLineDash([]);
+        this.ctx.globalAlpha = 1;
+
+        if (this.#debug) {
+            const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
+            if (piece.inGame) {
+                let text = [piece.x + "," + piece.y + "," + piece.z];
+                if (piece.subNumber === 0) {
+                    text.push(piece.id);
+                }
+                this.#drawText(text, 0, 0, "middle", "center", h);
+            } else {
+                this.#drawText(["", piece.id], 0, 0, "middle", "center", h);
+            }
+        }
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
     #drawText(texts, x = 0, y = 0, valign = "middle", align = "center",
              height, cor = "rgb(255, 255, 255)", corBorda = "rgb(0, 0, 0)") {

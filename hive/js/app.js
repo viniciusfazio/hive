@@ -22,13 +22,13 @@ $(() => {
     $("#disconnect").click(() => onlinePlayer.disconnect(onlineCallbacks()));
     $("#acceptNewGame").click(acceptNewGame);
     $("#acceptDraw").click(acceptDraw);
-    $("#round").mousemove(event => {
-        if (event.buttons % 2 === 1) {
-            setRound(event.target.value);
+    $("#round").mousemove(e => {
+        if (e.buttons % 2 === 1) {
+            setRound(e.target.value);
         }
-    }).change(event => setRound(event.target.value));
-    $("#move-list").keydown(event => {
-        switch (event.key) {
+    }).change(e => setRound(e.target.value));
+    $("#move-list").keydown(e => {
+        switch (e.key) {
             case "ArrowLeft":
                 addRound(-1);
                 break;
@@ -47,11 +47,23 @@ $(() => {
     const $autoMove = $("#autoMove");
     const $hive = $("#hive");
     $hive.css("border", "1px solid black").prop("width", size).prop("height", size);
-    $hive.mousemove(event => canvasPlayer.hover(event.offsetX, event.offsetY, event.buttons % 2 === 1));
-    $hive.mousedown(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked")));
-    $hive.mouseup(event => canvasPlayer.click(event.offsetX, event.offsetY, $autoMove.prop("checked"), true));
-    $hive.keydown(event => {
-        switch (event.key) {
+    $hive.mousemove(e => canvasPlayer.hover(e.offsetX, e.offsetY, (e.buttons & 1) > 0));
+    $hive.mousedown(e => {
+        if (e.button === 2) {
+            canvasPlayer.click(-1, -1, $autoMove.prop("checked"));
+        } else if (e.button === 0) {
+            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked"));
+        }
+    });
+    $hive.mouseout(() => canvasPlayer.hover(-1, -1, false));
+    $hive.mouseup(e => {
+        if (e.button === 0) {
+            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked"), true);
+        }
+    });
+    $hive.contextmenu(event => event.preventDefault());
+    $hive.keydown(e => {
+        switch (e.key) {
             case "ArrowLeft":
                 addRound(-1);
                 break;
