@@ -45,20 +45,21 @@ $(() => {
     });
     const size = Math.min(window.innerWidth, window.innerHeight) - 2;
     const $autoMove = $("#autoMove");
+    const $alternativeRules = $("#alternativeRules");
     const $hive = $("#hive");
     $hive.css("border", "1px solid black").prop("width", size).prop("height", size);
     $hive.mousemove(e => canvasPlayer.hover(e.offsetX, e.offsetY, (e.buttons & 1) > 0));
     $hive.mousedown(e => {
         if (e.button === 2) {
-            canvasPlayer.click(-1, -1, $autoMove.prop("checked"));
+            canvasPlayer.click(-1, -1, false);
         } else if (e.button === 0) {
-            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked"));
+            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked") && !$alternativeRules.prop("checked"));
         }
     });
     $hive.mouseout(() => canvasPlayer.hover(-1, -1, false));
     $hive.mouseup(e => {
         if (e.button === 0) {
-            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked"), true);
+            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked") && !$alternativeRules.prop("checked"), true);
         }
     });
     $hive.contextmenu(event => event.preventDefault());

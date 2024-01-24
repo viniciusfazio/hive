@@ -35,6 +35,7 @@ export default class HiveCanvas {
     #bottomPlayerColor;
     whitePlayer;
     blackPlayer;
+    #alternativeRules;
 
     #moveLists;
     #currentMoveListId;
@@ -89,6 +90,7 @@ export default class HiveCanvas {
         this.blackPlayer.reset();
         this.camera.reset();
         this.gameOver = false;
+        this.#alternativeRules = alternativeRules;
         this.board.reset();
         this.board.pieces.forEach(p => {
             p.fromX = null;
@@ -428,7 +430,7 @@ export default class HiveCanvas {
         if (playable && piece.id === player.selectedPieceId) {
             if (player.hoverPieceId === null && player.dragging) {
                 // drawing selected piece dragging
-                this.#drawPieceWithStyle(piece, "selected-hover");
+                this.#drawPieceWithStyle(piece, "selected-drag");
             } else if (!piece.targets.find(p => p.id === player.hoverPieceId)) {
                 // drawing selected piece only if not hovering target
                 this.#drawPieceWithStyle(piece, "selected");
@@ -466,7 +468,7 @@ export default class HiveCanvas {
     #drawPieceWithStyle(piece, style = "") {
         // get position
         let x, y;
-        if (style === "selected-hover") {
+        if (style === "selected-drag") {
             const player = this.getPlayerPlaying();
             [x, y] = [player.mouseX, player.mouseY];
         } else {
@@ -501,7 +503,7 @@ export default class HiveCanvas {
         } else if (style === "queen") {
             this.ctx.lineWidth = 2;
             this.ctx.strokeStyle = "rgb(0, 255, 0)";
-        } else if (style === "selected" || style === "selected-hover") {
+        } else if (style === "selected" || style === "selected-drag") {
             this.ctx.lineWidth = 2;
             this.ctx.strokeStyle = "rgb(255, 0, 0)";
         } else if (style === "target" || style === "target-hover") {
