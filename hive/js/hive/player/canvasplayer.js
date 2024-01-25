@@ -43,7 +43,7 @@ export default class CanvasPlayer extends Player {
 
         const pieceSelected = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
         const targets = pieceSelected?.targets ?? [];
-        const allPieces = this.hive.board.pieces.filter(p => p.type.linked === null || p.type.standard === !this.hive.flippedPieces)
+        const allPieces = this.hive.board.pieces.filter(p => p.inGame || p.type.linked === null || p.type.standard === !this.hive.flippedPieces)
             .concat(targets);
         let pieceHover = allPieces.find(p => {
             const [px, py] = this.hive.getPiecePosition(p);

@@ -131,7 +131,15 @@ export default class MoveList {
                 if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                     const p = board.pieces.find(p => p.id === move.pieceId);
                     callbackMove(p);
-                    p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
+                    if (p.type.id === PieceType.mantis.id && p.z === 0) {
+                        // mantis special move
+                        const p2 = board.pieces.find(p => p.x === move.toX && p.y === move.toY && p.z === 0);
+                        callbackMove(p2);
+                        p2.play(p.x, p.y, 0);
+                        p.play(p.x, p.y, 1);
+                    } else {
+                        p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
+                    }
                 }
             }
         } else if (board.round > round) { // undo moves
@@ -140,7 +148,15 @@ export default class MoveList {
                 if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                     const p = board.pieces.find(p => p.id === move.pieceId);
                     callbackMove(p);
-                    p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
+                    if (p.type.id === PieceType.mantis.id && p.z === 0) {
+                        // mantis special move
+                        const p2 = board.pieces.find(p => p.x === move.fromX && p.y === move.fromY && p.z === 0);
+                        callbackMove(p2);
+                        p2.play(move.toX, move.toX);
+                        p.play(move.fromX, move.fromY);
+                    } else {
+                        p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
+                    }
                 }
             }
             board.round++;

@@ -408,9 +408,9 @@ export const PieceType = Object.freeze({
             if (withAbility) {
                 preys.forEach(([x, y]) => {
                     const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
-                    const noPillBug = standard || prey.type.id !== PieceType.pillBug.id;
+                    const noForbPieces = standard || prey.type.id !== PieceType.pillBug.id && prey.type.id !== PieceType.centipede.id;
                     const notLastMove = prey.id !== board.lastMovePieceId;
-                    if (noPillBug && notLastMove && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
+                    if (noForbPieces && notLastMove && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
                         noPieces.forEach(([tx, ty]) => {
                             prey.insertTarget(tx, ty, 0, [[piece.x, piece.y, piece.z + 1]]);
                         });
@@ -430,8 +430,9 @@ export const PieceType = Object.freeze({
             } else if (withAbility) {
                 for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, piece.x, piece.y)) {
                     const neighbor = board.inGameTopPieces.find(p => p.x === x && p.y === y);
-                    if (neighbor.z === 0 && onHiveAndNoGate(piece.z, z, z1, z2)) {
-                        // TODO
+                    const canEat = z === 0 && (z1 < 0 || z2 < 0);
+                    if (canEat && stillOneHiveAfterRemoveOnXY(board, neighbor.x, neighbor.y)) {
+                        piece.insertTarget(x, y, z + 1);
                     }
                 }
             }
