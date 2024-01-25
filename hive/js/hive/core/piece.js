@@ -229,8 +229,11 @@ export const PieceType = Object.freeze({
                 if (board.inGameTopPieces.find(p => p.x === piece.x + dx && p.y === piece.y + dy)) {
                     for (let i = 2; i <= board.inGameTopPieces.length; i++) {
                         const [x, y] = [piece.x + i * dx, piece.y + i * dy];
-                        if (!board.inGameTopPieces.find(p => p.x === x && p.y === y)) { // found a hole
+                        const f = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                        if (!f) { // found a hole
                             piece.insertTarget(x, y, 0);
+                            break;
+                        } else if (!standard && f.type.id === PieceType.scorpion.id) { // can't move over scorpion
                             break;
                         }
                     }
@@ -272,6 +275,16 @@ export const PieceType = Object.freeze({
                     }
                 });
                 paths = newPaths;
+            }
+            if (!standard) {
+                // jump over 1 piece
+                for (const [dx, dy] of Board.coordsAround(0, 0)) {
+                    const neighbor = board.inGameTopPieces.find(p => p.x === piece.x + dx && p.y === piece.y + dy);
+                    const hasHole = !board.inGameTopPieces.find(p => p.x === piece.x + 2 * dx && p.y === piece.y + 2 * dy);
+                    if (neighbor && hasHole && neighbor.type.id !== PieceType.scorpion.id) {
+                        piece.insertTarget(piece.x + 2 * dx, piece.y + 2 * dy, 0);
+                    }
+                }
             }
 
         }
@@ -358,12 +371,12 @@ export const PieceType = Object.freeze({
         play: (board, piece, standard, withAbility = true) => {
             if (piece.z > 0) {
                 // on the top of other piece
-                PieceType.beetle.play(board, piece, standard, false);
+                PieceType.beetle.play(board, piece, standard, standard);
             } else {
                 for (const [x, y] of Board.coordsAround(piece.x, piece.y)) {
                     const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
                     if (p && p.type.id !== PieceType.mosquito.id) {
-                        p.type.play(board, piece, standard, false);
+                        p.type.play(board, piece, standard, standard);
                     }
                 }
             }
@@ -395,7 +408,9 @@ export const PieceType = Object.freeze({
             if (withAbility) {
                 preys.forEach(([x, y]) => {
                     const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
-                    if (prey.id !== board.lastMovePieceId && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
+                    const noPillBug = standard || prey.type.id !== PieceType.pillBug.id;
+                    const notLastMove = prey.id !== board.lastMovePieceId;
+                    if (noPillBug && notLastMove && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
                         noPieces.forEach(([tx, ty]) => {
                             prey.insertTarget(tx, ty, 0, [[piece.x, piece.y, piece.z + 1]]);
                         });
@@ -410,7 +425,16 @@ export const PieceType = Object.freeze({
         linked: "beetle",
         standard: false,
         play: (board, piece, standard, withAbility = true) => {
-
+            if (piece.z > 0) {
+                PieceType.beetle.play(board, piece, standard);
+            } else if (withAbility) {
+                for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, piece.x, piece.y)) {
+                    const neighbor = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    if (neighbor.z === 0 && onHiveAndNoGate(piece.z, z, z1, z2)) {
+                        // TODO
+                    }
+                }
+            }
         }
     }),
     fly: Object.freeze({
