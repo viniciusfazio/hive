@@ -2,9 +2,11 @@ import Piece, {PieceColor, PieceType} from "./piece.js"
 class Board {
     round;
     pieces;
+    allPieces;
     lastMovePieceId;
     passRound;
 
+    #inGame;
     inGameTopPieces;
     #sameColorInGameTopPieces;
 
@@ -15,19 +17,19 @@ class Board {
             this.round = board.round;
             this.lastMovePieceId = board.lastMovePieceId;
             this.passRound = board.passRound;
-            this.pieces = board.pieces.map(piece => {
+            this.allPieces = board.allPieces.map(piece => {
                 const p = {...piece};
                 // noinspection JSPrimitiveTypeWrapperUsage
                 p.targets = [];
                 return p;
             });
         } else {
-            this.pieces = [];
+            this.allPieces = [];
             for (const keyColor in PieceColor) {
                 for (const keyType in PieceType) {
                     const type = PieceType[keyType];
                     for (let number = 1; number <= type.qty; number++) {
-                        this.pieces.push(new Piece(PieceColor[keyColor], type, type.qty === 1 ? 0 : number));
+                        this.allPieces.push(new Piece(PieceColor[keyColor], type, type.qty === 1 ? 0 : number));
                     }
                 }
             }
@@ -39,10 +41,15 @@ class Board {
         this.lastMovePieceId = null;
         this.passRound = false;
         this.#standardRules = standardRules;
-        this.pieces.forEach(p => p.reset());
+        this.allPieces.forEach(p => p.reset());
+        this.#computePieces();
     }
     isQueenDead(colorId) {
-        const queen = this.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
+        const queen = this.pieces.find(p =>
+            p.inGame &&
+            p.type.id === PieceType.queen.id &&
+            p.color.id === colorId
+        );
         if (queen) {
             for (const [x, y] of Board.coordsAround(queen.x, queen.y)) {
                 if (!this.inGameTopPieces.find(p => p.x === x && p.y === y)) {
@@ -54,18 +61,38 @@ class Board {
         return false;
     }
 
+    #computePieces() {
+        this.pieces = this.allPieces.filter(p =>
+            (!this.#standardRules || p.type.standard) &&
+            (
+                this.#standardRules ||
+                p.type.linked === null ||
+                !this.allPieces.find(l => // if linked piece is in game, can't play
+                    l.inGame &&
+                    l.type.id === PieceType[p.type.linked].id &&
+                    l.number === p.number &&
+                    l.color.id === p.color.id
+                )
+            )
+    );
+    }
     computeLegalMoves(ended) {
         this.pieces.forEach(p => p.targets = []);
+        this.#computePieces();
         if (!ended) {
-            const inGame = this.pieces.filter(p => p.inGame);
-            this.inGameTopPieces = inGame.filter(p => !inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
+            this.#inGame = this.pieces.filter(p => p.inGame);
+            this.inGameTopPieces = this.#inGame.filter(p => !this.#inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
             const colorPlayingId = this.getColorPlaying().id;
             this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
             this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;
         }
     }
     #computeMoves() {
-        if (!this.pieces.find(p => p.inGame && p.color.id === this.getColorPlaying().id && p.type.id === PieceType.queen.id)) {
+        // cant move if queen is not in game
+        if (!this.pieces.find(p =>
+            p.inGame && p.type.id === PieceType.queen.id &&
+            p.color.id === this.getColorPlaying().id
+        )) {
             return 0;
         }
         let total = 0;
@@ -79,7 +106,8 @@ class Board {
     }
     #computePiecePlacements() {
         const colorPlayingId = this.getColorPlaying().id;
-        let piecesToBePlaced = this.pieces.filter(p => p.color.id === colorPlayingId && !p.inGame && (!this.#standardRules || p.standard));
+        let piecesToBePlaced = this.pieces.filter(p => p.color.id === colorPlayingId && !p.inGame);
+
         // first and second moves are special cases
         if (this.round === 1) {
             piecesToBePlaced.forEach(p => p.insertTarget(0, 0, 0));

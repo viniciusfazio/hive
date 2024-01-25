@@ -7,8 +7,8 @@ import MoveList from "./core/movelist.js";
 const CAMERA_SPEED = .2; // between 0 and 1, higher is faster
 const PIECE_SPEED = .15; // between 0 and 1, higher is faster
 const UPDATE_IN_MS = 20; // update frame time. Every speed depends of it
-const REDRAW_IN_MS = 1; // draw frame time. Affects FPS only
-const MIN_FPS = 1000;      // below MIN_FPS, it prints FPS on screen
+const REDRAW_IN_MS = 10; // draw frame time. Affects FPS only
+const MIN_FPS = 40;      // below MIN_FPS, it prints FPS on screen
 
 
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
@@ -35,7 +35,9 @@ export default class HiveCanvas {
     #bottomPlayerColor;
     whitePlayer;
     blackPlayer;
+    #canvasPlayer;
     #standardRules;
+    flippedPieces;
 
     #moveLists;
     #currentMoveListId;
@@ -53,7 +55,8 @@ export default class HiveCanvas {
         for (const keyType in PieceType) {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
-        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, false);
+        this.#canvasPlayer = canvasPlayer;
+        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, true);
 
         this.#frameTime = (new Date()).getTime();
         this.#update();
@@ -91,6 +94,7 @@ export default class HiveCanvas {
         this.camera.reset();
         this.gameOver = false;
         this.#standardRules = standardRules;
+        this.flippedPieces = false;
         this.board.reset(standardRules);
         this.board.pieces.forEach(p => {
             p.fromX = null;
@@ -129,11 +133,18 @@ export default class HiveCanvas {
             x = w / 2 + px * rx + offset * pz - this.camera.x;
             y = h / 2 - py * ry * 3 - offset * pz + this.camera.y;
         } else {
-            const marginX = w / 2 - (Object.keys(PieceType).length + 1) * rx;
+            let qtdPieces = 0;
+            for (const key in PieceType) {
+                if (PieceType[key].standard) {
+                    qtdPieces++;
+                }
+            }
+            const marginX = w / 2 - (qtdPieces + 1) * rx;
             let position = 0;
             for (const key in PieceType) {
                 position++;
-                if (PieceType[key].id === piece.type.id || PieceType[key].id === piece.type.linked) {
+                const isLinkedPiece = piece.type.linked !== null && PieceType[piece.type.linked].id === PieceType[key].id;
+                if (PieceType[key].id === piece.type.id || isLinkedPiece) {
                     break;
                 }
             }
@@ -166,6 +177,8 @@ export default class HiveCanvas {
 
         this.#drawPieces();
 
+        this.#drawFlip();
+
         this.#drawXOverFallenQueens();
 
         this.#drawPassAlert();
@@ -187,7 +200,7 @@ export default class HiveCanvas {
     }
     #drawFPS() {
         if (this.#tooSlow || this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
-            const hudHeight = this.#getHudHeight();
+            const hudHeight = this.getHudHeight();
             const fh = Math.ceil(20 * this.canvas.width / 1000);
             const color = "rgb(255, 0, 0)";
             let texts = [];
@@ -203,11 +216,10 @@ export default class HiveCanvas {
     #updateFPS() {
         const CALCULATE_FPS_EVERY_N_FRAMES = 20;
         this.#frameQtd++;
-        if (this.#frameQtd === CALCULATE_FPS_EVERY_N_FRAMES) {
+        if (this.#frameQtd % CALCULATE_FPS_EVERY_N_FRAMES === 0) {
             const now = (new Date()).getTime();
             this.#framesPerSecond = Math.round(1 / ((now - this.#frameTime) / (CALCULATE_FPS_EVERY_N_FRAMES * 1000)));
             this.#frameTime = now;
-            this.#frameQtd = 0;
         }
     }
     #drawDebug() {
@@ -234,7 +246,7 @@ export default class HiveCanvas {
         this.ctx.fillStyle = "rgb(150, 150, 150)";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        const hudHeight = this.#getHudHeight();
+        const hudHeight = this.getHudHeight();
         if (this.board.getColorPlaying().id === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = PLAYING_HUD_COLOR;
         } else {
@@ -274,7 +286,7 @@ export default class HiveCanvas {
             this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         });
     }
-    #getHudHeight() {
+    getHudHeight() {
         const [, ry, offset] = this.getSize();
         return 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 1;
     }
@@ -306,16 +318,15 @@ export default class HiveCanvas {
         const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(MoveList.timeToText);
 
         // get coords to draw the timers
-        const [, , ] = this.getSize();
         const [w, h] = [this.canvas.width, this.canvas.height]
-        const hh = this.#getHudHeight();
+        const hh = this.getHudHeight();
         const fh = Math.round(w / 10);
         const fx = Math.round(w / 7);
         const [tyTop, twTop, thTop] = [hh, 2 * fx, fh];
         const [tyBottom, twBottom, thBottom] = [h - hh - fh, 2 * fx, fh];
 
         // get the background color of each timer
-        let color = (this.gameOver ? this.board.round + 1 : moveList.moves.length) % 2 === 1 ? PieceColor.white.id : PieceColor.black.id;
+        let color = this.#getColorPlaying();
         if (color === this.#bottomPlayerColor.id) {
             this.ctx.fillStyle = WAITING_HUD_COLOR;
             this.ctx.fillRect(0, tyTop, twTop, thTop);
@@ -340,6 +351,24 @@ export default class HiveCanvas {
         this.#drawText([topTimeTxt], fx, tyTop + fh / 2 + 1, "middle", "center", tfh, topColor);
         this.#drawText([bottomTimeTxt], fx, tyBottom + fh / 2 + 1, "middle", "center", bfh, bottomColor);
     }
+    #getColorPlaying() {
+        return (this.gameOver ? this.board.round + 1 : this.getMoveList().moves.length) % 2 === 1 ?
+            PieceColor.white.id : PieceColor.black.id;
+    }
+    #drawFlip() {
+        if (this.#standardRules) {
+            return;
+        }
+
+        const [tx, ty, tw, th, fh, hover] = this.#canvasPlayer.overFlip();
+
+        // fill background
+        this.ctx.fillStyle = hover ? PLAYING_HUD_COLOR : WAITING_HUD_COLOR;
+        this.ctx.fillRect(tx, ty, tw, th);
+
+        const color = hover ? "rgb(255, 255, 0)" : "rgb(255, 255, 255)";
+        this.#drawText(["FLIP"], tx + tw / 2, ty + fh / 2 + 1, "middle", "center", fh, color);
+    }
     static #scaleTimeFontHeight(txt, fh) {
         let tfh = fh;
         for (let i = 6; i < txt.length; i++) {
@@ -362,7 +391,8 @@ export default class HiveCanvas {
         const dragId = player?.dragging ? player.selectedPieceId : null;
         const queensCovered = this.board.pieces.filter(p => p.type.id === PieceType.queen.id && p.inGame
             && !this.board.inGameTopPieces.find(t => t.id === p.id)).map(p => p.id);
-        this.board.pieces.filter(p => !this.#standardRules || p.standard).concat(targets).sort((a, b) => {
+        this.board.pieces.filter(p => p.inGame || p.type.linked === null || p.type.standard === !this.flippedPieces)
+            .concat(targets).sort((a, b) => {
             // dragging pieces draw at the end
             if (a.id === dragId) {
                 return 1;
@@ -494,29 +524,41 @@ export default class HiveCanvas {
         this.ctx.setTransform(1, 0, 0, 1, x, y);
 
         // draw border
+        let border = 2;
+        let dash = 0;
+        let glowing = this.#frameQtd % 100;
+        if (glowing >= 50) {
+            glowing = 100 - glowing;
+        }
+        glowing += 205;
         if (style === "last-piece") {
-            this.ctx.lineWidth = 2;
             this.ctx.strokeStyle = "rgb(0, 255, 255)";
         } else if (style === "movable") {
-            this.ctx.lineWidth = 2;
             this.ctx.strokeStyle = "rgb(255, 128, 0)";
+            border = 3;
+            dash = 3;
         } else if (style === "queen") {
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeStyle = "rgb(0, 255, 0)";
+            this.ctx.strokeStyle = "rgb(0, " + glowing + ", 0)";
         } else if (style === "selected" || style === "selected-drag") {
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeStyle = "rgb(255, 0, 0)";
+            this.ctx.strokeStyle = "rgb(" + glowing + ", 0, 0)";
         } else if (style === "target" || style === "target-hover") {
-            this.ctx.lineWidth = 3;
-            this.ctx.setLineDash([3, 3]);
             this.ctx.strokeStyle = "rgb(255, 0, 0)";
+            border = 3;
+            dash = 3;
         } else {
-            this.ctx.lineWidth = 1;
             this.ctx.strokeStyle = "rgb(0, 0, 0)";
+            border = 1;
+        }
+        this.ctx.lineWidth = Math.max(1, Math.round(border * this.canvas.width / 750));
+        if (dash > 0) {
+            dash = Math.max(1, Math.round(dash * this.canvas.width / 750));
+            this.ctx.setLineDash([dash, dash]);
+            this.ctx.lineDashOffset = Math.floor(this.#frameQtd / 5) % 120;
         }
         this.ctx.stroke(path);
 
         // reset
+        this.ctx.lineDashOffset = 0;
         this.ctx.setLineDash([]);
         this.ctx.globalAlpha = 1;
 

@@ -45,7 +45,6 @@ $(() => {
     });
     const size = Math.min(window.innerWidth, window.innerHeight) - 2;
     const $autoMove = $("#autoMove");
-    const $alternativeRules = $("#alternativeRules");
     const $hive = $("#hive");
     $hive.css("border", "1px solid black").prop("width", size).prop("height", size);
     $hive.mousemove(e => canvasPlayer.hover(e.offsetX, e.offsetY, (e.buttons & 1) > 0));
@@ -53,13 +52,13 @@ $(() => {
         if (e.button === 2) {
             canvasPlayer.click(-1, -1, false);
         } else if (e.button === 0) {
-            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked") && !$alternativeRules.prop("checked"));
+            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked"));
         }
     });
     $hive.mouseout(() => canvasPlayer.hover(-1, -1, false));
     $hive.mouseup(e => {
         if (e.button === 0) {
-            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked") && !$alternativeRules.prop("checked"), true);
+            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked"), true);
         }
     });
     $hive.contextmenu(event => event.preventDefault());
@@ -129,7 +128,8 @@ function upload() {
         $file.val(null);
         return;
     }
-    hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, !$('#alternativeRules').prop('checked'));
+    const standardRules = !$('#alternativeRules').prop('checked');
+    hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, standardRules);
     const files = $file.prop("files");
     if (files.length === 1) {
         const fileReader = new FileReader();
@@ -175,7 +175,8 @@ function newGame() {
     const color = piece === "b" || piece !== "w" && Math.random() < .5 ? PieceColor.black : PieceColor.white;
     const totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : 0;
     const increment = $("#increment").val();
-    hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment, !$('#alternativeRules').prop('checked'));
+    const standardRules = !$('#alternativeRules').prop('checked');
+    hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment, standardRules);
 }
 function draw () {
     onlinePlayer.draw();
