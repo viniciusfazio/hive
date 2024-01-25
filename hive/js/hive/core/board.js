@@ -8,7 +8,7 @@ class Board {
     inGameTopPieces;
     #sameColorInGameTopPieces;
 
-    #standard;
+    #standardRules;
 
     constructor(board = null) {
         if (board) {
@@ -34,11 +34,11 @@ class Board {
             this.reset(true);
         }
     }
-    reset(standard) {
+    reset(standardRules) {
         this.round = 1;
         this.lastMovePieceId = null;
         this.passRound = false;
-        this.#standard = standard;
+        this.#standardRules = standardRules;
         this.pieces.forEach(p => p.reset());
     }
     isQueenDead(colorId) {
@@ -71,7 +71,7 @@ class Board {
         let total = 0;
         this.#sameColorInGameTopPieces.forEach(p => {
             if (p.id !== this.lastMovePieceId) {
-                p.type.play(this, p, this.#standard);
+                p.type.play(this, p, this.#standardRules);
                 total += p.targets.length;
             }
         });
@@ -79,7 +79,7 @@ class Board {
     }
     #computePiecePlacements() {
         const colorPlayingId = this.getColorPlaying().id;
-        let piecesToBePlaced = this.pieces.filter(p => p.color.id === colorPlayingId && !p.inGame);
+        let piecesToBePlaced = this.pieces.filter(p => p.color.id === colorPlayingId && !p.inGame && (!this.#standardRules || p.standard));
         // first and second moves are special cases
         if (this.round === 1) {
             piecesToBePlaced.forEach(p => p.insertTarget(0, 0, 0));

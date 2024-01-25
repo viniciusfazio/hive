@@ -7,7 +7,8 @@ export default class CanvasPlayer extends Player {
     hoverPieceId = null;
     dragging = null;
 
-    reset() {
+    reset(standardRules) {
+        super.reset(standardRules);
         this.selectedPieceId = null;
         this.hoverPieceId = null;
         this.dragging = null;
@@ -28,7 +29,7 @@ export default class CanvasPlayer extends Player {
 
         const pieceSelected = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
         const targets = pieceSelected?.targets ?? [];
-        const allPieces = this.hive.board.pieces.concat(targets);
+        const allPieces = this.hive.board.pieces.filter(p => !this.#standardRules || p.standard).concat(targets);
         let pieceHover = allPieces.find(p => {
             const [px, py] = this.hive.getPiecePosition(p);
             return this.hive.ctx.isPointInPath(path, px - x, py - y);

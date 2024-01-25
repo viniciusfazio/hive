@@ -56,7 +56,7 @@ export default class Piece {
             this.intermediateXYZs = intermediateXYZs.map(xyz => [...xyz]);
         }
     }
-    static parse(p) {
+    static parse(p, standardRules) {
         if (p.length < 2 || p.length > 3) {
             return null;
         }
@@ -69,7 +69,7 @@ export default class Piece {
             }
         }
         for (const key in PieceType) {
-            if (p[1] === PieceType[key].id) {
+            if (p[1] === PieceType[key].id && (!standardRules || PieceType[key].standard)) {
                 type = PieceType[key];
                 if (type.qty === 1 && p.length === 3 || type.qty > 1 && p.length === 2) {
                     return null;

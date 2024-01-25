@@ -133,7 +133,7 @@ export default class HiveCanvas {
             let position = 0;
             for (const key in PieceType) {
                 position++;
-                if (PieceType[key].id === piece.type.id) {
+                if (PieceType[key].id === piece.type.id || PieceType[key].id === piece.type.linked) {
                     break;
                 }
             }
@@ -362,7 +362,7 @@ export default class HiveCanvas {
         const dragId = player?.dragging ? player.selectedPieceId : null;
         const queensCovered = this.board.pieces.filter(p => p.type.id === PieceType.queen.id && p.inGame
             && !this.board.inGameTopPieces.find(t => t.id === p.id)).map(p => p.id);
-        this.board.pieces.concat(targets).sort((a, b) => {
+        this.board.pieces.filter(p => !this.#standardRules || p.standard).concat(targets).sort((a, b) => {
             // dragging pieces draw at the end
             if (a.id === dragId) {
                 return 1;
@@ -623,7 +623,7 @@ export default class HiveCanvas {
             if (!matches) {
                 return "cant parse";
             }
-            const piece = Piece.parse(matches[2]);
+            const piece = Piece.parse(matches[2], this.#standardRules);
             if (piece === null) {
                 return "invalid piece..";
             }
@@ -644,8 +644,8 @@ export default class HiveCanvas {
         if (!matches) {
             return "cant parse";
         }
-        const p1 = Piece.parse(matches[2]);
-        const p2 = Piece.parse(matches[4]);
+        const p1 = Piece.parse(matches[2], this.#standardRules);
+        const p2 = Piece.parse(matches[4], this.#standardRules);
         if (p1 === null || p2 === null) {
             return "invalid piece...";
         }
