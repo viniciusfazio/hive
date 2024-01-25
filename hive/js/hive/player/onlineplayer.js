@@ -96,13 +96,13 @@ export default class OnlinePlayer extends Player {
                         color: colorOpponent,
                         totalTime: data.totalTime,
                         increment: data.increment,
-                        alternativeRules: data.alternativeRules,
+                        standardRules: data.standardRules,
                     };
-                    callbacks.opponentOffersNewGame(data.color, data.totalTime, data.increment, data.alternativeRules);
+                    callbacks.opponentOffersNewGame(data.color, data.totalTime, data.increment, data.standardRules);
                     break;
                 case "new_ok":
                     const bottomColor = data.color === "w" ? PieceColor.white : PieceColor.black;
-                    callbacks.newGame(bottomColor, data.totalTime, data.increment, data.alternativeRules);
+                    callbacks.newGame(bottomColor, data.totalTime, data.increment, data.standardRules);
                     break;
                 case "draw_ok":
                     this.hive.draw();
@@ -114,13 +114,13 @@ export default class OnlinePlayer extends Player {
         }).on("close", () => this.#resetConnection(callbacks));
         this.#ping();
     }
-    newGame(color, totalTime, increment, alternativeRules) {
+    newGame(color, totalTime, increment, standardRules) {
         this.#conn.send({
             type: "new",
             color: color,
             totalTime: totalTime,
             increment: increment,
-            alternativeRules: alternativeRules,
+            standardRules: standardRules,
         });
     }
     draw() {
@@ -130,7 +130,7 @@ export default class OnlinePlayer extends Player {
         if (this.#conn) {
             this.#conn.send(this.#challenge);
             const bottomColor = this.#challenge.colorAccepted === "w" ? PieceColor.white : PieceColor.black;
-            callbacks.newGame(bottomColor, this.#challenge.totalTime, this.#challenge.increment, this.#challenge.alternativeRules);
+            callbacks.newGame(bottomColor, this.#challenge.totalTime, this.#challenge.increment, this.#challenge.standardRules);
         }
     }
     acceptDraw() {

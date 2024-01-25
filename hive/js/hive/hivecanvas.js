@@ -35,7 +35,7 @@ export default class HiveCanvas {
     #bottomPlayerColor;
     whitePlayer;
     blackPlayer;
-    #alternativeRules;
+    #standardRules;
 
     #moveLists;
     #currentMoveListId;
@@ -83,15 +83,15 @@ export default class HiveCanvas {
         this.#tooSlow = waitTime < 1;
         setTimeout(() => this.#update(), Math.max(1, waitTime));
     }
-    newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment, alternativeRules) {
+    newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment, standardRules) {
         [this.#bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.#moveLists, this.#currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
         this.whitePlayer.reset();
         this.blackPlayer.reset();
         this.camera.reset();
         this.gameOver = false;
-        this.#alternativeRules = alternativeRules;
-        this.board.reset();
+        this.#standardRules = standardRules;
+        this.board.reset(standardRules);
         this.board.pieces.forEach(p => {
             p.fromX = null;
             p.fromY = null;

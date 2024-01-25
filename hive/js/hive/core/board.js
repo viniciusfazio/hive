@@ -8,6 +8,8 @@ class Board {
     inGameTopPieces;
     #sameColorInGameTopPieces;
 
+    #standard;
+
     constructor(board = null) {
         if (board) {
             this.round = board.round;
@@ -29,13 +31,14 @@ class Board {
                     }
                 }
             }
-            this.reset();
+            this.reset(true);
         }
     }
-    reset() {
+    reset(standard) {
         this.round = 1;
         this.lastMovePieceId = null;
         this.passRound = false;
+        this.#standard = standard;
         this.pieces.forEach(p => p.reset());
     }
     isQueenDead(colorId) {
@@ -68,7 +71,7 @@ class Board {
         let total = 0;
         this.#sameColorInGameTopPieces.forEach(p => {
             if (p.id !== this.lastMovePieceId) {
-                p.type.play(this, p);
+                p.type.play(this, p, this.#standard);
                 total += p.targets.length;
             }
         });

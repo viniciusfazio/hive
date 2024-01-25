@@ -184,7 +184,9 @@ export const PieceType = Object.freeze({
     queen: Object.freeze({
         id: "Q",
         qty: 1,
-        play: (board, piece) => {
+        linked: null,
+        standard: true,
+        play: (board, piece, standard, withAbility = true) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -199,7 +201,9 @@ export const PieceType = Object.freeze({
     beetle: Object.freeze({
         id: "B",
         qty: 2,
-        play: (board, piece) => {
+        linked: "mantis",
+        standard: true,
+        play: (board, piece, standard, withAbility = true) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -213,7 +217,9 @@ export const PieceType = Object.freeze({
     grasshopper: Object.freeze({
         id: "G",
         qty: 3,
-        play: (board, piece) => {
+        linked: "fly",
+        standard: true,
+        play: (board, piece, standard, withAbility = true) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -235,7 +241,9 @@ export const PieceType = Object.freeze({
     spider: Object.freeze({
         id: "S",
         qty: 2,
-        play: (board, piece) => {
+        linked: "scorpion",
+        standard: true,
+        play: (board, piece, standard, withAbility = true) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -271,7 +279,9 @@ export const PieceType = Object.freeze({
     ant: Object.freeze({
         id: "A",
         qty: 3,
-        play: (board, piece) => {
+        linked: "wasp",
+        standard: true,
+        play: (board, piece, standard, withAbility = true) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -302,7 +312,9 @@ export const PieceType = Object.freeze({
     ladybug: Object.freeze({
         id: "L",
         qty: 1,
-        play: (board, piece) => {
+        linked: "cockroach",
+        standard: true,
+        play: (board, piece, standard, withAbility = true) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -341,15 +353,17 @@ export const PieceType = Object.freeze({
     mosquito: Object.freeze({
         id: "M",
         qty: 1,
-        play: (board, piece) => {
+        linked: "dragonfly",
+        standard: true,
+        play: (board, piece, standard, withAbility = true) => {
             if (piece.z > 0) {
                 // on the top of other piece
-                PieceType.beetle.play(board, piece);
+                PieceType.beetle.play(board, piece, standard, false);
             } else {
                 for (const [x, y] of Board.coordsAround(piece.x, piece.y)) {
                     const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
                     if (p && p.type.id !== PieceType.mosquito.id) {
-                        p.type.play(board, piece);
+                        p.type.play(board, piece, standard, false);
                     }
                 }
             }
@@ -358,7 +372,9 @@ export const PieceType = Object.freeze({
     pillBug: Object.freeze({
         id: "P",
         qty: 1,
-        play: (board, piece) => {
+        linked: "centipede",
+        standard: true,
+        play: (board, piece, standard, withAbility = true) => {
             const canMove = stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y);
             let noPieces = [];
             let preys = [];
@@ -376,17 +392,81 @@ export const PieceType = Object.freeze({
                 }
             }
             // move preys
-            preys.forEach(([x, y]) => {
-                const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
-                if (prey.id !== board.lastMovePieceId && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
-                    noPieces.forEach(([tx, ty]) => {
-                        prey.insertTarget(tx, ty, 0, [[piece.x, piece.y, piece.z + 1]]);
-                    });
-                }
-            });
+            if (withAbility) {
+                preys.forEach(([x, y]) => {
+                    const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    if (prey.id !== board.lastMovePieceId && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
+                        noPieces.forEach(([tx, ty]) => {
+                            prey.insertTarget(tx, ty, 0, [[piece.x, piece.y, piece.z + 1]]);
+                        });
+                    }
+                });
+            }
         }
     }),
+    mantis: Object.freeze({
+        id: "T",
+        qty: 2,
+        linked: "beetle",
+        standard: false,
+        play: (board, piece, standard, withAbility = true) => {
 
+        }
+    }),
+    fly: Object.freeze({
+        id: "F",
+        qty: 3,
+        linked: "grasshopper",
+        standard: false,
+        play: (board, piece, standard, withAbility = true) => {
+
+        }
+    }),
+    scorpion: Object.freeze({
+        id: "N",
+        qty: 2,
+        linked: "spider",
+        standard: false,
+        play: (board, piece, standard, withAbility = true) => {
+
+        }
+    }),
+    wasp: Object.freeze({
+        id: "W",
+        qty: 3,
+        linked: "ant",
+        standard: false,
+        play: (board, piece, standard, withAbility = true) => {
+
+        }
+    }),
+    cockroach: Object.freeze({
+        id: "R",
+        qty: 1,
+        linked: "ladybug",
+        standard: false,
+        play: (board, piece, standard, withAbility = true) => {
+
+        }
+    }),
+    dragonfly: Object.freeze({
+        id: "D",
+        qty: 1,
+        linked: "mosquito",
+        standard: false,
+        play: (board, piece, standard, withAbility = true) => {
+
+        }
+    }),
+    centipede: Object.freeze({
+        id: "C",
+        qty: 1,
+        linked: "pillBug",
+        standard: false,
+        play: (board, piece, standard, withAbility = true) => {
+
+        }
+    }),
 });
 
 export const PieceColor = Object.freeze({
