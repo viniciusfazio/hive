@@ -7,8 +7,8 @@ import MoveList from "./core/movelist.js";
 const CAMERA_SPEED = .2; // between 0 and 1, higher is faster
 const PIECE_SPEED = .15; // between 0 and 1, higher is faster
 const UPDATE_IN_MS = 20; // update frame time. Every speed depends of it
-const REDRAW_IN_MS = 10; // draw frame time. Affects FPS only
-const MIN_FPS = 40;      // below MIN_FPS, it prints FPS on screen
+const REDRAW_IN_MS = 1; // draw frame time. Affects FPS only
+const MIN_FPS = 1000;      // below MIN_FPS, it prints FPS on screen
 
 
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
