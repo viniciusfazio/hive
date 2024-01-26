@@ -1,7 +1,7 @@
 import Board from "./core/board.js";
 import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
-import MoveList from "./core/movelist.js";
+import MoveList, {Move} from "./core/movelist.js";
 
 
 const CAMERA_SPEED = .2; // between 0 and 1, higher is faster
@@ -39,8 +39,8 @@ export default class HiveCanvas {
     #standardRules;
     flippedPieces;
 
-    #moveLists;
-    #currentMoveListId;
+    moveLists;
+    currentMoveListId;
 
     #callbacks;
 
@@ -57,7 +57,7 @@ export default class HiveCanvas {
         }
         this.#canvasPlayer = canvasPlayer;
         this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, true);
-
+        this.gameOver = true;
         this.#frameTime = (new Date()).getTime();
         this.#update();
         this.#redraw();
@@ -68,7 +68,7 @@ export default class HiveCanvas {
 
         // update timer
         const moveList = this.getMoveList();
-        if (!this.gameOver && moveList.computeTime()) {
+        if (moveList.computeTime()) {
             if (moveList.whitePiecesTimeLeft === 0 || moveList.blackPiecesTimeLeft === 0) {
                 this.timeout();
             }
@@ -88,7 +88,7 @@ export default class HiveCanvas {
     }
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment, standardRules) {
         [this.#bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
-        [this.#moveLists, this.#currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
+        [this.moveLists, this.currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
         this.whitePlayer.reset();
         this.blackPlayer.reset();
         this.camera.reset();
@@ -190,7 +190,7 @@ export default class HiveCanvas {
     }
     #drawPassAlert() {
         const isLastRound = this.getMoveList().moves.length < this.board.round;
-        if (this.board.passRound && !this.gameOver && isLastRound && this.getPlayerPlaying() instanceof CanvasPlayer) {
+        if (this.board.passRound && isLastRound && this.getPlayerPlaying() instanceof CanvasPlayer) {
             const [w2, h2] = [this.canvas.width / 2, this.canvas.height / 2];
             const fh = Math.round(w2 / 6);
             this.ctx.fillStyle = "rgb(0, 0, 0, 0.5)";
@@ -291,7 +291,7 @@ export default class HiveCanvas {
         return 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 1;
     }
     getMoveList() {
-        return this.#moveLists[this.#currentMoveListId];
+        return this.moveLists[this.currentMoveListId];
     }
 
     #drawTime() {
@@ -455,28 +455,26 @@ export default class HiveCanvas {
     }
 
     #drawPiece(piece) {
-        const player = this.getPlayerPlaying();
-        const playable = this.board.round > this.getMoveList().moves.length && player instanceof CanvasPlayer;
-        if (playable && piece.id === player.selectedPieceId) {
-            if (player.hoverPieceId === null && player.dragging) {
+        if (piece.id === this.#canvasPlayer.selectedPieceId) {
+            if (this.#canvasPlayer.hoverPieceId === null && this.#canvasPlayer.dragging) {
                 // drawing selected piece dragging
-                this.#drawPieceWithStyle(piece, "selected-drag");
-            } else if (!piece.targets.find(p => p.id === player.hoverPieceId)) {
+                this.#drawPieceWithStyle(piece, "drag");
+            } else if (!piece.targets.find(p => p.id === this.#canvasPlayer.hoverPieceId)) {
                 // drawing selected piece only if not hovering target
                 this.#drawPieceWithStyle(piece, "selected");
             }
-        } else if (playable && piece.id === player.hoverPieceId) {
+        } else if (piece.id === this.#canvasPlayer.hoverPieceId) {
             if (piece.selectedPieceId !== null) {
-                if (this.board.pieces.find(p => p.id === player.hoverPieceId)) {
+                if (this.board.pieces.find(p => p.id === this.#canvasPlayer.hoverPieceId)) {
                     // drawing another piece being hovered while a piece has been selected
-                    this.#drawPieceWithStyle(piece, "selected");
+                    this.#drawPieceWithStyle(piece, "hover");
                 } else {
                     // drawing target being hovered
-                    this.#drawPieceWithStyle(piece, "target-hover");
+                    this.#drawPieceWithStyle(piece, "selected");
                 }
             } else {
                 // drawing piece being hovered while no piece has been selected
-                this.#drawPieceWithStyle(piece, "selected");
+                this.#drawPieceWithStyle(piece, "hover");
             }
         } else if (piece.subNumber > 0) {
             // drawing target not being hovered
@@ -484,7 +482,7 @@ export default class HiveCanvas {
         } else if (this.board.lastMovePieceId === piece.id) {
             // drawing last piece moved
             this.#drawPieceWithStyle(piece, "last-piece");
-        } else if (playable && piece.targets.length > 0) {
+        } else if (piece.targets.length > 0) {
             // drawing movable piece
             this.#drawPieceWithStyle(piece, "movable");
         } else if (piece.type.id === PieceType.queen.id && piece.inGame && !this.board.inGameTopPieces.find(p => p.id === piece.id)) {
@@ -498,7 +496,7 @@ export default class HiveCanvas {
     #drawPieceWithStyle(piece, style = "") {
         // get position
         let x, y;
-        if (style === "selected-drag") {
+        if (style === "drag") {
             const player = this.getPlayerPlaying();
             [x, y] = [player.mouseX, player.mouseY];
         } else {
@@ -524,37 +522,39 @@ export default class HiveCanvas {
         this.ctx.setTransform(1, 0, 0, 1, x, y);
 
         // draw border
-        let border = 2;
+        let borderColor = "rgb(0, 0, 0)";
+        let border = 1;
         let dash = 0;
-        let glowing = this.#frameQtd % 100;
-        if (glowing >= 50) {
-            glowing = 100 - glowing;
-        }
-        glowing += 205;
         if (style === "last-piece") {
-            this.ctx.strokeStyle = "rgb(0, 255, 255)";
+            borderColor = "rgb(255, 0, 0)";
+            border = 2;
         } else if (style === "movable") {
-            this.ctx.strokeStyle = "rgb(255, 128, 0)";
             border = 3;
             dash = 3;
         } else if (style === "queen") {
-            this.ctx.strokeStyle = "rgb(0, " + glowing + ", 0)";
-        } else if (style === "selected" || style === "selected-drag") {
-            this.ctx.strokeStyle = "rgb(" + glowing + ", 0, 0)";
-        } else if (style === "target" || style === "target-hover") {
-            this.ctx.strokeStyle = "rgb(255, 0, 0)";
+            let from0to50to0 = this.#frameQtd % 100;
+            if (from0to50to0 >= 50) {
+                from0to50to0 = 100 - from0to50to0;
+            }
+            const c = 205 + from0to50to0;
+            borderColor = "rgb(" + c + ", " + c + ", 0)";
+            border = 3;
+        } else if (style === "hover") {
+            borderColor = "rgb(128, 0, 0)";
             border = 3;
             dash = 3;
-        } else {
-            this.ctx.strokeStyle = "rgb(0, 0, 0)";
-            border = 1;
+        } else if (style === "selected" || style === "target" || style === "drag") {
+            borderColor = "rgb(255, 0, 0)";
+            border = 3;
+            dash = 3;
         }
-        this.ctx.lineWidth = Math.max(1, Math.round(border * this.canvas.width / 750));
         if (dash > 0) {
             dash = Math.max(1, Math.round(dash * this.canvas.width / 750));
             this.ctx.setLineDash([dash, dash]);
             this.ctx.lineDashOffset = Math.floor(this.#frameQtd / 5) % 120;
         }
+        this.ctx.lineWidth = Math.max(1, Math.round(border * this.canvas.width / 750));
+        this.ctx.strokeStyle = borderColor;
         this.ctx.stroke(path);
 
         // reset
@@ -598,22 +598,22 @@ export default class HiveCanvas {
         })
     }
     getPlayerPlaying() {
-        return this.board.round % 2 === 1 ? this.whitePlayer : this.blackPlayer;
+        return this.gameOver ? this.#canvasPlayer : (this.board.round % 2 === 1 ? this.whitePlayer : this.blackPlayer);
     }
     toggleDebug() {
         this.#debug = !this.#debug;
     }
     #playRound(withAnimation = true) {
         const moveList = this.getMoveList();
-        moveList.goTo(this.board, moveList.moves.length + 1, (p, forceAnimation) => (forceAnimation || withAnimation) && this.#resetPieceAnimation(p));
+        this.#goTo(this.board, moveList.moves.length + 1, (p, forceAnimation) => (forceAnimation || withAnimation) && this.#resetPieceAnimation(p), this.currentMoveListId);
         const lastMove = moveList.moves[moveList.moves.length - 1];
-        this.#callbacks.move(this.board.round, (this.board.round - 1) + ". " + lastMove.notation(this.board));
+        this.#callbacks.move(this.board.round, (this.board.round - 1) + ". " + Move.notation(lastMove, this.board), this.currentMoveListId);
         this.gameOver ||= lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout;
         this.#initRound();
     }
     pass(time = null) {
-        if (this.gameOver) return;
         const moveList = this.getMoveList();
+        if (moveList.moves.length >= this.board.round) return;
         moveList.addPass(time);
         this.#playRound();
     }
@@ -735,10 +735,19 @@ export default class HiveCanvas {
         this.play(from, to, time);
         return null;
     }
-    play(piece, target, time = null, withAnimation = true) {
-        if (this.gameOver) return;
+    play(piece, target, time = null, withAnimation = true, lastMove = true) {
+        let moveList = this.getMoveList();
+        if (!lastMove && this.board.round <= moveList.moves.length) {
+            // an alternative move happened. Create a new list
+            const initialRound = this.currentMoveListId === 0 ? this.board.round : moveList.initialRound;
+            moveList = moveList.clone();
+            this.moveLists.push(moveList);
+            moveList.parentMoveListId =this.currentMoveListId;
+            this.currentMoveListId = this.moveLists.length - 1;
+            moveList.moves = moveList.moves.slice(0, this.board.round - 1);
+            moveList.initialRound = initialRound;
+        }
         // save the move
-        const moveList = this.getMoveList();
         moveList.addMove(piece, target, time);
         this.#playRound(withAnimation);
         const whiteLoses = this.board.isQueenDead(PieceColor.white.id);
@@ -755,12 +764,83 @@ export default class HiveCanvas {
             this.#playRound();
         }
     }
-    setRound(round) {
-        this.getMoveList().goTo(this.board, round, p => this.#resetPieceAnimation(p));
+    #goTo(board, round, callbackMove, moveListId) {
+        if (this.currentMoveListId === moveListId) {
+            // same list
+            this.#goToSameMoveList(callbackMove, round);
+            return;
+        }
+        // goes back to the root
+        while (this.currentMoveListId > 0) {
+            const moveList = this.getMoveList();
+            this.#goToSameMoveList(callbackMove, moveList.initialRound);
+            this.currentMoveListId = moveList.parentMoveListId;
+        }
+        if (moveListId > 0) {
+            // go to the start of the new list
+            this.#goToSameMoveList(callbackMove, this.moveLists[moveListId].initialRound);
+        }
+        this.currentMoveListId = moveListId;
+        this.#goToSameMoveList(callbackMove, round);
+    }
+    #goToSameMoveList(callbackMove, round) {
+        const moveList = this.getMoveList();
+        round = Math.max(1, Math.min(round, moveList.moves.length + 1));
+        if (this.board.round < round) {
+            this.#forward(callbackMove, round);
+        } else if (this.board.round > round) { // undo moves
+            this.#backward(callbackMove, round);
+        } else { // no moves to be done
+            return;
+        }
+        this.board.lastMovePieceId = round === 1 ? null : moveList.moves[round - 2].pieceId;
+    }
+    #forward(callbackMove, round) {
+        const moveList = this.getMoveList();
+        for (; this.board.round < round; this.board.round++) { // redo moves
+            const move = moveList.moves[this.board.round - 1];
+            if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
+                const p = this.board.pieces.find(p => p.id === move.pieceId);
+                callbackMove(p, false);
+                if (p.type.id === PieceType.mantis.id && move.fromZ === 0) {
+                    // mantis special move
+                    const p2 = this.board.inGame.find(p2 => p2.x === move.toX && p2.y === move.toY && p2.z === 0);
+                    callbackMove(p2, true);
+                    p2.play(move.fromX, move.fromY, p2.z);
+                    p.play(move.fromX, move.fromY, move.toZ);
+                } else {
+                    callbackMove(p, false);
+                    p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
+                }
+            }
+        }
+    }
+    #backward(callbackMove, round) {
+        const moveList = this.getMoveList();
+        for (this.board.round--; this.board.round >= round; this.board.round--) {
+            const move = moveList.moves[this.board.round - 1];
+            if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
+                const p = this.board.pieces.find(p => p.id === move.pieceId);
+                callbackMove(p, false);
+                if (p.type.id === PieceType.mantis.id && move.fromZ === 0) {
+                    // mantis special move
+                    const p2 = this.board.inGame.find(p2 => p2.x === move.fromX && p2.y === move.fromY && p2.z === 0);
+                    callbackMove(p2, true);
+                    p2.play(move.toX, move.toY, p2.z);
+                    p.play(move.fromX, move.fromY, move.fromZ);
+                } else {
+                    p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
+                }
+            }
+        }
+        this.board.round++;
+    }
+    setRound(round, moveListId) {
+        this.#goTo(this.board, round, p => this.#resetPieceAnimation(p), moveListId);
         this.#initRound();
     }
     #initRound() {
-        this.board.computeLegalMoves(this.gameOver);
+        this.board.computeLegalMoves(this.gameOver || this.getMoveList().moves.length < this.board.round);
         this.board.pieces.forEach(p => p.targets.forEach(t => t.transition = 0));
         this.getPlayerPlaying().initPlayerTurn();
         this.camera.recenter(this);

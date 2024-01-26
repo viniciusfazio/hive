@@ -15,31 +15,20 @@ $(() => {
     $("#upload").change(upload);
     $("#receive").click(receive);
     $("#draw").click(draw);
-    $("#nextMove").click(() => addRound(1));
-    $("#previousMove").click(() => addRound(-1));
-    $("#firstMove").click(() => setRound(1));
-    $("#lastMove").click(() => addRound(999999999));
+    $("#nextMove").click(() => nextRound());
+    $("#previousMove").click(() => nextRound(false));
+    $("#firstMove").click(() => setRound(1, 0));
+    $("#lastMove").click(() => setRound(999999999, 0));
     $("#disconnect").click(() => onlinePlayer.disconnect(onlineCallbacks()));
     $("#acceptNewGame").click(acceptNewGame);
     $("#acceptDraw").click(acceptDraw);
-    $("#round").mousemove(e => {
-        if (e.buttons % 2 === 1) {
-            setRound(e.target.value);
-        }
-    }).change(e => setRound(e.target.value));
     $("#move-list").keydown(e => {
         switch (e.key) {
             case "ArrowLeft":
-                addRound(-1);
+                nextRound(false);
                 break;
             case "ArrowRight":
-                addRound(1);
-                break;
-            case "ArrowUp":
-                addRound(-2);
-                break;
-            case "ArrowDown":
-                addRound(2);
+                nextRound();
                 break;
         }
     });
@@ -65,16 +54,10 @@ $(() => {
     $hive.keydown(e => {
         switch (e.key) {
             case "ArrowLeft":
-                addRound(-1);
+                nextRound(false);
                 break;
             case "ArrowRight":
-                addRound(1);
-                break;
-            case "ArrowUp":
-                addRound(999999999);
-                break;
-            case "ArrowDown":
-                setRound(1);
+                nextRound();
                 break;
             case "D":
                 hive.toggleDebug();
@@ -88,43 +71,83 @@ $(() => {
         connect(id);
     }
 });
-function setRound(round) {
-    round = Math.max(1, Math.min(round, hive.getMoveList().moves.length + 1));
-    hive.setRound(round);
-    updateMoveList(round);
+function setRound(round, moveListId) {
+    round = Math.max(1, Math.min(round, hive.moveLists[moveListId].moves.length + 1));
+    hive.setRound(round, moveListId);
+    updateMoveList(round, moveListId);
 }
-function addRound(round) {
-    setRound(hive.board.round + round);
-}
-function appendMoveList(round, move) {
-    const li = '<li style="cursor: pointer" class="text-nowrap list-group-item list-group-item-action py-0">' + move + '</li>';
-    const $ul = $("#move-list > ul:last-child");
-    if (round <= 2 || $ul.find("li").length > 1) {
-        $("#move-list").append('<ul class="list-group list-group-horizontal">' + li + '</ul>');
+function nextRound(forward = true) {
+    if (forward) {
+        let $nextLI = $("#move-list > ul > li.active + li");
+        if ($nextLI.length === 0) {
+            $nextLI = $("#move-list > ul > li.active").parent().next().find("li:not(.empty):first-child");
+        }
+        if ($nextLI.length > 0) {
+            $nextLI.click();
+        }
     } else {
-        $ul.append(li);
+        let $nextLI = $("#move-list > ul > li:not(.empty) + li.active");
+        if ($nextLI.length === 0) {
+            $nextLI = $("#move-list > ul > li.active").parent().prev().find("li:last-child");
+        } else {
+            $nextLI = $("#move-list > ul > li.active").parent().find("li:not(.empty):first-child");
+        }
+        if ($nextLI.length > 0) {
+            $nextLI.click();
+        }
     }
-    $("#move-list > ul:last-child > li:last-child").click(() => setRound(round));
-    $("#round").prop("max", round);
-    updateMoveList(round);
+}
+function appendMoveList(round, move, moveListId = 0) {
+    const li = '<li style="cursor: pointer" class="text-nowrap list-group-item list-group-item-action ' + (moveListId > 0 ? "list-group-item-secondary" : "") + ' py-0 round-' + round + '">' + move + '</li>';
+    const li2 = '<li style="cursor: pointer" class="text-nowrap list-group-item list-group-item-action ' + (moveListId > 0 ? "list-group-item-secondary" : "") + ' py-0 empty"></li>';
+    const ul = '<ul class="list-group list-group-horizontal move-list-' + moveListId + '">' + li + '</ul>';
+    const ul2 = '<ul class="list-group list-group-horizontal move-list-' + moveListId + '">' + li2 + li + '</ul>';
+    if (moveListId === 0) {
+        // main list
+        if (round === 1 || round % 2 === 0) {
+            // there is no list or new line
+            $("#move-list").append(ul);
+        } else {
+            // a move will be added to an existent line
+            $(li).insertAfter($("#move-list > ul.move-list-0 > li.round-" + (round - 1)));
+        }
+    } else {
+        // alternative move list
+        let $ul = $("#move-list > ul.move-list-" + moveListId);
+        if ($ul.length === 0) {
+            // it doesn't exist yet
+            $ul = $("#move-list > ul.move-list-0 > li.round-" + round).parent();
+            if ($ul.length === 0) {
+                // it is after last move
+                $("#move-list").append(round % 2 === 0 ? ul : ul2);
+            } else {
+                $(round % 2 === 0 ? ul : ul2).insertAfter($ul);
+            }
+        } else if (round === 1 || round % 2 === 0) {
+            // new line will be added to the list
+            $(ul).insertAfter($ul.last());
+        } else {
+            // a move will be added to an existent line
+            $(li).insertAfter($("#move-list > ul.move-list-" + moveListId + " > li.round-" + (round - 1)));
+        }
+    }
+    // add click event
+    $("#move-list > ul.move-list-" + moveListId + " > li.round-" + round).click(() => setRound(round, moveListId));
+    updateMoveList(round, moveListId);
 }
 function showMessage(msg) {
     $("#messageToast .toast-body").text(msg);
     // noinspection JSUnresolvedReference
     $("#messageToast").toast("show");
 }
-function updateMoveList(round = null) {
-    if (round === null) {
-        round = hive.board.round;
-    }
+function updateMoveList(round, moveListId) {
+    // update active status of the move
     $("#move-list > ul > li").removeClass("active");
-    $("#move-list > ul").eq(round === 1 ? 0 : Math.floor(round / 2))
-        .find("li").eq(round === 1 ? 0 : round % 2).addClass("active");
-    $("#round").val(round);
+    $("#move-list > ul.move-list-" + moveListId + " > li.round-" + round).addClass("active");
 }
 function upload() {
     const $file = $("#upload");
-    if ($("#move-list > ul > li").length > 2 && !hive.gameOver && !confirm("The ongoing game will be gone. Are you sure?")) {
+    if (!hive.gameOver && !confirm("The ongoing game will be gone. Are you sure?")) {
         $file.val(null);
         return;
     }
@@ -158,7 +181,7 @@ function upload() {
 }
 function download() {
     let text = "";
-    $("#move-list > ul > li").each((i, v) => {
+    $("#move-list > ul.move-list-0 > li").each((i, v) => {
         text += $(v).text() + "\n";
     });
     const pom = document.createElement('a');

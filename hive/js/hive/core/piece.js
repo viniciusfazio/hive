@@ -444,7 +444,25 @@ export const PieceType = Object.freeze({
         linked: "grasshopper",
         standard: false,
         play: (board, piece, standard, withAbility = true) => {
-
+            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                return;
+            }
+            let isStuck = true;
+            for (const [, , z, z1, z2] of coordsAroundWithNeighbor(board, piece.x, piece.y)) {
+                if (z < 0 && (z1 < 0 || z2 < 0)) {
+                    isStuck = false;
+                    break;
+                }
+            }
+            if (isStuck) {
+                this.board.inGameTopPieces.forEach(p => {
+                    for (const [x, y] of Board.coordsAround(p.x, p.y)) {
+                        if (!this.board.inGameTopPieces.find(t => t.x === x && t.y === y)) {
+                            piece.insertTarget(x, y, 0);
+                        }
+                    }
+                });
+            }
         }
     }),
     scorpion: Object.freeze({
@@ -453,6 +471,9 @@ export const PieceType = Object.freeze({
         linked: "spider",
         standard: false,
         play: (board, piece, standard, withAbility = true) => {
+            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                return;
+            }
 
         }
     }),

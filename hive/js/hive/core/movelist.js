@@ -9,15 +9,21 @@ export default class MoveList {
     #lastMoveTimestamp = null;
     whitePiecesTimeLeft = null;
     blackPiecesTimeLeft = null;
+    initialRound = 0;
+    parentMoveListId = null;
 
-    constructor(totalTime = 0, increment = 0) {
+    constructor(totalTime = 0, increment = 0, moves = []) {
         this.totalTime = totalTime * 60;
         this.#increment = increment;
         this.whitePiecesTimeLeft = this.totalTime * 1000;
         this.blackPiecesTimeLeft = this.totalTime * 1000;
+        this.moves = moves;
         if (totalTime > 0) {
             this.#lastMoveTimestamp = (new Date()).getTime();
         }
+    }
+    clone() {
+        return new MoveList(this.totalTime, this.#increment, this.moves.map(m => {return {...m};}));
     }
     #pushMoveWithTime(move, time, withIncrement = false) {
         if (this.totalTime > 0) {
@@ -123,49 +129,6 @@ export default class MoveList {
         }
         return true;
     }
-    goTo(board, round, callbackMove) {
-        round = Math.max(1, Math.min(round, this.moves.length + 1));
-        if (board.round < round) {
-            for (; board.round < round; board.round++) { // redo moves
-                const move = this.moves[board.round - 1];
-                if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
-                    const p = board.pieces.find(p => p.id === move.pieceId);
-                    callbackMove(p, false);
-                    if (p.type.id === PieceType.mantis.id && move.fromZ === 0) {
-                        // mantis special move
-                        const p2 = board.inGame.find(p2 => p2.x === move.toX && p2.y === move.toY && p2.z === 0);
-                        callbackMove(p2, true);
-                        p2.play(move.fromX, move.fromY, p2.z);
-                        p.play(move.fromX, move.fromY, move.toZ);
-                    } else {
-                        callbackMove(p, false);
-                        p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
-                    }
-                }
-            }
-        } else if (board.round > round) { // undo moves
-            for (board.round--; board.round >= round; board.round--) {
-                const move = this.moves[board.round - 1];
-                if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
-                    const p = board.pieces.find(p => p.id === move.pieceId);
-                    callbackMove(p, false);
-                    if (p.type.id === PieceType.mantis.id && move.fromZ === 0) {
-                        // mantis special move
-                        const p2 = board.inGame.find(p2 => p2.x === move.fromX && p2.y === move.fromY && p2.z === 0);
-                        callbackMove(p2, true);
-                        p2.play(move.toX, move.toY, p2.z);
-                        p.play(move.fromX, move.fromY, move.fromZ);
-                    } else {
-                        p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
-                    }
-                }
-            }
-            board.round++;
-        } else { // no moves asked
-            return;
-        }
-        board.lastMovePieceId = round === 1 ? null : this.moves[round - 2].pieceId;
-    }
     static timeToText(t) {
         if (t >= 10000) {
             t = Math.floor(t / 1000);
@@ -188,7 +151,7 @@ export default class MoveList {
     }
 
 }
-class Move {
+export class Move {
     pieceId = null;
     fromX = null;
     fromY = null;
@@ -206,46 +169,46 @@ class Move {
     time = null;
     whitePiecesTimeLeft = null;
     blackPiecesTimeLeft = null;
-    notation(board) {
+    static notation(piece, board) {
         let time = "";
-        if (this.whitePiecesTimeLeft !== null && this.blackPiecesTimeLeft !== null) {
+        if (piece.whitePiecesTimeLeft !== null && piece.blackPiecesTimeLeft !== null) {
             if (board.round % 2 === 0) {
-                time = " " + MoveList.timeToText(this.whitePiecesTimeLeft);
+                time = " " + MoveList.timeToText(piece.whitePiecesTimeLeft);
             } else {
-                time = " " + MoveList.timeToText(this.blackPiecesTimeLeft);
+                time = " " + MoveList.timeToText(piece.blackPiecesTimeLeft);
             }
         }
-        if (this.pass) {
+        if (piece.pass) {
             return "pass" + time;
         }
-        if (this.timeout) {
+        if (piece.timeout) {
             return "timeout";
         }
-        if (this.draw) {
+        if (piece.draw) {
             return "draw by agreement";
         }
-        if (this.resign) {
+        if (piece.resign) {
             return "resign";
         }
-        if (this.whiteLoses && this.blackLoses) {
+        if (piece.whiteLoses && piece.blackLoses) {
             return "draw";
         }
-        if (this.whiteLoses) {
+        if (piece.whiteLoses) {
             return "black wins";
         }
-        if (this.blackLoses) {
+        if (piece.blackLoses) {
             return "white wins";
         }
-        let move = this.pieceId;
+        let move = piece.pieceId;
         if (board.round > 2) {
             // not first move
             let p2 = null;
-            if (this.toZ > 0) {
+            if (piece.toZ > 0) {
                 // it indicates the piece below
-                p2 = board.pieces.find(p => p.inGame && p.x === this.toX && p.y === this.toY && p.z === this.toZ - 1);
+                p2 = board.pieces.find(p => p.inGame && p.x === piece.toX && p.y === piece.toY && p.z === piece.toZ - 1);
             } else {
                 let p2Pref = 0;
-                for (const [x, y] of Board.coordsAround(this.toX, this.toY)) {
+                for (const [x, y] of Board.coordsAround(piece.toX, piece.toY)) {
                     // prefer unique pieces as reference, and to the queen, and pieces not on pile
                     const p = board.pieces.find(p => p.inGame && p.x === x && p.y === y);
                     if (p) {
@@ -268,19 +231,19 @@ class Move {
             }
             if (!p2) {
                 move += " invalid";
-            } else if (this.toZ > 0) {
+            } else if (piece.toZ > 0) {
                 move += " " + p2.id;
-            } else if (this.toX - p2.x === -2) {
+            } else if (piece.toX - p2.x === -2) {
                 move += " -" + p2.id;
-            } else if (this.toX - p2.x === 2) {
+            } else if (piece.toX - p2.x === 2) {
                 move += " " + p2.id + "-";
-            } else if (this.toX - p2.x === -1) {
-                if (this.toY - p2.y === 1) {
+            } else if (piece.toX - p2.x === -1) {
+                if (piece.toY - p2.y === 1) {
                     move += " \\" + p2.id;
                 } else {
                     move += " /" + p2.id;
                 }
-            } else if (this.toY - p2.y === 1) {
+            } else if (piece.toY - p2.y === 1) {
                 move += " " + p2.id + "/";
             } else {
                 move += " " + p2.id + "\\";

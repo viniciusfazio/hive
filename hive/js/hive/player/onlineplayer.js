@@ -1,5 +1,7 @@
 import Player from "./player.js";
 import {PieceColor} from "../core/piece.js";
+import {Move} from "../core/movelist.js";
+
 export default class OnlinePlayer extends Player {
     #peer;
     #conn;
@@ -13,7 +15,7 @@ export default class OnlinePlayer extends Player {
             const lastMove = moveList.moves[moveList.moves.length - 1];
             this.#conn.send({
                 type: "move",
-                move: lastMove.notation(this.hive.board),
+                move: Move.notation(lastMove, this.hive.board),
                 time: lastMove.time,
             });
         }

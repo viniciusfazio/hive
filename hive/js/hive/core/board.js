@@ -76,14 +76,18 @@ class Board {
             )
     );
     }
-    computeLegalMoves(ended) {
+    computeLegalMoves(canMove) {
         this.pieces.forEach(p => p.targets = []);
         this.#computePieces();
-        if (!ended) {
-            this.inGame = this.pieces.filter(p => p.inGame);
-            this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
-            const colorPlayingId = this.getColorPlaying().id;
-            this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
+        this.inGame = this.pieces.filter(p => p.inGame);
+        this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
+        const colorPlayingId = this.getColorPlaying().id;
+        this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
+        this.passRound = false;
+        if (this.isQueenDead(PieceColor.white.id) || this.isQueenDead(PieceColor.black.id)) {
+            return;
+        }
+        if (canMove) {
             this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;
         }
     }

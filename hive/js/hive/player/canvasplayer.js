@@ -1,5 +1,4 @@
 import Player from "./player.js";
-import {PieceType} from "../core/piece.js";
 
 export default class CanvasPlayer extends Player {
     mouseX = 0;
@@ -53,7 +52,7 @@ export default class CanvasPlayer extends Player {
         if (this.dragging || this.hoverPieceId !== pieceHoverId) {
             this.hoverPieceId = pieceHoverId;
         }
-        return !this.hive.gameOver && this.hive.board.round > this.hive.getMoveList().moves.length &&
+        return this.hive.gameOver || this.hive.board.round > this.hive.getMoveList().moves.length &&
             (this.hive.getPlayerPlaying() instanceof CanvasPlayer);
     }
 
@@ -93,7 +92,7 @@ export default class CanvasPlayer extends Player {
                 this.selectedPieceId = this.hoverPieceId;
                 if (this.hive.board.round <= 2 && autoMove) {
                     const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
-                    this.hive.play(piece, piece.targets[0]);
+                    this.hive.play(piece, piece.targets[0], null, true, !this.hive.gameOver);
                     this.selectedPieceId = null;
                 }
                 this.hoverPieceId = null;
@@ -105,7 +104,7 @@ export default class CanvasPlayer extends Player {
                 // clicked on target
                 const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
                 const target = piece.targets.find(p => p.id === this.hoverPieceId);
-                this.hive.play(piece, target, null, !dragging);
+                this.hive.play(piece, target, null, !dragging, null, true, !this.hive.gameOver);
                 this.selectedPieceId = null;
                 this.hoverPieceId = null;
             }
