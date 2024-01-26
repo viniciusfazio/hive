@@ -136,9 +136,12 @@ class Board {
             }
         }
 
+        return this.piecePlacement(colorPlayingId, piecesToBePlaced);
+    }
+    piecePlacement(colorId, piecesToBePlaced, ignore_x = null, ignore_y = null) {
         let visited = [];
         let total = 0;
-        this.#sameColorInGameTopPieces.forEach(p => {
+        this.inGameTopPieces.filter(p => p.color.id === colorId).forEach(p => {
             // look for empty space around same color in game piece
             for (const [x, y] of Board.coordsAround(p.x, p.y)) {
                 // skip if already visited
@@ -151,20 +154,23 @@ class Board {
                 if (this.inGameTopPieces.find(p => p.x === x && p.y === y)) {
                     continue;
                 }
+
                 // check if empty space has only same color piece around
                 let ok = true;
                 for (const [x2, y2] of Board.coordsAround(x, y)) {
-                    if (p.x === x2 && p.y === y2) {
+                    if (ignore_x === x2 && ignore_y === y2) {
                         continue;
                     }
-                    if (this.inGameTopPieces.find(p => p.x === x2 && p.y === y2 && p.color.id !== colorPlayingId)) {
+                    if (this.inGameTopPieces.find(p => p.x === x2 && p.y === y2 && p.color.id !== colorId)) {
                         ok = false;
                         break;
                     }
                 }
                 if (ok) {
-                    total++;
-                    piecesToBePlaced.forEach(piece => piece.insertTarget(x, y, 0));
+                    piecesToBePlaced.forEach(piece => {
+                        total++;
+                        piece.insertTarget(x, y, 0);
+                    });
                 }
             }
         });
