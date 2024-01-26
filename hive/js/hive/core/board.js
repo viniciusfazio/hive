@@ -6,7 +6,7 @@ class Board {
     lastMovePieceId;
     passRound;
 
-    #inGame;
+    inGame;
     inGameTopPieces;
     #sameColorInGameTopPieces;
 
@@ -80,8 +80,8 @@ class Board {
         this.pieces.forEach(p => p.targets = []);
         this.#computePieces();
         if (!ended) {
-            this.#inGame = this.pieces.filter(p => p.inGame);
-            this.inGameTopPieces = this.#inGame.filter(p => !this.#inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
+            this.inGame = this.pieces.filter(p => p.inGame);
+            this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
             const colorPlayingId = this.getColorPlaying().id;
             this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
             this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;

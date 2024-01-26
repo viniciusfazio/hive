@@ -130,14 +130,15 @@ export default class MoveList {
                 const move = this.moves[board.round - 1];
                 if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                     const p = board.pieces.find(p => p.id === move.pieceId);
-                    callbackMove(p);
-                    if (p.type.id === PieceType.mantis.id && p.z === 0) {
+                    callbackMove(p, false);
+                    if (p.type.id === PieceType.mantis.id && move.fromZ === 0) {
                         // mantis special move
-                        const p2 = board.pieces.find(p => p.x === move.toX && p.y === move.toY && p.z === 0);
-                        callbackMove(p2);
-                        p2.play(p.x, p.y, 0);
-                        p.play(p.x, p.y, 1);
+                        const p2 = board.inGame.find(p2 => p2.x === move.toX && p2.y === move.toY && p2.z === 0);
+                        callbackMove(p2, true);
+                        p2.play(move.fromX, move.fromY, p2.z);
+                        p.play(move.fromX, move.fromY, move.toZ);
                     } else {
+                        callbackMove(p, false);
                         p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
                     }
                 }
@@ -147,13 +148,13 @@ export default class MoveList {
                 const move = this.moves[board.round - 1];
                 if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                     const p = board.pieces.find(p => p.id === move.pieceId);
-                    callbackMove(p);
-                    if (p.type.id === PieceType.mantis.id && p.z === 0) {
+                    callbackMove(p, false);
+                    if (p.type.id === PieceType.mantis.id && move.fromZ === 0) {
                         // mantis special move
-                        const p2 = board.pieces.find(p => p.x === move.fromX && p.y === move.fromY && p.z === 0);
-                        callbackMove(p2);
-                        p2.play(move.toX, move.toX);
-                        p.play(move.fromX, move.fromY);
+                        const p2 = board.inGame.find(p2 => p2.x === move.fromX && p2.y === move.fromY && p2.z === 0);
+                        callbackMove(p2, true);
+                        p2.play(move.toX, move.toY, p2.z);
+                        p.play(move.fromX, move.fromY, move.fromZ);
                     } else {
                         p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
                     }

@@ -45,7 +45,7 @@ export default class Piece {
         this.inGame = false;
         this.targets = [];
     }
-    play(x, y, z, intermediateXYZs) {
+    play(x, y, z, intermediateXYZs = []) {
         this.x = x;
         this.y = y;
         if (z < 0) {

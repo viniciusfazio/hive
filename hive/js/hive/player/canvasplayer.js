@@ -31,13 +31,6 @@ export default class CanvasPlayer extends Player {
         return [tx, ty, tw, th, fh, hover];
     }
     hover(x, y, dragging = false) {
-        if (this.hive.board.round <= this.hive.getMoveList().moves.length ||
-            this.hive.gameOver ||
-            !(this.hive.getPlayerPlaying() instanceof CanvasPlayer)) {
-            this.hoverPieceId = null;
-            this.selectedPieceId = null;
-            return false;
-        }
         [this.dragging, this.mouseX, this.mouseY] = [dragging, x, y];
         const path = this.hive.getPiecePath2D();
 
@@ -60,7 +53,8 @@ export default class CanvasPlayer extends Player {
         if (this.dragging || this.hoverPieceId !== pieceHoverId) {
             this.hoverPieceId = pieceHoverId;
         }
-        return true;
+        return !this.hive.gameOver && this.hive.board.round > this.hive.getMoveList().moves.length &&
+            (this.hive.getPlayerPlaying() instanceof CanvasPlayer);
     }
 
     #getPieceOnTop(pieces, piece) {
@@ -79,13 +73,13 @@ export default class CanvasPlayer extends Player {
 
 
     click(x, y, autoMove, dragging = false) {
-        if (this.hover(x, y)) {
-            const [, , , , , hoverFlip] = this.overFlip();
-            if (hoverFlip && !dragging) {
-                this.hive.flippedPieces = !this.hive.flippedPieces;
-                this.hoverPieceId = null;
-                this.selectedPieceId = null;
-            } else if (this.hive.board.passRound) {
+        const [, , , , , hoverFlip] = this.overFlip();
+        if (hoverFlip && !dragging) {
+            this.hive.flippedPieces = !this.hive.flippedPieces;
+            this.hoverPieceId = null;
+            this.selectedPieceId = null;
+        } else if (this.hover(x, y)) {
+            if (this.hive.board.passRound) {
                 this.hoverPieceId = null;
                 if (!dragging) {
                     this.selectedPieceId = null;
@@ -117,5 +111,4 @@ export default class CanvasPlayer extends Player {
             }
         }
     }
-
 }

@@ -605,7 +605,7 @@ export default class HiveCanvas {
     }
     #playRound(withAnimation = true) {
         const moveList = this.getMoveList();
-        moveList.goTo(this.board, moveList.moves.length + 1, p => withAnimation && this.#resetPieceAnimation(p));
+        moveList.goTo(this.board, moveList.moves.length + 1, (p, forceAnimation) => (forceAnimation || withAnimation) && this.#resetPieceAnimation(p));
         const lastMove = moveList.moves[moveList.moves.length - 1];
         this.#callbacks.move(this.board.round, (this.board.round - 1) + ". " + lastMove.notation(this.board));
         this.gameOver ||= lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout;
