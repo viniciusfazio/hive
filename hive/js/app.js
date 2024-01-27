@@ -307,7 +307,6 @@ function gameOver() {
     }
 }
 function onlineCallbacks() {
-    // noinspection JSUnresolvedReference,SpellCheckingInspection
     return {
         waiting: id => {
             $("#receiving").addClass("d-none");
@@ -339,7 +338,10 @@ function onlineCallbacks() {
         },
         disconnect: () => showMessage("Disconnected"),
         opponentDisconnects: () => showMessage("Your opponent disconnected"),
-        opponentOffersDraw: () => $("#drawToast").toast("show", { autohide: false }),
+        opponentOffersDraw: () => {
+            // noinspection JSUnresolvedReference,SpellCheckingInspection
+            $("#drawToast").toast("show", { autohide: false });
+        },
         error: err => showMessage("" + err),
         connectionBroken: connectionBroken,
     };

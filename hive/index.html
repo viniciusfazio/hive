@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!--suppress HtmlFormInputWithoutLabel -->
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -110,7 +110,7 @@
                     <button type="button" class="text-nowrap btn btn-danger input-group-text connection" id="receive"><i class="bi bi-people-fill"></i>&nbsp;Share a link to connect to you</button>
                     <button type="button" class="text-nowrap btn btn-secondary d-none connection" disabled="disabled" id="receiving"><i class="bi bi-people-fill"></i>&nbsp;Receiving user ID...</button>
                     <div class="input-group mb-3 d-none connection" id="received">
-                        <span class="input-group-text">User ID:</span>
+                        <label class="input-group-text" for="user_id"><i class="bi bi-link"></i></label>
                         <input type="text" id="user_id" class="form-control" value=""/>
                         <button class="btn btn-primary" data-clipboard-target="#user_id" id="user_id_button">
                             <i class="bi bi-clipboard-fill"></i>

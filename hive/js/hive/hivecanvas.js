@@ -2,15 +2,14 @@ import Board from "./core/board.js";
 import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
-import board from "./core/board.js";
-
 
 const CAMERA_SPEED = .2; // between 0 and 1, higher is faster
 const PIECE_SPEED = .15; // between 0 and 1, higher is faster
 const UPDATE_IN_MS = 20; // update frame time. Every speed depends of it
 const REDRAW_IN_MS = 10; // draw frame time. Affects FPS only
 const MIN_FPS = 40;      // below MIN_FPS, it prints FPS on screen
-
+const BORDER_ANIMATION_SPEED = .6; // positive floating number, higher is faster
+const GLOWING_SPEED = .8;          // positive floating number, higher is faster
 
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
 const WAITING_HUD_COLOR = "rgb(0, 0, 0, .25)";
@@ -528,31 +527,31 @@ export default class HiveCanvas {
         let dash = 0;
         if (style === "last-piece") {
             borderColor = "rgb(255, 0, 0)";
-            border = 2;
-        } else if (style === "movable") {
             border = 3;
-            dash = 3;
+        } else if (style === "movable") {
+            border = 4;
+            dash = 6;
         } else if (style === "queen") {
-            let from0to50to0 = this.#frameQtd % 100;
+            let from0to50to0 = Math.round(this.#frameQtd * GLOWING_SPEED) % 100;
             if (from0to50to0 >= 50) {
                 from0to50to0 = 100 - from0to50to0;
             }
             const c = 205 + from0to50to0;
             borderColor = "rgb(" + c + ", " + c + ", 0)";
-            border = 3;
+            border = 4;
         } else if (style === "hover") {
             borderColor = "rgb(128, 0, 0)";
-            border = 3;
-            dash = 3;
+            border = 4;
+            dash = 6;
         } else if (style === "selected" || style === "target" || style === "drag") {
             borderColor = "rgb(255, 0, 0)";
-            border = 3;
-            dash = 3;
+            border = 4;
+            dash = 6;
         }
         if (dash > 0) {
             dash = Math.max(1, Math.round(dash * this.canvas.width / 750));
             this.ctx.setLineDash([dash, dash]);
-            this.ctx.lineDashOffset = Math.floor(this.#frameQtd / 5) % 120;
+            this.ctx.lineDashOffset = Math.floor(this.#frameQtd * BORDER_ANIMATION_SPEED) % (dash * 2);
         }
         this.ctx.lineWidth = Math.max(1, Math.round(border * this.canvas.width / 750));
         this.ctx.strokeStyle = borderColor;
