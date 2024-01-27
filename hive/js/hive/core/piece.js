@@ -323,7 +323,7 @@ export const PieceType = Object.freeze({
                         if (p < 2) {
                             // move only over pieces
                             const hasPiece = z >= 0;
-                            const canMoveOver = !board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id === PieceType.scorpion.id);
+                            const canMoveOver = !board.inGameTopPieces.find(t => t.x === x && t.y === y && t.type.id === PieceType.scorpion.id);
                             if (hasPiece && canMoveOver && unexplored && onHiveAndNoGate(stepZ, z, z1, z2)) {
                                 let newPath = [...path];
                                 newPath.push([x, y, z + 1]);
@@ -390,8 +390,8 @@ export const PieceType = Object.freeze({
                 preys.forEach(([x, y]) => {
                     const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
                     const canMove = standard
-                        || ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.spider.id].includes(prey.type.id);
-                    const notLastMove = prey.id !== board.lastMovePieceId;
+                        || ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id);
+                    const notLastMove = !board.lastMovedPiecesId.includes(prey.id);
                     if (canMove && notLastMove && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
                         noPieces.forEach(([tx, ty]) => {
                             prey.insertTarget(tx, ty, prey.z, [[piece.x, piece.y, piece.z + 1]]);
@@ -488,14 +488,13 @@ export const PieceType = Object.freeze({
                 paths.forEach(path => {
                     const [stepX, stepY, stepZ] = path[path.length - 1];
                     for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y)) {
-                        const p = board.inGameTopPieces.find(p => p.x === x && p.y === y && p.color.id === piece.color.id);
-                        const canUp = z >= 0 && p && p.type.id !== PieceType.scorpion.id;
-                        const canDown = z < 0 && paths.length > 1;
+                        const validPieceUnder = board.inGameTopPieces.find(p => p.x === x && p.y === y && p.color.id === piece.color.id && p.type.id !== PieceType.scorpion.id);
+                        const canGoUp = z >= 0 && validPieceUnder;
+                        const canGoDown = z < 0 && path.length > 1;
                         const unexplored = !path.find(([cx, cy, ]) => cx === x && cy === y);
-                        if (unexplored && (canUp || canDown) && onHiveAndNoGate(stepZ, z, z1, z2)) {
+                        if (unexplored && (canGoUp || canGoDown) && onHiveAndNoGate(stepZ, z, z1, z2)) {
                             // new step with no repetition
-                            console.log(path);
-                            if (canUp) {
+                            if (canGoUp) {
                                 console.log("UP");
                                 let newPath = path.map(xyz => [...xyz]);
                                 newPath.push([x, y, z + 1]);
@@ -529,7 +528,21 @@ export const PieceType = Object.freeze({
         linked: "pillBug",
         standard: false,
         play: (board, piece, standard, withAbility = true) => {
-
+            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                return;
+            }
+            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, piece.x, piece.y)) {
+                const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                if (!prey && onHiveAndNoGate(piece.z, z, z1, z2)) {
+                    piece.insertTarget(x, y, piece.z);
+                } else if (prey && withAbility) {
+                    const isPrey = ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id);
+                    const canSwitch = z === 0 && (z1 < 0 || z2 < 0);
+                    if (isPrey && stillOneHiveAfterRemoveOnXY(board, x, y)) {
+                        piece.insertTarget(x, y, piece.z + 1);
+                    }
+                }
+            }
         }
     }),
 });

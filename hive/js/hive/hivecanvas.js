@@ -2,6 +2,7 @@ import Board from "./core/board.js";
 import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
+import board from "./core/board.js";
 
 
 const CAMERA_SPEED = .2; // between 0 and 1, higher is faster
@@ -232,7 +233,6 @@ export default class HiveCanvas {
                 "White: " + moveList.whitePiecesTimeLeft,
                 "Black: " + moveList.blackPiecesTimeLeft,
                 "Round: " + this.board.round,
-                "Last ID: " + this.board.lastMovePieceId,
                 "pass round: " + (this.board.passRound ? 1 : 0),
                 "white player: " + this.whitePlayer.constructor.name,
                 "black player: " + this.blackPlayer.constructor.name,
@@ -426,10 +426,10 @@ export default class HiveCanvas {
                 return a.targets.length - b.targets.length;
             }
             // draw last moved piece at the end
-            if (a.id === this.board.lastMovePieceId) {
+            if (this.board.lastMovedPiecesId.includes(a.id) && !this.board.lastMovedPiecesId.includes(b.id)) {
                 return 1;
             }
-            if (b.id === this.board.lastMovePieceId) {
+            if (this.board.lastMovedPiecesId.includes(b.id) && !this.board.lastMovedPiecesId.includes(a.id)) {
                 return -1;
             }
             return 0;
@@ -479,7 +479,7 @@ export default class HiveCanvas {
         } else if (piece.subNumber > 0) {
             // drawing target not being hovered
             this.#drawPieceWithStyle(piece, "target");
-        } else if (this.board.lastMovePieceId === piece.id) {
+        } else if (this.board.lastMovedPiecesId.includes(piece.id)) {
             // drawing last piece moved
             this.#drawPieceWithStyle(piece, "last-piece");
         } else if (piece.targets.length > 0) {
@@ -793,7 +793,27 @@ export default class HiveCanvas {
         } else { // no moves to be done
             return;
         }
-        this.board.lastMovePieceId = round === 1 ? null : moveList.moves[round - 2].pieceId;
+
+        if (round === 1) {
+            this.board.lastMovedPiecesId = [];
+        } else {
+            const move = moveList.moves[round - 2];
+            this.board.lastMovedPiecesId = [move.pieceId];
+            const p1 = this.board.pieces.find(p => p.id === move.pieceId);
+            if (p1.type.id === PieceType.mantis.id && move.fromZ === 0) {
+                // mantis special move has 2 last move piece
+                const p2 = this.board.pieces.find(p => p.x === move.fromX && p.y === move.fromY && p.z === 0);
+                this.board.lastMovedPiecesId.push(p2.id);
+            } else if (p1.type.id === PieceType.dragonfly.id && move.fromZ > 0) {
+                // dragonfly special move has 2 last move piece
+                const p2 = this.board.pieces.find(p => p.x === move.fromX && p.y === move.fromY && p.z === p1.z - 1);
+                this.board.lastMovedPiecesId.push(p2.id);
+            } else if (p1.type.id === PieceType.centipede.id && move.toZ > 0) {
+                // centipede special move has 2 last move piece
+                const p2 = this.board.inGameTopPieces.find(p => p.x === move.fromX && p.y === move.fromY);
+                this.board.lastMovedPiecesId.push(p2.id);
+            }
+        }
     }
     #forward(callbackMove, round) {
         const moveList = this.getMoveList();
@@ -808,6 +828,12 @@ export default class HiveCanvas {
                     callbackMove(p2, true);
                     p2.play(move.fromX, move.fromY, p2.z);
                     p.play(move.fromX, move.fromY, move.toZ);
+                } else if (p.type.id === PieceType.centipede.id && move.toZ > 0) {
+                    // centipede special move
+                    const p2 = this.board.inGame.find(p2 => p2.x === move.toX && p2.y === move.toY && p2.z === 0);
+                    callbackMove(p2, true);
+                    p2.play(move.fromX, move.fromY, p2.z);
+                    p.play(move.toX, move.toY, p.z);
                 } else {
                     callbackMove(p, false);
                     p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
@@ -828,6 +854,12 @@ export default class HiveCanvas {
                     callbackMove(p2, true);
                     p2.play(move.toX, move.toY, p2.z);
                     p.play(move.fromX, move.fromY, move.fromZ);
+                } else if (p.type.id === PieceType.centipede.id && move.toZ > 0) {
+                    // centipede special move
+                    const p2 = this.board.inGame.find(p2 => p2.x === move.fromX && p2.y === move.fromY && p2.z === 0);
+                    callbackMove(p2, true);
+                    p2.play(move.toX, move.toY, p2.z);
+                    p.play(move.fromX, move.fromY, p.z);
                 } else {
                     p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
                 }

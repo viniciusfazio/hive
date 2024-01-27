@@ -3,7 +3,7 @@ class Board {
     round;
     pieces;
     allPieces;
-    lastMovePieceId;
+    lastMovedPiecesId;
     passRound;
 
     inGame;
@@ -15,7 +15,7 @@ class Board {
     constructor(board = null) {
         if (board) {
             this.round = board.round;
-            this.lastMovePieceId = board.lastMovePieceId;
+            this.lastMovedPiecesId = [...board.lastMovedPiecesId];
             this.passRound = board.passRound;
             this.allPieces = board.allPieces.map(piece => {
                 const p = {...piece};
@@ -38,7 +38,7 @@ class Board {
     }
     reset(standardRules) {
         this.round = 1;
-        this.lastMovePieceId = null;
+        this.lastMovedPiecesId = [];
         this.passRound = false;
         this.#standardRules = standardRules;
         this.allPieces.forEach(p => p.reset());
@@ -101,7 +101,7 @@ class Board {
         }
         let total = 0;
         this.#sameColorInGameTopPieces.forEach(p => {
-            if (p.id !== this.lastMovePieceId) {
+            if (!this.lastMovedPiecesId.includes(p.id)) {
                 p.type.play(this, p, this.#standardRules);
                 total += p.targets.length;
             }
