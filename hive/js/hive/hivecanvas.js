@@ -344,8 +344,8 @@ export default class HiveCanvas {
         const bottomColor = bottomTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
 
         // change font size if time is too long
-        const tfh = HiveCanvas.#scaleTimeFontHeight(topTimeTxt, fh);
-        const bfh = HiveCanvas.#scaleTimeFontHeight(bottomTimeTxt, fh);
+        const tfh = scaleTimeFontHeight(topTimeTxt, fh);
+        const bfh = scaleTimeFontHeight(bottomTimeTxt, fh);
 
         // draw timer
         this.#drawText([topTimeTxt], fx, tyTop + fh / 2 + 1, "middle", "center", tfh, topColor);
@@ -369,13 +369,6 @@ export default class HiveCanvas {
         const color = hover ? "rgb(255, 255, 0)" : "rgb(255, 255, 255)";
         this.#drawText(["FLIP"], tx + tw / 2, ty + fh / 2 + 1, "middle", "center", fh, color);
     }
-    static #scaleTimeFontHeight(txt, fh) {
-        let tfh = fh;
-        for (let i = 6; i < txt.length; i++) {
-            tfh *= 1 - 1 / i;
-        }
-        return tfh;
-    }
 
     #drawPieces() {
         // get targets to draw
@@ -391,7 +384,8 @@ export default class HiveCanvas {
         const dragId = player?.dragging ? player.selectedPieceId : null;
         const queensCovered = this.board.pieces.filter(p => p.type.id === PieceType.queen.id && p.inGame
             && !this.board.inGameTopPieces.find(t => t.id === p.id)).map(p => p.id);
-        this.board.pieces.filter(p => p.inGame || p.type.linked === null || p.type.standard === !this.flippedPieces)
+        this.board.pieces.filter(p => p.inGame || p.type.linked === null || p.transition > 0 ||
+                            p.type.standard === !this.flippedPieces && !this.#linkedPieceInAnimation(p))
             .concat(targets).sort((a, b) => {
             // dragging pieces draw at the end
             if (a.id === dragId) {
@@ -418,7 +412,7 @@ export default class HiveCanvas {
             if (aCovered && !bCovered) {
                 return 1;
             }
-            if (!aCovered && bCovered) {
+            if (bCovered && !aCovered) {
                 return -1;
             }
             // draw movable pieces at the end
@@ -432,8 +426,18 @@ export default class HiveCanvas {
             if (this.board.lastMovedPiecesId.includes(b.id) && !this.board.lastMovedPiecesId.includes(a.id)) {
                 return -1;
             }
+            // draw mantis at the end to better move animation
+            if (a.type.id === PieceType.mantis.id && b.type.id !== PieceType.mantis.id) {
+                return 1;
+            }
+            if (b.type.id === PieceType.mantis.id && a.type.id !== PieceType.mantis.id) {
+                return -1;
+            }
             return 0;
         }).forEach(p => this.#drawPiece(p));
+    }
+    #linkedPieceInAnimation(p) {
+        return this.board.pieces.find(l => l.type.id === PieceType[p.type.linked].id && l.color.id === p.color.id && l.number === p.number && l.transition > 0);
     }
     getPiecePath2D() {
         let path = new Path2D();
@@ -798,20 +802,24 @@ export default class HiveCanvas {
             this.board.lastMovedPiecesId = [];
         } else {
             const move = moveList.moves[round - 2];
-            this.board.lastMovedPiecesId = [move.pieceId];
-            const p1 = this.board.pieces.find(p => p.id === move.pieceId);
-            if (p1.type.id === PieceType.mantis.id && move.fromZ === 0) {
-                // mantis special move has 2 last move piece
-                const p2 = this.board.pieces.find(p => p.x === move.fromX && p.y === move.fromY && p.z === 0);
-                this.board.lastMovedPiecesId.push(p2.id);
-            } else if (p1.type.id === PieceType.dragonfly.id && move.fromZ > 0 && move.toZ === 0) {
-                // dragonfly special move has 2 last move piece
-                const p2 = this.board.pieces.find(p => p.x === move.toX && p.y === move.toY && p.z === 0);
-                this.board.lastMovedPiecesId.push(p2.id);
-            } else if (p1.type.id === PieceType.centipede.id && move.toZ > 0) {
-                // centipede special move has 2 last move piece
-                const p2 = this.board.inGameTopPieces.find(p => p.x === move.fromX && p.y === move.fromY);
-                this.board.lastMovedPiecesId.push(p2.id);
+            if (move.pieceId === null) {
+                this.board.lastMovedPiecesId = [];
+            } else {
+                this.board.lastMovedPiecesId = [move.pieceId];
+                const p1 = this.board.pieces.find(p => p.id === move.pieceId);
+                if (p1.type.id === PieceType.mantis.id && move.fromZ === 0) {
+                    // mantis special move has 2 last move piece
+                    const p2 = this.board.pieces.find(p => p.x === move.fromX && p.y === move.fromY && p.z === 0);
+                    this.board.lastMovedPiecesId.push(p2.id);
+                } else if (p1.type.id === PieceType.dragonfly.id && move.fromZ > 0 && move.toZ === 0) {
+                    // dragonfly special move has 2 last move piece
+                    const p2 = this.board.pieces.find(p => p.x === move.toX && p.y === move.toY && p.z === 0);
+                    this.board.lastMovedPiecesId.push(p2.id);
+                } else if (p1.type.id === PieceType.centipede.id && move.toZ > 0) {
+                    // centipede special move has 2 last move piece
+                    const p2 = this.board.inGameTopPieces.find(p => p.x === move.fromX && p.y === move.fromY);
+                    this.board.lastMovedPiecesId.push(p2.id);
+                }
             }
         }
     }
@@ -938,3 +946,11 @@ class Camera {
         }
     }
 }
+function scaleTimeFontHeight(txt, fh) {
+    let tfh = fh;
+    for (let i = 6; i < txt.length; i++) {
+        tfh *= 1 - 1 / i;
+    }
+    return tfh;
+}
+

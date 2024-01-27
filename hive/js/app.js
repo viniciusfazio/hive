@@ -178,6 +178,7 @@ function upload() {
     } else {
         showMessage("Choose only 1 file.");
     }
+    $file.val("");
 }
 function download() {
     let text = "";
