@@ -3,13 +3,12 @@ import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
 
-const CAMERA_SPEED = .2; // between 0 and 1, higher is faster
-const PIECE_SPEED = .15; // between 0 and 1, higher is faster
-const UPDATE_IN_MS = 20; // update frame time. Every speed depends of it
-const REDRAW_IN_MS = 10; // draw frame time. Affects FPS only
-const MIN_FPS = 40;      // below MIN_FPS, it prints FPS on screen
-const BORDER_ANIMATION_SPEED = .6; // positive floating number, higher is faster
-const GLOWING_SPEED = .8;          // positive floating number, higher is faster
+const CAMERA_SPEED = .2;   // between 0 and 1, higher is faster
+const PIECE_SPEED = .15;   // between 0 and 1, higher is faster
+const UPDATE_IN_MS = 20;   // update frame time. Every speed depends of it
+const REDRAW_IN_MS = 10;   // draw frame time. Affects FPS only
+const MIN_FPS = 40;        // below MIN_FPS, it prints FPS on screen
+const GLOWING_SPEED = .6; // positive floating number, higher is faster
 
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
 const WAITING_HUD_COLOR = "rgb(0, 0, 0, .25)";
@@ -374,7 +373,11 @@ export default class HiveCanvas {
         // get targets to draw
         let targets = [];
         const player = this.getPlayerPlaying();
+        let selectedPieceId = null;
+        let hoverPieceId = null;
         if (player instanceof CanvasPlayer) {
+            selectedPieceId = player.selectedPieceId;
+            hoverPieceId = player.hoverPieceId;
             const id = player.selectedPieceId ?? player.hoverPieceId;
             if (id !== null) {
                 targets = this.board.pieces.find(p => p.id === id).targets;
@@ -413,6 +416,20 @@ export default class HiveCanvas {
                 return 1;
             }
             if (bCovered && !aCovered) {
+                return -1;
+            }
+            // draw selected pieces at the end
+            if (a.id === selectedPieceId) {
+                return 1;
+            }
+            if (b.id === selectedPieceId) {
+                return -1;
+            }
+            // draw hover pieces at the end
+            if (a.id === hoverPieceId) {
+                return 1;
+            }
+            if (b.id === hoverPieceId) {
                 return -1;
             }
             // draw movable pieces at the end
@@ -507,7 +524,7 @@ export default class HiveCanvas {
             [x, y] = this.getPiecePosition(piece);
         }
 
-        const [rx, ry, ] = this.getSize();
+        const [rx, ry, offset] = this.getSize();
         const path = this.getPiecePath2D();
 
         this.ctx.setTransform(1, 0, 0, 1, x, y);
@@ -515,49 +532,48 @@ export default class HiveCanvas {
             this.ctx.globalAlpha = .25;
         }
 
+
+        let from0to50to0 = Math.round(this.#frameQtd * GLOWING_SPEED) % 100;
+        if (from0to50to0 >= 50) {
+            from0to50to0 = 100 - from0to50to0;
+        }
+
         // fill color
-        this.ctx.fillStyle = piece.color.id === "w" ? "rgb(230, 210, 190)" : "rgb(50, 70, 90)";
+        let r, g, b;
+        let glow = style === "movable" ? -(from0to50to0 * from0to50to0) / 50 : 0;
+        if (piece.color.id === "w") {
+            [r, g, b] = [230 + glow, 210 + glow, 190 + glow];
+        } else {
+            [r, g, b] = [50 + glow, 70 + glow, 90 + glow];
+        }
+        this.ctx.fillStyle = "rgb(" + r + ", " + g + ", " + b + ")";
         this.ctx.fill(path);
 
         // draw piece image, rotating according to the number identification
-        const r = Math.min(rx, ry);
+        const rxy = Math.min(rx, ry);
         this.ctx.rotate(-Math.PI / 2 + (Math.max(1, piece.number) - 1) * Math.PI / 3);
-        this.ctx.drawImage(document.getElementById("piece" + piece.type.id), -r, -r, 2 * r, 2 * r);
+        this.ctx.drawImage(document.getElementById("piece" + piece.type.id), -rxy, -rxy, 2 * rxy, 2 * rxy);
         this.ctx.setTransform(1, 0, 0, 1, x, y);
 
         // draw border
-        let borderColor = "rgb(0, 0, 0)";
-        let border = 1;
-        let dash = 0;
+        let borderColor;
+        let border = offset / 2;
         if (style === "last-piece") {
             borderColor = "rgb(255, 0, 0)";
-            border = 3;
-        } else if (style === "movable") {
-            border = 4;
-            dash = 6;
         } else if (style === "queen") {
-            let from0to50to0 = Math.round(this.#frameQtd * GLOWING_SPEED) % 100;
-            if (from0to50to0 >= 50) {
-                from0to50to0 = 100 - from0to50to0;
-            }
             const c = 205 + from0to50to0;
             borderColor = "rgb(" + c + ", " + c + ", 0)";
-            border = 4;
         } else if (style === "hover") {
             borderColor = "rgb(128, 0, 0)";
-            border = 4;
-            dash = 6;
+        } else if (style === "movable") {
+            borderColor = "rgb(0, 0, 0)";
         } else if (style === "selected" || style === "target" || style === "drag") {
             borderColor = "rgb(255, 0, 0)";
-            border = 4;
-            dash = 6;
+        } else {
+            borderColor = "rgb(0, 0, 0)";
+            border = offset / 4;
         }
-        if (dash > 0) {
-            dash = Math.max(1, Math.round(dash * this.canvas.width / 750));
-            this.ctx.setLineDash([dash, dash]);
-            this.ctx.lineDashOffset = Math.floor(this.#frameQtd * BORDER_ANIMATION_SPEED) % (dash * 2);
-        }
-        this.ctx.lineWidth = Math.max(1, Math.round(border * this.canvas.width / 750));
+        this.ctx.lineWidth = Math.max(1, border);
         this.ctx.strokeStyle = borderColor;
         this.ctx.stroke(path);
 
