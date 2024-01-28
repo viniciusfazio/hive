@@ -50,15 +50,8 @@ class Board {
             p.type.id === PieceType.queen.id &&
             p.color.id === colorId
         );
-        if (queen) {
-            for (const [x, y] of Board.coordsAround(queen.x, queen.y)) {
-                if (!this.inGameTopPieces.find(p => p.x === x && p.y === y)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return false;
+        return queen &&
+            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.inGameTopPieces.find(p => p.x === x && p.y === y));
     }
 
     #computePieces() {
@@ -119,9 +112,7 @@ class Board {
             return hudTopPieces.length;
         }
         if (this.round === 2) {
-            for (const [x, y] of Board.coordsAround(0, 0)) {
-                hudTopPieces.forEach(p => p.insertTarget(x, y, 0));
-            }
+            Board.coordsAround(0, 0).forEach(([x, y]) => hudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
             return 6 * hudTopPieces.length;
         }
 
@@ -136,54 +127,54 @@ class Board {
                 hudTopPieces = [queen];
             }
         }
-
-        return this.piecePlacement(colorPlayingId, hudTopPieces);
-    }
-    piecePlacement(colorId, piecesToBePlaced, ignore_x = null, ignore_y = null) {
-        let visited = [];
         let total = 0;
-        this.inGameTopPieces.filter(p => p.color.id === colorId).forEach(p => {
+        this.piecePlacement(colorPlayingId).forEach(([x, y]) => hudTopPieces.forEach(p => {
+            p.insertTarget(x, y, 0);
+            total++;
+        }));
+        return total;
+    }
+    piecePlacement(colorId, ignore_x = null, ignore_y = null) {
+        let visited = [];
+        let ret = [];
+        this.inGameTopPieces.filter(p => p.color.id === colorId).map(p => {
             // look for empty space around same color in game piece
-            for (const [x, y] of Board.coordsAround(p.x, p.y)) {
+            Board.coordsAround(p.x, p.y).forEach(([x, y]) => {
                 // skip if already visited
                 if (visited.find(([rx, ry]) => rx === x && ry === y)) {
-                    continue;
+                    return;
                 }
                 visited.push([x, y]);
 
                 // skip if not empty
                 if (this.inGameTopPieces.find(p => p.x === x && p.y === y)) {
-                    continue;
+                    return;
                 }
 
                 // check if empty space has only same color piece around
-                let ok = true;
-                for (const [x2, y2] of Board.coordsAround(x, y)) {
-                    if (ignore_x === x2 && ignore_y === y2) {
-                        continue;
-                    }
-                    if (this.inGameTopPieces.find(p => p.x === x2 && p.y === y2 && p.color.id !== colorId)) {
-                        ok = false;
-                        break;
-                    }
+                const differentColorPieceAround = Board.coordsAround(x, y).find(([x2, y2]) =>
+                    (ignore_x !== x2 || ignore_y !== y2) &&
+                    this.inGameTopPieces.find(p => p.x === x2 && p.y === y2 && p.color.id !== colorId)
+                );
+                if (!differentColorPieceAround) {
+                    ret.push([x, y]);
                 }
-                if (ok) {
-                    piecesToBePlaced.forEach(piece => {
-                        total++;
-                        piece.insertTarget(x, y, 0);
-                    });
-                }
-            }
+            });
         });
-        return total;
+        return ret;
     }
-    static *coordsAround(x, y) {
-        yield [x + 2, y + 0];
-        yield [x + 1, y + 1];
-        yield [x - 1, y + 1];
-        yield [x - 2, y + 0];
-        yield [x - 1, y - 1];
-        yield [x + 1, y - 1];
+    static coordsAround(x, y) {
+        return [
+            [x + 2, y + 0],
+            [x + 1, y + 1],
+            [x - 1, y + 1],
+            [x - 2, y + 0],
+            [x - 1, y - 1],
+            [x + 1, y - 1],
+        ];
+    }
+    flyZ() {
+        return Math.max.apply(0, this.inGameTopPieces.map(p => p.z)) + 1;
     }
 
     getColorPlaying() {

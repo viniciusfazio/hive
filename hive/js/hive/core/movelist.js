@@ -213,26 +213,27 @@ export class Move {
             } else {
                 // move to the ground
                 let p2Pref = 0;
-                for (const [x, y] of Board.coordsAround(move.toX, move.toY)) {
+                Board.coordsAround(move.toX, move.toY).forEach(([x, y]) => {
                     // prefer unique pieces as reference, and to the queen, and pieces not on pile
                     const p = board.pieces.find(p => p.inGame && p.x === x && p.y === y);
-                    if (p) {
-                        let pref = 1;
-                        if (p.type.id === PieceType.queen.id) {
-                            pref += 8;
-                        }
-                        if (p.number === 0) {
-                            pref += 4;
-                        }
-                        if (p.z === 0) {
-                            pref += 2;
-                        }
-                        if (pref > p2Pref) {
-                            p2Pref = pref;
-                            p2 = p;
-                        }
+                    if (!p) {
+                        return;
                     }
-                }
+                    let pref = 1;
+                    if (p.type.id === PieceType.queen.id) {
+                        pref += 8;
+                    }
+                    if (p.number === 0) {
+                        pref += 4;
+                    }
+                    if (p.z === 0) {
+                        pref += 2;
+                    }
+                    if (pref > p2Pref) {
+                        p2Pref = pref;
+                        p2 = p;
+                    }
+                });
             }
             if (!p2) {
                 ret += " invalid";
