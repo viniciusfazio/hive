@@ -152,26 +152,24 @@ function upload() {
         $file.val(null);
         return;
     }
-    const standardRules = !$('#alternativeRules').prop('checked');
-    hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, standardRules);
     const files = $file.prop("files");
     if (files.length === 1) {
         const fileReader = new FileReader();
         fileReader.onload = e => {
-            let ended = false;
-            (e.target.result ?? "").split("\n").forEach(move => {
-                if (ended) {
-                    return;
+            const fileContent = (e.target.result ?? "").split("\n");
+            const $alternativeRules = $('#alternativeRules');
+            const standardRules = !$alternativeRules.prop('checked');
+            if (tryParseFile(fileContent, standardRules) !== null) {
+                // cant parse. Try again with different ruleset
+                if (tryParseFile(fileContent, !standardRules) !== null) {
+                    // still cant parse
+                    showMessage(tryParseFile(fileContent, standardRules));
+                } else {
+                    // success with different ruleset
+                    $alternativeRules.prop('checked', standardRules);
                 }
-                const error = hive.playNotation(move);
-                if (error && error !== "cant parse") {
-                    showMessage("Error parsing '" + move + "': " + error);
-                    ended = true;
-                }
-            });
-            if (hive.board.round === 1) {
-                showMessage("Error parsing: no move found.");
             }
+            hive.gameOver = true;
         };
         fileReader.readAsText(files[0]);
     } else if (files.length === 0) {
@@ -180,6 +178,26 @@ function upload() {
         showMessage("Choose only 1 file.");
     }
     $file.val("");
+}
+function tryParseFile(fileContent, standardRules) {
+    let error = null;
+    hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, standardRules);
+    fileContent.find(move => {
+        error = hive.playNotation(move);
+        if (error === "cant parse") {
+            error = null;
+            return false;
+        }
+        if (error !== null) {
+            error = "Error parsing '" + move + "': " + error;
+            return true;
+        }
+        return false;
+    });
+    if (hive.board.round === 1) {
+        error = "Error parsing: no move found.";
+    }
+    return error;
 }
 function download() {
     let text = "";

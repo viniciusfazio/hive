@@ -122,7 +122,7 @@ export default class CanvasPlayer extends Player {
                 this.selectedPieceId = this.hoverPieceId;
                 if (this.hive.board.round <= 2 && autoMove) {
                     this.selectedTargetId = 0;
-                    if (!confirmMove) {
+                    if (!confirmMove || this.hive.gameOver) {
                         this.confirm();
                     }
                 }
@@ -135,7 +135,7 @@ export default class CanvasPlayer extends Player {
                 // clicked on target
                 const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
                 this.selectedTargetId = piece.targets.findIndex(p => p.id === this.hoverPieceId);
-                if (!confirmMove) {
+                if (!confirmMove || this.hive.gameOver) {
                     this.confirm();
                 }
             }
