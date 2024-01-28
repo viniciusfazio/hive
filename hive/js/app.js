@@ -15,8 +15,8 @@ $(() => {
     $("#upload").change(upload);
     $("#receive").click(receive);
     $("#draw").click(draw);
-    $("#nextMove").click(() => nextRound());
-    $("#previousMove").click(() => nextRound(false));
+    $("#nextMove").click(() => addRound(1));
+    $("#previousMove").click(() => addRound(-1));
     $("#firstMove").click(() => setRound(1, 0));
     $("#lastMove").click(() => setRound(999999999, 0));
     $("#disconnect").click(() => onlinePlayer.disconnect(onlineCallbacks()));
@@ -25,10 +25,10 @@ $(() => {
     $("#move-list").keydown(e => {
         switch (e.key) {
             case "ArrowLeft":
-                nextRound(false);
+                addRound(-1);
                 break;
             case "ArrowRight":
-                nextRound();
+                addRound(1);
                 break;
         }
     });
@@ -55,10 +55,10 @@ $(() => {
     $hive.keydown(e => {
         switch (e.key) {
             case "ArrowLeft":
-                nextRound(false);
+                addRound(-1);
                 break;
             case "ArrowRight":
-                nextRound();
+                addRound(1);
                 break;
             case "D":
                 hive.toggleDebug();
@@ -77,25 +77,12 @@ function setRound(round, moveListId) {
     hive.setRound(round, moveListId);
     updateMoveList(round, moveListId);
 }
-function nextRound(forward = true) {
-    if (forward) {
-        let $nextLI = $("#move-list > ul > li.active + li");
-        if ($nextLI.length === 0) {
-            $nextLI = $("#move-list > ul > li.active").parent().next().find("li:not(.empty):first-child");
-        }
-        if ($nextLI.length > 0) {
-            $nextLI.click();
-        }
-    } else {
-        let $nextLI = $("#move-list > ul > li:not(.empty) + li.active");
-        if ($nextLI.length === 0) {
-            $nextLI = $("#move-list > ul > li.active").parent().prev().find("li:last-child");
-        } else {
-            $nextLI = $("#move-list > ul > li.active").parent().find("li:not(.empty):first-child");
-        }
-        if ($nextLI.length > 0) {
-            $nextLI.click();
-        }
+function addRound(qtd) {
+    const round = hive.board.round + qtd;
+    const moveListId = hive.currentMoveListId;
+    const $li = $("ul.move-list-" + moveListId + " > li.round-" + round);
+    if ($li.length !== 0) {
+        $li.click();
     }
 }
 function appendMoveList(round, move, moveListId = 0) {
