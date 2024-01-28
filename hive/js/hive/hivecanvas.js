@@ -785,7 +785,7 @@ export default class HiveCanvas {
         if (!lastMove && this.board.round <= moveList.moves.length) {
             // an alternative move happened. Create a new list
             const initialRound = this.currentMoveListId === 0 ? this.board.round : moveList.initialRound;
-            moveList = moveList.clone();
+            moveList = new MoveList(0, 0, moveList.moves.map(m => {return {...m};}));
             this.moveLists.push(moveList);
             moveList.parentMoveListId =this.currentMoveListId;
             this.currentMoveListId = this.moveLists.length - 1;

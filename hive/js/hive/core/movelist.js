@@ -22,9 +22,6 @@ export default class MoveList {
             this.#lastMoveTimestamp = (new Date()).getTime();
         }
     }
-    clone() {
-        return new MoveList(this.totalTime, this.#increment, this.moves.map(m => {return {...m};}));
-    }
     #pushMoveWithTime(move, time, withIncrement = false) {
         if (this.totalTime > 0) {
             const now = (new Date()).getTime();
