@@ -8,7 +8,8 @@ const PIECE_SPEED = .15;   // between 0 and 1, higher is faster
 const UPDATE_IN_MS = 20;   // update frame time. Every speed depends of it
 const REDRAW_IN_MS = 10;   // draw frame time. Affects FPS only
 const MIN_FPS = 40;        // below MIN_FPS, it prints FPS on screen
-const GLOWING_SPEED = .6; // positive floating number, higher is faster
+const GLOWING_SPEED = .1;  // between 0 and 1, higher is faster
+const BORDER_SPEED = .05;  // between 0 and 1, higher is faster
 
 const PLAYING_HUD_COLOR = "rgb(0, 0, 0, .75)";
 const WAITING_HUD_COLOR = "rgb(0, 0, 0, .25)";
@@ -18,6 +19,7 @@ export default class HiveCanvas {
 
     #debug = false;
     #frameQtd = 0;
+    #FPSUpdateTime;
     #frameTime;
     #framesPerSecond = null;
     #tooSlow = false;
@@ -57,7 +59,7 @@ export default class HiveCanvas {
         this.#canvasPlayer = canvasPlayer;
         this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, true);
         this.gameOver = true;
-        this.#frameTime = (new Date()).getTime();
+        this.#FPSUpdateTime = (new Date()).getTime();
         this.#update();
         this.#redraw();
     }
@@ -165,7 +167,7 @@ export default class HiveCanvas {
         return [r * Math.sqrt(3), r, offset];
     }
     #redraw() {
-        const start = (new Date()).getTime();
+        this.#frameTime = (new Date()).getTime();
         this.#updateFPS();
 
         this.#drawHud();
@@ -184,7 +186,7 @@ export default class HiveCanvas {
 
         this.#drawDebug();
 
-        const waitTime = REDRAW_IN_MS - ((new Date()).getTime() - start);
+        const waitTime = REDRAW_IN_MS - ((new Date()).getTime() - this.#frameTime);
         setTimeout(() => this.#redraw(), Math.max(1, waitTime));
     }
     #drawPassAlert() {
@@ -215,10 +217,11 @@ export default class HiveCanvas {
     #updateFPS() {
         const CALCULATE_FPS_EVERY_N_FRAMES = 20;
         this.#frameQtd++;
-        if (this.#frameQtd % CALCULATE_FPS_EVERY_N_FRAMES === 0) {
+        if (this.#frameQtd === CALCULATE_FPS_EVERY_N_FRAMES) {
             const now = (new Date()).getTime();
-            this.#framesPerSecond = Math.round(1 / ((now - this.#frameTime) / (CALCULATE_FPS_EVERY_N_FRAMES * 1000)));
-            this.#frameTime = now;
+            this.#framesPerSecond = Math.round(1 / ((now - this.#FPSUpdateTime) / (CALCULATE_FPS_EVERY_N_FRAMES * 1000)));
+            this.#FPSUpdateTime = now;
+            this.#frameQtd = 0;
         }
     }
     #drawDebug() {
@@ -533,20 +536,8 @@ export default class HiveCanvas {
         }
 
 
-        let from0to50to0 = Math.round(this.#frameQtd * GLOWING_SPEED) % 100;
-        if (from0to50to0 >= 50) {
-            from0to50to0 = 100 - from0to50to0;
-        }
-
         // fill color
-        let r, g, b;
-        let glow = style === "movable" ? -(from0to50to0 * from0to50to0) / 50 : 0;
-        if (piece.color.id === "w") {
-            [r, g, b] = [230 + glow, 210 + glow, 190 + glow];
-        } else {
-            [r, g, b] = [50 + glow, 70 + glow, 90 + glow];
-        }
-        this.ctx.fillStyle = "rgb(" + r + ", " + g + ", " + b + ")";
+        this.ctx.fillStyle = piece.color.id === "w" ? "rgb(230, 210, 190)" : "rgb(50, 70, 90)";
         this.ctx.fill(path);
 
         // draw piece image, rotating according to the number identification
@@ -558,20 +549,33 @@ export default class HiveCanvas {
         // draw border
         let borderColor;
         let border = offset / 2;
+        let dash = 0;
         if (style === "last-piece") {
             borderColor = "rgb(255, 0, 0)";
         } else if (style === "queen") {
+            let from0to50to0 = Math.round((this.#frameTime % 10000) * GLOWING_SPEED) % 100;
+            if (from0to50to0 >= 50) {
+                from0to50to0 = 100 - from0to50to0;
+            }
             const c = 205 + from0to50to0;
             borderColor = "rgb(" + c + ", " + c + ", 0)";
         } else if (style === "hover") {
             borderColor = "rgb(128, 0, 0)";
+            dash = offset;
         } else if (style === "movable") {
             borderColor = "rgb(0, 0, 0)";
+            dash = offset;
         } else if (style === "selected" || style === "target" || style === "drag") {
             borderColor = "rgb(255, 0, 0)";
+            dash = offset;
         } else {
             borderColor = "rgb(0, 0, 0)";
             border = offset / 4;
+        }
+        if (dash > 0) {
+            dash = Math.max(1, dash);
+            this.ctx.setLineDash([dash, dash]);
+            this.ctx.lineDashOffset = Math.floor((this.#frameTime % (dash * 2 * 100)) * BORDER_SPEED) % (dash * 2);
         }
         this.ctx.lineWidth = Math.max(1, border);
         this.ctx.strokeStyle = borderColor;
