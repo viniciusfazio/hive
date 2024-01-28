@@ -573,13 +573,21 @@ export default class HiveCanvas {
             border = offset / 4;
         }
         if (dash > 0) {
-            dash = Math.max(1, dash);
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeStyle = "rgb(128, 128, 128)";
+            this.ctx.stroke(path);
+            dash = Math.ceil(dash);
             this.ctx.setLineDash([dash, dash]);
-            this.ctx.lineDashOffset = Math.floor((this.#frameTime % (dash * 2 * 100)) * BORDER_SPEED) % (dash * 2);
+            const dashOffset = Math.round((this.#frameTime % 1000000) / 750 * this.canvas.width * BORDER_SPEED);
+            this.ctx.lineDashOffset = Math.floor(dashOffset % (dash * 2));
+            this.ctx.lineWidth = Math.ceil(border);
+            this.ctx.strokeStyle = borderColor;
+            this.ctx.stroke(path);
+        } else {
+            this.ctx.lineWidth = Math.ceil(border);
+            this.ctx.strokeStyle = borderColor;
+            this.ctx.stroke(path);
         }
-        this.ctx.lineWidth = Math.max(1, border);
-        this.ctx.strokeStyle = borderColor;
-        this.ctx.stroke(path);
 
         // reset
         this.ctx.lineDashOffset = 0;
