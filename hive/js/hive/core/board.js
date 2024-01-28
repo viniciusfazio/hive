@@ -110,33 +110,34 @@ class Board {
     }
     #computePiecePlacements() {
         const colorPlayingId = this.getColorPlaying().id;
-        let piecesToBePlaced = this.pieces.filter(p => p.color.id === colorPlayingId && !p.inGame);
+        let hudTopPieces = this.pieces.filter(p => p.color.id === colorPlayingId && !p.inGame);
+        hudTopPieces = hudTopPieces.filter(p => !hudTopPieces.find(p2 => p2.z > p.z && p2.type.id === p.type.id));
 
         // first and second moves are special cases
         if (this.round === 1) {
-            piecesToBePlaced.forEach(p => p.insertTarget(0, 0, 0));
-            return piecesToBePlaced.length;
+            hudTopPieces.forEach(p => p.insertTarget(0, 0, 0));
+            return hudTopPieces.length;
         }
         if (this.round === 2) {
             for (const [x, y] of Board.coordsAround(0, 0)) {
-                piecesToBePlaced.forEach(p => p.insertTarget(x, y, 0));
+                hudTopPieces.forEach(p => p.insertTarget(x, y, 0));
             }
-            return 6 * piecesToBePlaced.length;
+            return 6 * hudTopPieces.length;
         }
 
-        if (piecesToBePlaced.length === 0) {
+        if (hudTopPieces.length === 0) {
             return 0;
         }
 
         // must place queen in 4th move
         if (this.round === 7 || this.round === 8) {
-            const queen = piecesToBePlaced.find(p => p.type.id === PieceType.queen.id);
+            const queen = hudTopPieces.find(p => p.type.id === PieceType.queen.id);
             if (queen) {
-                piecesToBePlaced = [queen];
+                hudTopPieces = [queen];
             }
         }
 
-        return this.piecePlacement(colorPlayingId, piecesToBePlaced);
+        return this.piecePlacement(colorPlayingId, hudTopPieces);
     }
     piecePlacement(colorId, piecesToBePlaced, ignore_x = null, ignore_y = null) {
         let visited = [];

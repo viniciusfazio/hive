@@ -17,17 +17,17 @@ export default class CanvasPlayer extends Player {
 
     overFlip() {
         // get coords to draw the button
-        const [w, h] = [this.hive.canvas.width, this.hive.canvas.height]
+        const [rx, ry, ] = this.hive.getSize();
+        const r = (rx + ry) * 2 / 3;
+        const [w, h] = [this.hive.canvas.width, this.hive.canvas.height];
         const hh = this.hive.getHudHeight();
-        const fh = Math.round(w / 10);
-        const fx = Math.round(w / 7);
-        const [tx, ty, tw, th] = [w - 2 * fx, h - hh - fh, 2 * fx, fh];
+        const [x, y] = [w - r, h - hh - r];
 
         // check if mouse is over
-        const hover = !this.dragging && this.mouseX >= tx && this.mouseX <= tx + tw &&
-            this.mouseY >= ty && this.mouseY <= ty + th;
+        const hover = !this.dragging && this.mouseX >= x - r && this.mouseX <= x + r &&
+            this.mouseY >= y - r && this.mouseY <= y + r;
 
-        return [tx, ty, tw, th, fh, hover];
+        return [x, y, r, hover];
     }
     hover(x, y, dragging = false) {
         [this.dragging, this.mouseX, this.mouseY] = [dragging, x, y];
@@ -72,7 +72,7 @@ export default class CanvasPlayer extends Player {
 
 
     click(x, y, autoMove, dragging = false) {
-        const [, , , , , hoverFlip] = this.overFlip();
+        const [, , , hoverFlip] = this.overFlip();
         if (hoverFlip && !dragging) {
             this.hive.flippedPieces = !this.hive.flippedPieces;
             this.hoverPieceId = null;
