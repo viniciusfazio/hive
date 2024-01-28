@@ -537,7 +537,7 @@ export default class HiveCanvas {
 
 
         // fill color
-        this.ctx.fillStyle = piece.color.id === "w" ? "rgb(230, 210, 190)" : "rgb(50, 70, 90)";
+        this.ctx.fillStyle = piece.color.id === "w" ? "rgb(230, 210, 190)" : "rgb(50, 80, 110)";
         this.ctx.fill(path);
 
         // draw piece image, rotating according to the number identification
