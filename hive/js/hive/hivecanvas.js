@@ -461,6 +461,8 @@ export default class HiveCanvas {
             }
             return 0;
         }).forEach(p => this.#drawPiece(p, path));
+
+        this.#drawBorderOverStackedQueen(path);
     }
     #linkedPieceInAnimation(p) {
         return this.board.pieces.find(l => l.type.id === PieceType[p.type.linked].id && l.color.id === p.color.id && l.number === p.number && l.transition > 0);
@@ -515,9 +517,6 @@ export default class HiveCanvas {
         } else if (piece.targets.length > 0) {
             // drawing movable piece
             this.#drawPieceWithStyle(piece, path, "movable");
-        } else if (piece.type.id === PieceType.queen.id && piece.inGame && !this.board.inGameTopPieces.find(p => p.id === piece.id)) {
-            // there are pieces above queen
-            this.#drawPieceWithStyle(piece, path, "queen");
         } else {
             // drawing piece in other cases
             this.#drawPieceWithStyle(piece, path);
@@ -568,14 +567,6 @@ export default class HiveCanvas {
         if (style === "last-piece") {
             borderColor = "rgb(255, 0, 0)";
             border = offset / 2;
-        } else if (style === "queen") {
-            let from0to50to0 = Math.round((this.#frameTime % 10000) * GLOWING_SPEED) % 100;
-            if (from0to50to0 >= 50) {
-                from0to50to0 = 100 - from0to50to0;
-            }
-            const c = 205 + from0to50to0;
-            borderColor = "rgb(" + c + ", " + c + ", 0)";
-            border = offset / 2;
         } else if (style === "hover") {
             borderColor = "rgb(128, 0, 0)";
             dash = true;
@@ -620,6 +611,24 @@ export default class HiveCanvas {
             }
         }
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    #drawBorderOverStackedQueen(path) {
+        let from0to1to0 = Math.round((this.#frameTime % 10000) * GLOWING_SPEED) % 200;
+        if (from0to1to0 >= 100) {
+            from0to1to0 = 200 - from0to1to0;
+        }
+        from0to1to0 /= 100;
+        this.ctx.globalAlpha = from0to1to0 * from0to1to0;
+        this.board.inGame.filter(q => q.type.id === PieceType.queen.id && !this.board.inGameTopPieces.find(p => p.id === q.id)).forEach(p => {
+            const [x, y] = this.getPiecePosition(p);
+            const [, , offset] = this.getSize();
+            this.ctx.setTransform(1, 0, 0, 1, x, y);
+            this.ctx.strokeStyle = "rgb(255, 204, 00)";
+            this.ctx.lineWidth = Math.ceil(offset / 2);
+            this.ctx.stroke(path);
+        });
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.globalAlpha = 1;
     }
     #drawText(texts, x = 0, y = 0, valign = "middle", align = "center",
              height, cor = "rgb(255, 255, 255)", corBorda = "rgb(0, 0, 0)") {
@@ -810,6 +819,7 @@ export default class HiveCanvas {
         }
     }
     #goTo(board, round, callbackMove, moveListId) {
+        this.#canvasPlayer.reset();
         if (this.currentMoveListId === moveListId) {
             // same list
             this.#goToSameMoveList(callbackMove, round);
