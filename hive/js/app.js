@@ -175,7 +175,7 @@ function tryParseFile(fileContent, standardRules) {
     let timeControl = false;
     fileContent.find(move => {
         if (hive.board.round === 1) {
-            const matches = move.match(/Start - time control: (\d+)m\+(\d+)s/);
+            const matches = move.match(/Start - time control: ([.\d]*\d)m\+(\d+)s/);
             if (matches) {
                 timeControl = true;
                 hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, matches[1], matches[2], standardRules);
@@ -235,9 +235,9 @@ function newGame() {
 }
 function getTime() {
     let totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : "0";
-    totalTime = Math.min(60000, parseInt(totalTime.substring(0, 5)));
+    totalTime = Math.max(0, Math.min(60000, totalTime));
     let increment = $("#increment").val();
-    increment = Math.min(3600000, parseInt(increment.substring(0, 7)));
+    increment = Math.max(0, Math.min(3600000, Math.ceil(increment)));
     return [totalTime, increment];
 }
 function draw () {

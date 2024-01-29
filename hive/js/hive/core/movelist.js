@@ -66,20 +66,12 @@ export default class MoveList {
         this.#pushMoveWithTime(move, time, true);
     }
     timeControlToText(totalTime = null, increment = null) {
-        totalTime = totalTime ?? this.totalTime;
+        totalTime = totalTime ?? (this.totalTime / 60);
         increment = increment ?? this.increment;
         if (totalTime === 0) {
             return "no time control";
         } else {
-            let txt = "";
-            if (totalTime >= 60) {
-                txt += Math.floor(totalTime / 60) + "m";
-            }
-            if (totalTime % 60 > 0) {
-                const s = totalTime % 60;
-                txt += s + "s";
-            }
-            return "time control: " + txt + "+" + increment + "s";
+            return "time control: " + (Math.round(totalTime * 10) / 10) + "m+" + increment + "s";
         }
     }
     computeTime(time = null, withIncrement = true) {
