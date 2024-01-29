@@ -360,12 +360,12 @@ export const PieceType = Object.freeze({
         standard: true,
         play: (board, piece, standard) => {
             if (piece.z > 0) {
-                PieceType.beetle.play(board, piece, standard, standard);
+                PieceType.beetle.play(board, piece, standard);
             } else {
                 Board.coordsAround(piece.x, piece.y).forEach(([x, y]) => {
                     const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
                     if (p && p.type.id !== PieceType.mosquito.id) {
-                        p.type.play(board, piece, standard, standard);
+                        p.type.play(board, piece, standard);
                     }
                 });
             }
@@ -439,12 +439,9 @@ export const PieceType = Object.freeze({
             }
             let isStuck = true;
             coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
-                const movable = z < 0 && (z1 < 0 || z2 < 0);
-                if (movable) {
-                    const onHive = z1 >= 0 || z2 >= 0;
-                    if (onHive) {
-                        piece.insertTarget(x, y, 0);
-                    }
+                const noPiece = z < 0;
+                if (noPiece && onHiveAndNoGate(piece.z, z, z1, z2)) {
+                    piece.insertTarget(x, y, 0);
                     isStuck = false;
                 }
             });
@@ -537,39 +534,30 @@ export const PieceType = Object.freeze({
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            let directions = Board.coordsAround(0, 0);
+            let around = coordsAroundWithNeighbor(board, piece.x, piece.y);
             for (let i = 1; i <= 6; i++) {
-                const [idx, idy] = directions[i % 6];
-                const [ix, iy] = [piece.x + idx, piece.y + idy];
-                const pBelow = board.inGameTopPieces.find(p => p.x === piece.x + idx && p.y === piece.y + idy);
-                if (pBelow && pBelow.type.id === PieceType.scorpion.id) {
+                const [ix, iy, iz, iz1, iz2] = around[i % 6];
+                const pBelow = board.inGameTopPieces.find(p => p.x === ix && p.y === iy);
+                if (pBelow && pBelow.type.id === PieceType.scorpion.id || !onHiveAndNoGate(piece.z, iz, iz1, iz2)) {
                     continue;
                 }
-                const moveSteps = [[ix, iy, pBelow ? pBelow.z + 1 : 0]];
-                [directions[i - 1], directions[(i + 1) % 6]].forEach(([dx, dy]) => {
-                    const [tx, ty] = [ix + dx, iy + dy];
-                    const target = board.inGameTopPieces.find(p => p.x === tx && p.y === ty);
-                    if (target) {
-                        if (target.type.id !== PieceType.scorpion.id) {
-                            piece.insertTarget(tx, ty, target.z + 1, moveSteps);
-                        }
-                        return;
-                    }
-                    let outsideHive = !Board.coordsAround(tx, ty).find(([x, y]) =>
-                        board.inGameTopPieces.find(p => p.x === x && p.y === y)
-                    );
-                    if (outsideHive) {
+                const moveSteps = [[ix, iy, iz + 1]];
+                const destiny = coordsAroundWithNeighbor(board, ix, iy);
+                [destiny[i - 1], destiny[(i + 1) % 6]].forEach(([x, y, z, z1, z2]) => {
+                    const target = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    if (target && target.type.id === PieceType.scorpion.id || !onHiveAndNoGate(iz + 1, z, z1, z2)) {
                         return;
                     }
                     const isFromGround = piece.z === 0;
-                    if (isFromGround) {
-                        piece.insertTarget(tx, ty, 0, moveSteps);
+                    const isToGround = z < 0;
+                    if (isFromGround || !isToGround) {
+                        piece.insertTarget(x, y, z + 1, moveSteps);
                     } else {
                         const prey = board.pieces.find(p =>
                             p.x === piece.x && p.y === piece.y && p.z === piece.z - 1 && p.type.id !== PieceType.dragonfly.id
                         );
                         if (prey && stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y, 2)) {
-                            piece.insertTarget(tx, ty, 0, moveSteps);
+                            piece.insertTarget(x, y, 0, moveSteps);
                         }
                     }
                 });
