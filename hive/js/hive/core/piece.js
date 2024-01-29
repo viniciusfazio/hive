@@ -50,11 +50,11 @@ export default class Piece {
     }
     play(x, y, z, moveSteps = []) {
         if (moveSteps.length === 0) {
-            moveSteps = [[this.x, this.y, this.z]];
+            moveSteps =  [[this.x, this.y, this.z], [x, y, z]];
         }
         this.x = x;
         this.y = y;
-        this.z = z < 0 ? this.type.qty - Math.max(1, this.number) : z;
+        this.z = z;
         this.moveSteps = moveSteps.map(xyz => [...xyz]);
         this.inGame = x !== null;
         this.targets = [];
