@@ -127,14 +127,14 @@ export default class HiveCanvas {
     }
     getPiecePixelPosition(piece) {
         if (piece.transition === 0) {
-            return this.#positionToPixel(piece.x, piece.y, piece.z, piece);
+            return this.positionToPixel(piece.x, piece.y, piece.z, piece);
         }
         const [fx, fy, fz, tx, ty, tz, transitionOnFrame] = this.#getPiecePosition(piece);
-        const [fromX, fromY] = this.#positionToPixel(fx, fy, fz, piece);
-        const [toX, toY] = this.#positionToPixel(tx, ty, tz, piece);
+        const [fromX, fromY] = this.positionToPixel(fx, fy, fz, piece);
+        const [toX, toY] = this.positionToPixel(tx, ty, tz, piece);
         return [toX + (fromX - toX) * transitionOnFrame, toY + (fromY - toY) * transitionOnFrame];
     }
-    #positionToPixel(x, y, z, piece) {
+    positionToPixel(x, y, z, piece = null) {
         const [rx, ry, offset] = this.getSize();
         const [w, h] = [this.canvas.width, this.canvas.height];
         if (x !== null && z !== null) {
@@ -428,6 +428,35 @@ export default class HiveCanvas {
         }
         // sort pieces to draw in correct order
         const dragId = player?.dragging ? player.selectedPieceId : null;
+        const targetPiece = this.#canvasPlayer.selectedPieceId === null || this.#canvasPlayer.selectedTargetId === null ? null :
+            this.board.pieces.find(p => p.id === this.#canvasPlayer.selectedPieceId).targets[this.#canvasPlayer.selectedTargetId];
+
+        let specialPieces = [];
+        if (targetPiece) {
+            if (targetPiece.type.id === PieceType.mantis.id) {
+                const [x, y, z] = targetPiece.intermediateXYZs[0];
+                if (z === 0) {
+                    specialPieces.push([targetPiece.id, x, y, 1]);
+                    const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
+                    specialPieces.push([prey.id, x, y, 0]);
+                }
+            } else if (targetPiece.type.id === PieceType.dragonfly.id) {
+                const [x, y, z] = targetPiece.intermediateXYZs[0];
+                if (z > 0 && targetPiece.z === 0) {
+                    specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 1]);
+                    const prey = this.board.pieces.find(p => p.inGame && p.x === x && p.y === y && p.z === z - 1);
+                    specialPieces.push([prey.id, targetPiece.x, targetPiece.y, 0]);
+                }
+            } else if (targetPiece.type.id === PieceType.centipede.id) {
+                if (targetPiece.z > 0) {
+                    const [x, y, ] = targetPiece.intermediateXYZs[0];
+                    specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 0]);
+                    const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
+                    specialPieces.push([prey.id, x, y, 0]);
+                }
+            }
+        }
+
         this.board.pieces.filter(p => p.inGame || p.type.linked === null || p.transition > 0 ||
                             p.type.standard === !this.flippedPieces && !this.#linkedPieceInAnimation(p))
             .concat(targets).sort((a, b) => {
@@ -478,7 +507,7 @@ export default class HiveCanvas {
                 return -1;
             }
             return 0;
-        }).forEach(p => this.#drawPiece(p, path));
+        }).forEach(p => this.#drawPiece(p, path, targetPiece, specialPieces));
 
         this.#drawBorderOverStackedQueen(path);
     }
@@ -504,7 +533,8 @@ export default class HiveCanvas {
         return path;
     }
 
-    #drawPiece(piece, path) {
+    #drawPiece(piece, path, targetPiece, specialPieces) {
+        let specialPiece = specialPieces.find(([id, , , ]) => id === piece.id);
         if (piece.id === this.#canvasPlayer.selectedPieceId) {
             if (this.#canvasPlayer.hoverPieceId === null && this.#canvasPlayer.dragging) {
                 // drawing selected piece dragging
@@ -514,9 +544,11 @@ export default class HiveCanvas {
                 // drawing selected piece only if not hovering target or confirming
                 this.#drawPieceWithStyle(piece, path, "selected");
             }
-        } else if (this.#canvasPlayer.selectedTargetId !== null &&
-            this.board.pieces.find(p => p.id === this.#canvasPlayer.selectedPieceId)
-                .targets[this.#canvasPlayer.selectedTargetId].id === piece.id) {
+        } else if (specialPiece) {
+            // drawing special cases of target being confirmed
+            specialPiece.shift();
+            this.#drawPieceWithStyle(piece, path, "selected", specialPiece);
+        } else if (targetPiece && targetPiece.id === piece.id) {
             // drawing target being confirmed
             this.#drawPieceWithStyle(piece, path, "selected");
         } else if (piece.id === this.#canvasPlayer.hoverPieceId) {
@@ -533,25 +565,30 @@ export default class HiveCanvas {
                 this.#drawPieceWithStyle(piece, path, "hover");
             }
         } else if (piece.subNumber > 0) {
-            // drawing target not being hovered
-            this.#drawPieceWithStyle(piece, path, "target");
+            if (!targetPiece) {
+                // drawing target not being hovered
+                this.#drawPieceWithStyle(piece, path, "target");
+            }
         } else if (this.board.lastMovedPiecesId.includes(piece.id)) {
             // drawing last piece moved
             this.#drawPieceWithStyle(piece, path, "last-piece");
         } else if (piece.targets.length > 0) {
             // drawing movable piece
-            this.#drawPieceWithStyle(piece, path, "movable");
+            this.#drawPieceWithStyle(piece, path, targetPiece ? "" : "movable");
         } else {
             // drawing piece in other cases
             this.#drawPieceWithStyle(piece, path);
         }
     }
-    #drawPieceWithStyle(piece, path, style = "") {
+    #drawPieceWithStyle(piece, path, style = "", pos = null) {
         // get position
         let x, y;
         if (style === "drag") {
             const player = this.getPlayerPlaying();
             [x, y] = [player.mouseX, player.mouseY];
+        } else if (pos !== null) {
+            const [px, py, pz] = pos;
+            [x, y] = this.positionToPixel(px, py, pz);
         } else {
             [x, y] = this.getPiecePixelPosition(piece);
         }
@@ -563,17 +600,7 @@ export default class HiveCanvas {
             this.ctx.globalAlpha = .25;
         }
 
-
         // fill color
-        /*
-        const wr = $("#wr").val();
-        const wg = $("#wg").val();
-        const wb = $("#wb").val();
-        const br = $("#br").val();
-        const bg = $("#bg").val();
-        const bb = $("#bb").val();
-        this.ctx.fillStyle = piece.color.id === "w" ? "rgb(" + wr + ", " + wg + ", " + wb + ")" : "rgb(" + br + ", " + bg + ", " + bb + ")";
-         */
         this.ctx.fillStyle = piece.color.id === "w" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
         this.ctx.fill(path);
 
