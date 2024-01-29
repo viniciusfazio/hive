@@ -3,11 +3,14 @@ import CanvasPlayer from "./hive/player/canvasplayer.js";
 import {PieceColor} from "./hive/core/piece.js";
 import OnlinePlayer from "./hive/player/onlineplayer.js";
 
+const SHORT_ON_TIME = 20; // time to be short on time, in s
+
 let hive, canvasPlayer, onlinePlayer;
 $(() => {
     window.onbeforeunload = () => "-";
-    hive = new HiveCanvas(localCallbacks());
+    hive = new HiveCanvas(localCallbacks(), SHORT_ON_TIME);
     canvasPlayer = new CanvasPlayer(hive);
+    $("#confirmMoveLabel").text("Must confirm move if time > " + SHORT_ON_TIME + "s");
     $("#resign").click(resign);
     $("#newGame").click(newGame);
     $("#newOnlineGame").click(newOnlineGame);

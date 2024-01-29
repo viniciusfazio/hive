@@ -10,7 +10,6 @@ const REDRAW_IN_MS = 10;   // draw frame time. Affects FPS only
 const MIN_FPS = 40;        // below MIN_FPS, it prints FPS on screen
 const GLOWING_SPEED = .1;  // between 0 and 1, higher is faster
 const BORDER_SPEED = .05;  // between 0 and 1, higher is faster
-const SHORT_ON_TIME = 60000; // time to be short on time, in ms
 
 export default class HiveCanvas {
     board = new Board();
@@ -21,6 +20,8 @@ export default class HiveCanvas {
     #frameTime;
     #framesPerSecond = null;
     #tooSlow = false;
+
+    #shortOnTime;
 
     camera = new Camera();
 
@@ -43,8 +44,9 @@ export default class HiveCanvas {
 
     #callbacks;
 
-    constructor(callbacks) {
+    constructor(callbacks, shortOnTime) {
         this.#callbacks = callbacks;
+        this.#shortOnTime = shortOnTime;
     }
 
     init($canvas, canvasPlayer) {
@@ -72,8 +74,8 @@ export default class HiveCanvas {
                 this.timeout();
             } else if (this.#canvasPlayer.selectedTargetId !== null) {
                 // auto confirm moves if short on time
-                if (moveList.moves.length % 2 === 0 && moveList.whitePiecesTimeLeft <= SHORT_ON_TIME ||
-                    moveList.moves.length % 2 === 1 && moveList.blackPiecesTimeLeft <= SHORT_ON_TIME) {
+                if (moveList.moves.length % 2 === 0 && moveList.whitePiecesTimeLeft <= this.#shortOnTime * 1000 ||
+                    moveList.moves.length % 2 === 1 && moveList.blackPiecesTimeLeft <= this.#shortOnTime * 1000) {
                     this.#canvasPlayer.confirm(true);
                 }
             }
@@ -326,7 +328,7 @@ export default class HiveCanvas {
         if (this.bottomPlayerColor.id === PieceColor.white.id) {
             [topTime, bottomTime] = [bottomTime, topTime];
         }
-        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(t => MoveList.timeToText(t, SHORT_ON_TIME));
+        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(t => MoveList.timeToText(t, this.#shortOnTime));
 
         // get coords to draw the timers
         const fh = this.getTimerHeight();
@@ -365,9 +367,9 @@ export default class HiveCanvas {
         let topColor = "rgb(255, 255, 255)";
         let bottomColor = "rgb(255, 255, 255)";
         if (bottomPlaying) {
-            bottomColor = bottomTime < SHORT_ON_TIME ? "rgb(255, 0, 0)" : "rgb(255, 255, 0)";
+            bottomColor = bottomTime < this.#shortOnTime * 1000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 0)";
         } else {
-            topColor = topTime < SHORT_ON_TIME ? "rgb(255, 0, 0)" : "rgb(255, 255, 0)";
+            topColor = topTime < this.#shortOnTime * 1000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 0)";
         }
 
         // change font size if time is too long
@@ -472,18 +474,18 @@ export default class HiveCanvas {
             if (az !== bz) {
                 return az - bz;
             }
-            // draw selected pieces at the end
-            if (a.id === selectedPieceId) {
-                return 1;
-            }
-            if (b.id === selectedPieceId) {
-                return -1;
-            }
             // draw hover pieces at the end
             if (a.id === hoverPieceId) {
                 return 1;
             }
             if (b.id === hoverPieceId) {
+                return -1;
+            }
+            // draw selected pieces at the end
+            if (a.id === selectedPieceId) {
+                return 1;
+            }
+            if (b.id === selectedPieceId) {
                 return -1;
             }
             // draw targets at the end

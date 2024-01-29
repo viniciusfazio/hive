@@ -121,7 +121,7 @@ export default class MoveList {
         return true;
     }
     static timeToText(t, shortOnTime) {
-        if (t >= shortOnTime) {
+        if (t >= shortOnTime * 1000) {
             t = Math.floor(t / 1000);
             const h = Math.floor(t / 3600);
             const m = Math.floor((t % 3600) / 60);
