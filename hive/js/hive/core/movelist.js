@@ -120,8 +120,8 @@ export default class MoveList {
         }
         return true;
     }
-    static timeToText(t) {
-        if (t >= 10000) {
+    static timeToText(t, shortOnTime) {
+        if (t >= shortOnTime) {
             t = Math.floor(t / 1000);
             const h = Math.floor(t / 3600);
             const m = Math.floor((t % 3600) / 60);
@@ -135,9 +135,10 @@ export default class MoveList {
             return hm + ":" + (s < 10 ? "0" : "") + s;
         } else {
             t = Math.floor(t / 100);
-            const s = Math.floor(t / 10);
+            const m = Math.floor(t / 600);
+            const s = Math.floor((t % 600) / 10);
             const ms = t % 10;
-            return "0:0" + s + "." + ms;
+            return m + ":" + (s < 10 ? "0" : "") + s + "." + ms;
         }
     }
 

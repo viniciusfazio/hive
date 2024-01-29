@@ -10,12 +10,13 @@ const REDRAW_IN_MS = 10;   // draw frame time. Affects FPS only
 const MIN_FPS = 40;        // below MIN_FPS, it prints FPS on screen
 const GLOWING_SPEED = .1;  // between 0 and 1, higher is faster
 const BORDER_SPEED = .05;  // between 0 and 1, higher is faster
+const SHORT_ON_TIME = 60000; // time to be short on time, in ms
 
 export default class HiveCanvas {
     board = new Board();
 
     #debug = false;
-    #frameQtd = 0;
+    #frameQty = 0;
     #FPSUpdateTime;
     #frameTime;
     #framesPerSecond = null;
@@ -71,9 +72,9 @@ export default class HiveCanvas {
                 this.timeout();
             } else if (this.#canvasPlayer.selectedTargetId !== null) {
                 // auto confirm moves if short on time
-                if (moveList.moves.length % 2 === 0 && moveList.whitePiecesTimeLeft <= 10000 ||
-                    moveList.moves.length % 2 === 1 && moveList.blackPiecesTimeLeft <= 10000) {
-                    this.#canvasPlayer.confirm();
+                if (moveList.moves.length % 2 === 0 && moveList.whitePiecesTimeLeft <= SHORT_ON_TIME ||
+                    moveList.moves.length % 2 === 1 && moveList.blackPiecesTimeLeft <= SHORT_ON_TIME) {
+                    this.#canvasPlayer.confirm(true);
                 }
             }
         }
@@ -144,10 +145,10 @@ export default class HiveCanvas {
         }
 
         // piece in hud
-        let qtdPiecesPositionOnHud = 0;
+        let qtyPiecesPositionOnHud = 0;
         for (const key in PieceType) {
             if (PieceType[key].standard) {
-                qtdPiecesPositionOnHud++;
+                qtyPiecesPositionOnHud++;
             }
         }
         let positionOnHud = 0;
@@ -158,7 +159,7 @@ export default class HiveCanvas {
                 break;
             }
         }
-        const marginX = w / 2 - (qtdPiecesPositionOnHud + 1) * rx;
+        const marginX = w / 2 - (qtyPiecesPositionOnHud + 1) * rx;
         const px = positionOnHud * rx * 2 + marginX + offset * piece.z;
         let py;
         if (this.bottomPlayerColor.id === piece.color.id) {
@@ -225,12 +226,12 @@ export default class HiveCanvas {
     #updateFPS() {
         this.#frameTime = (new Date()).getTime();
         const CALCULATE_FPS_EVERY_N_FRAMES = 20;
-        this.#frameQtd++;
-        if (this.#frameQtd === CALCULATE_FPS_EVERY_N_FRAMES) {
+        this.#frameQty++;
+        if (this.#frameQty === CALCULATE_FPS_EVERY_N_FRAMES) {
             const now = (new Date()).getTime();
             this.#framesPerSecond = Math.round(1 / ((now - this.#FPSUpdateTime) / (CALCULATE_FPS_EVERY_N_FRAMES * 1000)));
             this.#FPSUpdateTime = now;
-            this.#frameQtd = 0;
+            this.#frameQty = 0;
         }
     }
     #drawDebug() {
@@ -325,7 +326,7 @@ export default class HiveCanvas {
         if (this.bottomPlayerColor.id === PieceColor.white.id) {
             [topTime, bottomTime] = [bottomTime, topTime];
         }
-        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(MoveList.timeToText);
+        const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(t => MoveList.timeToText(t, SHORT_ON_TIME));
 
         // get coords to draw the timers
         const fh = this.getTimerHeight();
@@ -364,9 +365,9 @@ export default class HiveCanvas {
         let topColor = "rgb(255, 255, 255)";
         let bottomColor = "rgb(255, 255, 255)";
         if (bottomPlaying) {
-            bottomColor = bottomTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 0)";
+            bottomColor = bottomTime < SHORT_ON_TIME ? "rgb(255, 0, 0)" : "rgb(255, 255, 0)";
         } else {
-            topColor = topTime < 10000 ? "rgb(255, 0, 0)" : "rgb(255, 255, 0)";
+            topColor = topTime < SHORT_ON_TIME ? "rgb(255, 0, 0)" : "rgb(255, 255, 0)";
         }
 
         // change font size if time is too long
@@ -374,8 +375,8 @@ export default class HiveCanvas {
         const bfh = scaleTimeFontHeight(bottomTimeTxt, fh);
 
         // draw timer
-        this.#drawText([topTimeTxt], tw / 2, tyTop + 1, "top", "center", tfh, topColor);
-        this.#drawText([bottomTimeTxt], tw / 2, tyBottom + 1, "top", "center", bfh, bottomColor);
+        this.#drawText([topTimeTxt], tw / 2, tyTop + fh / 2 + 1, "middle", "center", tfh, topColor);
+        this.#drawText([bottomTimeTxt], tw / 2, tyBottom + fh / 2 + 1, "middle", "center", bfh, bottomColor);
     }
     #drawFlip() {
         if (this.standardRules) {
@@ -1033,11 +1034,11 @@ class Camera {
             maxY = Math.max(p.y, maxY);
         });
         const [rx, ry, ] = hive.getSize(1);
-        const qtdX = 7 + maxX - minX; // number of pieces on x, adding extra piece space
-        const qtdY = 7 + maxY - minY; // number of pieces on y, adding extra piece space
+        const qtyX = 7 + maxX - minX; // number of pieces on x, adding extra piece space
+        const qtyY = 7 + maxY - minY; // number of pieces on y, adding extra piece space
         const maxInX = hive.canvas.width / rx;
         const maxInY = hive.canvas.height / (3 * ry);
-        this.#toScale = Math.min(maxInX / qtdX, maxInY / qtdY, 1);
+        this.#toScale = Math.min(maxInX / qtyX, maxInY / qtyY, 1);
         this.#toX = rx * this.#toScale * (maxX + minX) / 2;
         this.#toY = 3 * ry * this.#toScale * (maxY + minY) / 2;
     }
@@ -1053,10 +1054,8 @@ class Camera {
     }
 }
 function scaleTimeFontHeight(txt, fh) {
-    let tfh = fh;
-    for (let i = 6; i < txt.length; i++) {
-        tfh *= 1 - 1 / i;
-    }
-    return tfh;
+    const qtyDigits = txt.replace(/[^0-9]/, "").length;
+    const qtySeparators = txt.length - qtyDigits;
+    return fh * 4.5 / Math.max(4.5, qtyDigits + qtySeparators / 2);
 }
 

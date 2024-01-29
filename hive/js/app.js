@@ -77,8 +77,8 @@ function setRound(round, moveListId) {
     hive.setRound(round, moveListId);
     updateMoveList(round, moveListId);
 }
-function addRound(qtd) {
-    const round = hive.board.round + qtd;
+function addRound(qty) {
+    const round = hive.board.round + qty;
     const moveListId = hive.currentMoveListId;
     const $li = $("ul.move-list-" + moveListId + " > li.round-" + round);
     if ($li.length !== 0) {
@@ -203,10 +203,16 @@ function download() {
 function newGame() {
     const piece = $("[name='piece']:checked").val();
     const color = piece === "b" || piece !== "w" && Math.random() < .5 ? PieceColor.black : PieceColor.white;
-    const totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : 0;
-    const increment = $("#increment").val();
     const standardRules = !$('#alternativeRules').prop('checked');
+    const [totalTime, increment] = getTime();
     hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment, standardRules);
+}
+function getTime() {
+    let totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : "0";
+    totalTime = Math.min(60000, parseInt(totalTime.substring(0, 5)));
+    let increment = $("#increment").val();
+    increment = Math.min(3600000, parseInt(increment.substring(0, 7)));
+    return [totalTime, increment];
 }
 function draw () {
     onlinePlayer.draw();
@@ -215,8 +221,7 @@ function draw () {
 }
 function newOnlineGame() {
     const piece = $("[name='piece']:checked").val();
-    const totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : 0;
-    const increment = $("#increment").val();
+    const [totalTime, increment] = getTime();
     const standardRules = !$('#alternativeRules').prop('checked');
     onlinePlayer.newGame(piece, totalTime, increment, standardRules);
     // noinspection JSUnresolvedReference
