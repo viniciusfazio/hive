@@ -419,17 +419,12 @@ export default class HiveCanvas {
         // get targets to draw
         let targets = [];
         const player = this.getPlayerPlaying();
-        let selectedPieceId = null;
-        let selectedTargetId = null;
-        let hoverPieceId = null;
-        if (player instanceof CanvasPlayer) {
-            selectedPieceId = player.selectedPieceId;
-            selectedTargetId = player.selectedTargetId;
-            hoverPieceId = player.hoverPieceId;
-            const id = player.selectedPieceId ?? player.hoverPieceId;
-            if (id !== null) {
-                targets = this.board.pieces.find(p => p.id === id).targets;
-            }
+        let selectedPieceId = this.#canvasPlayer.selectedPieceId;
+        let selectedTargetId = this.#canvasPlayer.selectedTargetId;
+        let hoverPieceId = this.#canvasPlayer.hoverPieceId;
+        const id = selectedPieceId ?? hoverPieceId;
+        if (id !== null) {
+            targets = this.board.pieces.find(p => p.id === id).targets;
         }
         // sort pieces to draw in correct order
         const dragId = player?.dragging ? player.selectedPieceId : null;
