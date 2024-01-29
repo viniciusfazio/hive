@@ -137,8 +137,10 @@ class Board {
     piecePlacement(colorId, ignore_x = null, ignore_y = null) {
         let visited = [];
         let ret = [];
-        this.inGameTopPieces.filter(p => p.color.id === colorId).map(p => {
-            // look for empty space around same color in game piece
+        this.inGameTopPieces.forEach(p => {
+            if (colorId !== null && p.color.id !== colorId || ignore_x === p.x && ignore_y === p.y) {
+                return;
+            }
             Board.coordsAround(p.x, p.y).forEach(([x, y]) => {
                 // skip if already visited
                 if (visited.find(([rx, ry]) => rx === x && ry === y)) {
@@ -152,7 +154,7 @@ class Board {
                 }
 
                 // check if empty space has only same color piece around
-                const differentColorPieceAround = Board.coordsAround(x, y).find(([x2, y2]) =>
+                const differentColorPieceAround = colorId !== null && Board.coordsAround(x, y).find(([x2, y2]) =>
                     (ignore_x !== x2 || ignore_y !== y2) &&
                     this.inGameTopPieces.find(p => p.x === x2 && p.y === y2 && p.color.id !== colorId)
                 );
