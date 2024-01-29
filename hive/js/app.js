@@ -234,9 +234,11 @@ function newGame() {
     hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment, standardRules);
 }
 function getTime() {
-    let totalTime = $("#timer").prop("checked") ? $("#totalTime").val() : "0";
+    let totalTimeVal = $("#totalTime").val();
+    let incrementVal = $("#increment").val();
+    let totalTime = $("#timer").prop("checked") && $.isNumeric(totalTimeVal) ? totalTimeVal : 0;
     totalTime = Math.max(0, Math.min(60000, totalTime));
-    let increment = $("#increment").val();
+    let increment = $.isNumeric(incrementVal) ? incrementVal : 0;
     increment = Math.max(0, Math.min(3600000, Math.ceil(increment)));
     return [totalTime, increment];
 }
