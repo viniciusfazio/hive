@@ -69,13 +69,7 @@ export default class MoveList {
     addMove(piece, target, time = null) {
         const move = new Move();
         move.pieceId = piece.id;
-        move.fromX = piece.x;
-        move.fromY = piece.y;
-        move.fromZ = piece.inGame ? piece.z : -1;
-        move.toX = target.x;
-        move.toY = target.y;
-        move.toZ = target.z;
-        move.intermediateXYZs = target.intermediateXYZs.map(xyz => [...xyz]);
+        move.moveSteps = target.moveSteps.map(xyz => [...xyz]);
         this.#pushMoveWithTime(move, time, true);
     }
     timeControlToText(totalTime = null, increment = null) {
@@ -150,13 +144,7 @@ export default class MoveList {
 }
 export class Move {
     pieceId = null;
-    fromX = null;
-    fromY = null;
-    fromZ = null;
-    toX = null;
-    toY = null;
-    toZ = null;
-    intermediateXYZs = [];
+    moveSteps = [];
     pass = false;
     resign = false;
     timeout = false;
@@ -198,22 +186,24 @@ export class Move {
         }
         let ret = move.pieceId;
         if (board.round > 2) {
+            const [fromX, fromY, fromZ] = move.moveSteps[0];
+            const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
             // not first move
             const p1 = board.pieces.find(p => p.id === move.pieceId);
             let p2 = null;
-            if (p1.type.id === PieceType.mantis.id && move.fromZ === 0) {
+            if (p1.type.id === PieceType.mantis.id && fromZ === 0) {
                 // mantis special move
-                p2 = board.pieces.find(p => p.inGame && p.x === move.fromX && p.y === move.fromY && p.z === move.fromZ);
-            } else if (p1.type.id === PieceType.centipede.id && move.toZ > 0) {
+                p2 = board.pieces.find(p => p.inGame && p.x === fromX && p.y === fromY && p.z === fromZ);
+            } else if (p1.type.id === PieceType.centipede.id && toZ > 0) {
                 // centipede special move
-                p2 = board.pieces.find(p => p.inGame && p.x === move.fromX && p.y === move.fromY && p.z === move.fromZ);
-            } else if (move.toZ > 0) {
+                p2 = board.pieces.find(p => p.inGame && p.x === fromX && p.y === fromY && p.z === fromZ);
+            } else if (toZ > 0) {
                 // move over a piece
-                p2 = board.pieces.find(p => p.inGame && p.x === move.toX && p.y === move.toY && p.z === move.toZ - 1);
+                p2 = board.pieces.find(p => p.inGame && p.x === toX && p.y === toY && p.z === toZ - 1);
             } else {
                 // move to the ground
                 let p2Pref = 0;
-                Board.coordsAround(move.toX, move.toY).forEach(([x, y]) => {
+                Board.coordsAround(toX, toY).forEach(([x, y]) => {
                     // prefer unique pieces as reference, and to the queen, and pieces not on pile
                     const p = board.pieces.find(p => p.inGame && p.x === x && p.y === y);
                     if (!p) {
@@ -237,19 +227,19 @@ export class Move {
             }
             if (!p2) {
                 ret += " invalid";
-            } else if (move.toZ > 0) {
+            } else if (toZ > 0) {
                 ret += " " + p2.id;
-            } else if (move.toX - p2.x === -2) {
+            } else if (toX - p2.x === -2) {
                 ret += " -" + p2.id;
-            } else if (move.toX - p2.x === 2) {
+            } else if (toX - p2.x === 2) {
                 ret += " " + p2.id + "-";
-            } else if (move.toX - p2.x === -1) {
-                if (move.toY - p2.y === 1) {
+            } else if (toX - p2.x === -1) {
+                if (toY - p2.y === 1) {
                     ret += " \\" + p2.id;
                 } else {
                     ret += " /" + p2.id;
                 }
-            } else if (move.toY - p2.y === 1) {
+            } else if (toY - p2.y === 1) {
                 ret += " " + p2.id + "/";
             } else {
                 ret += " " + p2.id + "\\";

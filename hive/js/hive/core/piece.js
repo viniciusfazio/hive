@@ -5,7 +5,7 @@ import Board from "./board.js";
 
 export default class Piece {
     // variable
-    intermediateXYZs;
+    moveSteps;
     x;
     y;
     inGame;
@@ -28,12 +28,12 @@ export default class Piece {
                                                + (this.subNumber > 0 ? this.subNumber : "");
         this.reset();
     }
-    insertTarget(x, y, z, intermediateXYZs = []) {
+    insertTarget(x, y, z, moveSteps = []) {
         const piece = new Piece(this.color, this.type, this.number, this.targets.length + 1);
         piece.x = x;
         piece.y = y;
         piece.z = z;
-        piece.intermediateXYZs = [[this.x, this.y, this.z]].concat(intermediateXYZs);
+        piece.moveSteps = [[this.x, this.y, this.z]].concat(moveSteps).concat([[x, y, z]]);
         piece.inGame = true;
         if (!this.targets.find(p => p.x === x && p.y === y)) {
             this.targets.push(piece);
@@ -44,19 +44,19 @@ export default class Piece {
         this.x = null;
         this.y = null;
         this.z = this.type.qty - Math.max(1, this.number);
-        this.intermediateXYZs = [];
+        this.moveSteps = [[this.x, this.y, this.z]];
         this.inGame = false;
         this.targets = [];
     }
-    play(x, y, z, intermediateXYZs = []) {
-        if (intermediateXYZs.length === 0) {
-            intermediateXYZs = [[this.x, this.y, this.z]];
+    play(x, y, z, moveSteps = []) {
+        if (moveSteps.length === 0) {
+            moveSteps = [[this.x, this.y, this.z]];
         }
         this.x = x;
         this.y = y;
         this.z = z < 0 ? this.type.qty - Math.max(1, this.number) : z;
-        this.intermediateXYZs = intermediateXYZs.map(xyz => [...xyz]);
-        this.inGame = z >= 0;
+        this.moveSteps = moveSteps.map(xyz => [...xyz]);
+        this.inGame = x !== null;
         this.targets = [];
     }
     static parse(p, standardRules) {
@@ -231,13 +231,13 @@ export const PieceType = Object.freeze({
                     // no piece to jump over
                     return;
                 }
-                let intermediateXYZs = [];
+                let moveSteps = [];
                 for (let i = 0; i < board.inGameTopPieces.length; i++) {
-                    intermediateXYZs.push([pBelow.x, pBelow.y, pBelow.z + 1]);
+                    moveSteps.push([pBelow.x, pBelow.y, pBelow.z + 1]);
                     const [tx, ty] = [pBelow.x + dx, pBelow.y + dy];
                     pBelow = board.inGameTopPieces.find(p => p.x === tx && p.y === ty);
                     if (!pBelow) { // found a hole
-                        piece.insertTarget(tx, ty, 0, intermediateXYZs);
+                        piece.insertTarget(tx, ty, 0, moveSteps);
                         break;
                     }
                     if (pBelow.type.id === PieceType.scorpion.id) {
@@ -297,12 +297,12 @@ export const PieceType = Object.freeze({
                             let newPath = [...path];
                             newPath.push([x, y, z + 1]);
                             newPaths.push(newPath);
-                            let intermediateXYZs = path.map(xyz => [...xyz]);
-                            intermediateXYZs.shift();
+                            let moveSteps = path.map(xyz => [...xyz]);
+                            moveSteps.shift();
                             const canMove = standard || Board.coordsAround(x, y).find(([ax, ay]) =>
                                 board.inGameTopPieces.find(p => p.x === ax && p.y === ay && p.color.id === otherColorId));
                             if (canMove) {
-                                piece.insertTarget(x, y, z + 1, intermediateXYZs);
+                                piece.insertTarget(x, y, z + 1, moveSteps);
                             }
                         }
                     });
@@ -342,9 +342,9 @@ export const PieceType = Object.freeze({
                             // move only to empty spaces
                             const noPiece = z < 0;
                             if (noPiece && unexplored && onHiveAndNoGate(stepZ, z, z1, z2)) {
-                                let intermediateXYZs = path.map(xyz => [...xyz]);
-                                intermediateXYZs.shift();
-                                piece.insertTarget(x, y, z + 1, intermediateXYZs);
+                                let moveSteps = path.map(xyz => [...xyz]);
+                                moveSteps.shift();
+                                piece.insertTarget(x, y, z + 1, moveSteps);
                             }
                         }
                     });
@@ -517,9 +517,9 @@ export const PieceType = Object.freeze({
                                 newPath.push([x, y, z + 1]);
                                 newPaths.push(newPath);
                             } else {
-                                let intermediateXYZs = path.map(xyz => [...xyz]);
-                                intermediateXYZs.shift();
-                                piece.insertTarget(x, y, piece.z, intermediateXYZs);
+                                let moveSteps = path.map(xyz => [...xyz]);
+                                moveSteps.shift();
+                                piece.insertTarget(x, y, piece.z, moveSteps);
                             }
                         }
                     });
@@ -545,13 +545,13 @@ export const PieceType = Object.freeze({
                 if (pBelow && pBelow.type.id === PieceType.scorpion.id) {
                     continue;
                 }
-                const intermediateXYZs = [[ix, iy, pBelow ? pBelow.z + 1 : 0]];
+                const moveSteps = [[ix, iy, pBelow ? pBelow.z + 1 : 0]];
                 [directions[i - 1], directions[(i + 1) % 6]].forEach(([dx, dy]) => {
                     const [tx, ty] = [ix + dx, iy + dy];
                     const target = board.inGameTopPieces.find(p => p.x === tx && p.y === ty);
                     if (target) {
                         if (target.type.id !== PieceType.scorpion.id) {
-                            piece.insertTarget(tx, ty, target.z + 1, intermediateXYZs);
+                            piece.insertTarget(tx, ty, target.z + 1, moveSteps);
                         }
                         return;
                     }
@@ -563,13 +563,13 @@ export const PieceType = Object.freeze({
                     }
                     const isFromGround = piece.z === 0;
                     if (isFromGround) {
-                        piece.insertTarget(tx, ty, 0, intermediateXYZs);
+                        piece.insertTarget(tx, ty, 0, moveSteps);
                     } else {
                         const prey = board.pieces.find(p =>
                             p.x === piece.x && p.y === piece.y && p.z === piece.z - 1 && p.type.id !== PieceType.dragonfly.id
                         );
                         if (prey && stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y, 2)) {
-                            piece.insertTarget(tx, ty, 0, intermediateXYZs);
+                            piece.insertTarget(tx, ty, 0, moveSteps);
                         }
                     }
                 });
@@ -616,9 +616,9 @@ function move3(board, piece) {
                         newPath.push([x, y, z + 1]);
                         newPaths.push(newPath);
                     } else {
-                        let intermediateXYZs = path.map(xyz => [...xyz]);
-                        intermediateXYZs.shift();
-                        piece.insertTarget(x, y, z + 1, intermediateXYZs);
+                        let moveSteps = path.map(xyz => [...xyz]);
+                        moveSteps.shift();
+                        piece.insertTarget(x, y, z + 1, moveSteps);
                     }
                 }
             });

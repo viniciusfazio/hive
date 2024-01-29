@@ -78,7 +78,6 @@ export default class HiveCanvas {
             }
         }
 
-
         // update piece animation
         const inAnimation = this.board.pieces.filter(p => p.transition > 0);
         inAnimation.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * (1 - PIECE_SPEED));
@@ -116,13 +115,12 @@ export default class HiveCanvas {
         return Math.max(fz, tz);
     }
     #getPiecePosition(piece) {
-        const animationPosition = piece.intermediateXYZs.length * (1 - piece.transition);
+        const animationPosition = (piece.moveSteps.length - 1) * (1 - piece.transition);
         const animationFrame = Math.floor(animationPosition);
         const transitionOnFrame = 1 - (animationPosition - animationFrame);
 
-        const [fx, fy, fz] = piece.intermediateXYZs[animationFrame];
-        const [tx, ty, tz] = animationFrame + 1 < piece.intermediateXYZs.length ?
-            piece.intermediateXYZs[animationFrame + 1] : [piece.x, piece.y, piece.z];
+        const [fx, fy, fz] = piece.moveSteps[animationFrame];
+        const [tx, ty, tz] = piece.moveSteps[animationFrame + 1];
         return [fx, fy, fz, tx, ty, tz, transitionOnFrame];
     }
     getPiecePixelPosition(piece) {
@@ -434,14 +432,14 @@ export default class HiveCanvas {
         let specialPieces = [];
         if (targetPiece) {
             if (targetPiece.type.id === PieceType.mantis.id) {
-                const [x, y, z] = targetPiece.intermediateXYZs[0];
+                const [x, y, z] = targetPiece.moveSteps[0];
                 if (z === 0) {
                     specialPieces.push([targetPiece.id, x, y, 1]);
                     const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
                     specialPieces.push([prey.id, x, y, 0]);
                 }
             } else if (targetPiece.type.id === PieceType.dragonfly.id) {
-                const [x, y, z] = targetPiece.intermediateXYZs[0];
+                const [x, y, z] = targetPiece.moveSteps[0];
                 if (z > 0 && targetPiece.z === 0) {
                     specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 1]);
                     const prey = this.board.pieces.find(p => p.inGame && p.x === x && p.y === y && p.z === z - 1);
@@ -449,7 +447,7 @@ export default class HiveCanvas {
                 }
             } else if (targetPiece.type.id === PieceType.centipede.id) {
                 if (targetPiece.z > 0) {
-                    const [x, y, ] = targetPiece.intermediateXYZs[0];
+                    const [x, y, ] = targetPiece.moveSteps[0];
                     specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 0]);
                     const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
                     specialPieces.push([prey.id, x, y, 0]);
@@ -913,17 +911,19 @@ export default class HiveCanvas {
             } else {
                 this.board.lastMovedPiecesId = [move.pieceId];
                 const p1 = this.board.pieces.find(p => p.id === move.pieceId);
-                if (p1.type.id === PieceType.mantis.id && move.fromZ === 0) {
+                const [fromX, fromY, fromZ] = move.moveSteps[0];
+                const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
+                if (p1.type.id === PieceType.mantis.id && fromZ === 0) {
                     // mantis special move has 2 last move piece
-                    const p2 = this.board.pieces.find(p => p.x === move.fromX && p.y === move.fromY && p.z === 0);
+                    const p2 = this.board.pieces.find(p => p.x === fromX && p.y === fromY && p.z === 0);
                     this.board.lastMovedPiecesId.push(p2.id);
-                } else if (p1.type.id === PieceType.dragonfly.id && move.fromZ > 0 && move.toZ === 0) {
+                } else if (p1.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
                     // dragonfly special move has 2 last move piece
-                    const p2 = this.board.pieces.find(p => p.x === move.toX && p.y === move.toY && p.z === 0);
+                    const p2 = this.board.pieces.find(p => p.x === toX && p.y === toY && p.z === 0);
                     this.board.lastMovedPiecesId.push(p2.id);
-                } else if (p1.type.id === PieceType.centipede.id && move.toZ > 0) {
+                } else if (p1.type.id === PieceType.centipede.id && toZ > 0) {
                     // centipede special move has 2 last move piece
-                    const p2 = this.board.inGameTopPieces.find(p => p.x === move.fromX && p.y === move.fromY);
+                    const p2 = this.board.inGameTopPieces.find(p => p.x === fromX && p.y === fromY);
                     this.board.lastMovedPiecesId.push(p2.id);
                 }
             }
@@ -936,27 +936,29 @@ export default class HiveCanvas {
             if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
                 callbackMove(p, false);
-                if (p.type.id === PieceType.mantis.id && move.fromZ === 0) {
+                const [fromX, fromY, fromZ] = move.moveSteps[0];
+                const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
+                if (p.type.id === PieceType.mantis.id && fromZ === 0) {
                     // mantis special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === move.toX && p2.y === move.toY && p2.z === 0);
+                    const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
                     callbackMove(p2, true);
-                    p2.play(move.fromX, move.fromY, p2.z);
-                    p.play(move.fromX, move.fromY, move.toZ);
-                } else if (p.type.id === PieceType.dragonfly.id && move.fromZ > 0 && move.toZ === 0) {
+                    p2.play(fromX, fromY, p2.z);
+                    p.play(fromX, fromY, toZ);
+                } else if (p.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
                     // dragonfly special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === move.fromX && p2.y === move.fromY && p2.z === p.z - 1);
+                    const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
                     callbackMove(p2, true);
-                    p2.play(move.toX, move.toY, 0);
-                    p.play(move.toX, move.toY, 1);
-                } else if (p.type.id === PieceType.centipede.id && move.toZ > 0) {
+                    p2.play(toX, toY, 0);
+                    p.play(toX, toY, 1);
+                } else if (p.type.id === PieceType.centipede.id && toZ > 0) {
                     // centipede special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === move.toX && p2.y === move.toY && p2.z === 0);
+                    const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
                     callbackMove(p2, true);
-                    p2.play(move.fromX, move.fromY, p2.z);
-                    p.play(move.toX, move.toY, p.z);
+                    p2.play(fromX, fromY, p2.z);
+                    p.play(toX, toY, p.z);
                 } else {
                     callbackMove(p, false);
-                    p.play(move.toX, move.toY, move.toZ, move.intermediateXYZs);
+                    p.play(toX, toY, toZ, move.moveSteps);
                 }
             }
         }
@@ -968,26 +970,28 @@ export default class HiveCanvas {
             if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
                 callbackMove(p, false);
-                if (p.type.id === PieceType.mantis.id && move.fromZ === 0) {
+                const [fromX, fromY, fromZ] = move.moveSteps[0];
+                const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
+                if (p.type.id === PieceType.mantis.id && fromZ === 0) {
                     // mantis special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === move.fromX && p2.y === move.fromY && p2.z === 0);
+                    const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
                     callbackMove(p2, true);
-                    p2.play(move.toX, move.toY, p2.z);
-                    p.play(move.fromX, move.fromY, move.fromZ);
-                } else if (p.type.id === PieceType.dragonfly.id && move.fromZ > 0 && move.toZ === 0) {
+                    p2.play(toX, toY, p2.z);
+                    p.play(fromX, fromY, fromZ);
+                } else if (p.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
                     // dragonfly special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === move.toX && p2.y === move.toY && p2.z === p.z - 1);
+                    const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === p.z - 1);
                     callbackMove(p2, true);
-                    p2.play(move.fromX, move.fromY, move.fromZ - 1);
-                    p.play(move.fromX, move.fromY, move.fromZ);
-                } else if (p.type.id === PieceType.centipede.id && move.toZ > 0) {
+                    p2.play(fromX, fromY, fromZ - 1);
+                    p.play(fromX, fromY, fromZ);
+                } else if (p.type.id === PieceType.centipede.id && toZ > 0) {
                     // centipede special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === move.fromX && p2.y === move.fromY && p2.z === 0);
+                    const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
                     callbackMove(p2, true);
-                    p2.play(move.toX, move.toY, p2.z);
-                    p.play(move.fromX, move.fromY, p.z);
+                    p2.play(toX, toY, p2.z);
+                    p.play(fromX, fromY, p.z);
                 } else {
-                    p.play(move.fromX, move.fromY, move.fromZ, move.intermediateXYZs.toReversed());
+                    p.play(fromX, fromY, fromZ, move.moveSteps.toReversed());
                 }
             }
         }
