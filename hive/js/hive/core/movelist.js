@@ -4,7 +4,7 @@ import {PieceType} from "./piece.js";
 export default class MoveList {
     moves = [];
     totalTime;
-    #increment;
+    increment;
 
     #lastMoveTimestamp = null;
     whitePiecesTimeLeft = null;
@@ -14,7 +14,7 @@ export default class MoveList {
 
     constructor(totalTime = 0, increment = 0, moves = []) {
         this.totalTime = totalTime * 60;
-        this.#increment = increment;
+        this.increment = increment;
         this.whitePiecesTimeLeft = this.totalTime * 1000;
         this.blackPiecesTimeLeft = this.totalTime * 1000;
         this.moves = moves;
@@ -74,7 +74,7 @@ export default class MoveList {
     }
     timeControlToText(totalTime = null, increment = null) {
         totalTime = totalTime ?? this.totalTime;
-        increment = increment ?? this.#increment;
+        increment = increment ?? this.increment;
         if (totalTime === 0) {
             return "no time control";
         } else {
@@ -94,9 +94,9 @@ export default class MoveList {
             return false;
         }
         // first move doesn't have increment
-        let totalTime = (this.totalTime + Math.floor(Math.max(0, this.moves.length - 1) / 2) * this.#increment) * 1000;
+        let totalTime = (this.totalTime + Math.floor((this.moves.length + 1) / 2) * this.increment) * 1000;
         if (!withIncrement) {
-            totalTime -= this.#increment * 1000;
+            totalTime -= this.increment * 1000;
         }
         let timePast = 0;
         // first move doesn't compute time
@@ -155,13 +155,13 @@ export class Move {
     time = null;
     whitePiecesTimeLeft = null;
     blackPiecesTimeLeft = null;
-    static notation(move, board) {
+    static notation(move, board, shortOnTime = null) {
         let time = "";
-        if (move.whitePiecesTimeLeft !== null && move.blackPiecesTimeLeft !== null) {
+        if (shortOnTime !== null && move.whitePiecesTimeLeft !== null && move.blackPiecesTimeLeft !== null) {
             if (board.round % 2 === 0) {
-                time = " " + MoveList.timeToText(move.whitePiecesTimeLeft);
+                time = " " + MoveList.timeToText(move.whitePiecesTimeLeft, shortOnTime);
             } else {
-                time = " " + MoveList.timeToText(move.blackPiecesTimeLeft);
+                time = " " + MoveList.timeToText(move.blackPiecesTimeLeft, shortOnTime);
             }
         }
         if (move.pass) {

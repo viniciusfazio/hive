@@ -172,8 +172,28 @@ function upload() {
 function tryParseFile(fileContent, standardRules) {
     let error = null;
     hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, standardRules);
+    let timeControl = false;
     fileContent.find(move => {
-        error = hive.playNotation(move);
+        if (hive.board.round === 1) {
+            const matches = move.match(/Start - time control: (\d+)m\+(\d+)s/);
+            if (matches) {
+                timeControl = true;
+                hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, matches[1], matches[2], standardRules);
+                return false;
+            }
+        }
+        let time = null;
+        if (timeControl) {
+            const matches = move.match(/ ([0-9:.]+)$/);
+            if (matches) {
+                let timeStamp = 0;
+                matches[1].split(":").forEach(t => timeStamp = timeStamp * 60 + t * 1000);
+                const moveList = hive.getMoveList();
+                const timeLeft = hive.board.round % 2 === 1 ? moveList.whitePiecesTimeLeft : moveList.blackPiecesTimeLeft;
+                time = timeLeft + moveList.increment * 1000 - timeStamp;
+            }
+        }
+        error = hive.playNotation(move, time);
         if (error === "cant parse") {
             error = null;
             return false;

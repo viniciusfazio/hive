@@ -25,7 +25,7 @@ export default class Piece {
         this.number = number;
         this.subNumber = subNumber;
         this.id = this.color.id + this.type.id + (this.number > 0 ? this.number : "")
-                                               + (this.subNumber > 0 ? this.subNumber : "");
+                                               + (this.subNumber > 0 ? "-" + this.subNumber : "");
         this.reset();
     }
     insertTarget(x, y, z, moveSteps = []) {
