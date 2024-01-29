@@ -190,7 +190,10 @@ function tryParseFile(fileContent, standardRules) {
                 matches[1].split(":").forEach(t => timeStamp = timeStamp * 60 + t * 1000);
                 const moveList = hive.getMoveList();
                 const timeLeft = hive.board.round % 2 === 1 ? moveList.whitePiecesTimeLeft : moveList.blackPiecesTimeLeft;
-                time = timeLeft + moveList.increment * 1000 - timeStamp;
+                time = timeLeft - timeStamp;
+                if (hive.board.round > 1) {
+                    time += moveList.increment * 1000;
+                }
             }
         }
         error = hive.playNotation(move, time);

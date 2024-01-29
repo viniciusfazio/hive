@@ -865,7 +865,7 @@ export default class HiveCanvas {
         const whiteLoses = this.board.isQueenDead(PieceColor.white.id);
         const blackLoses = this.board.isQueenDead(PieceColor.black.id);
         if (whiteLoses || blackLoses) {
-            moveList.addGameOver(whiteLoses, blackLoses, time);
+            moveList.addGameOver(whiteLoses, blackLoses, 0);
             if (whiteLoses && !blackLoses) {
                 this.#callbacks.gameOver("b");
             } else if (!whiteLoses && blackLoses) {

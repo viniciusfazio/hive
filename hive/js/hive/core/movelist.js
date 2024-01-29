@@ -25,14 +25,7 @@ export default class MoveList {
     #pushMoveWithTime(move, time, withIncrement = false) {
         if (this.totalTime > 0) {
             const now = (new Date()).getTime();
-            // first move doesn't compute time
-            if (this.moves.length === 0) {
-                move.time = 0;
-            } else if (time === null) {
-                move.time = now - this.#lastMoveTimestamp;
-            } else {
-                move.time = time;
-            }
+            move.time = time ?? (this.moves.length === 0 ? 0 : now - this.#lastMoveTimestamp);
             this.computeTime(time, withIncrement);
             move.whitePiecesTimeLeft = this.whitePiecesTimeLeft;
             move.blackPiecesTimeLeft = this.blackPiecesTimeLeft;
@@ -100,7 +93,7 @@ export default class MoveList {
         }
         let timePast = 0;
         // first move doesn't compute time
-        if (this.moves.length > 0) {
+        if (this.moves.length > 0 || time !== null) {
             this.moves.forEach((move, i) => {
                 if (i % 2 === this.moves.length % 2) {
                     timePast += move.time;
