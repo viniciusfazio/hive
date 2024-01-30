@@ -110,10 +110,10 @@ function appendMoveList(round, move, moveListId = 0) {
     if (moveListId === 0) {
         // main list
         if (round === 1 || round % 2 === 0) {
-            // there is no list or new line
+            // a new line will be added to the main list
             $("#move-list").append(ul);
         } else {
-            // a move will be added to an existent line
+            // a move will be added to an existent main list line
             $(li).insertAfter($("#move-list > ul.move-list-0 > li.round-" + (round - 1)));
         }
     } else {
@@ -129,10 +129,20 @@ function appendMoveList(round, move, moveListId = 0) {
                 $(round % 2 === 0 ? ul : ul2).insertAfter($ul);
             }
         } else if (round === 1 || round % 2 === 0) {
-            // new line will be added to the list
-            $(ul).insertAfter($ul.last());
+            // new line will be added to the alternative list
+            // insert at the end, after children too
+            let lastLength = null;
+            let children = [moveListId];
+            while (children.length > lastLength) {
+                lastLength = children.length;
+                children = children.concat(
+                    hive.moveLists.map((m, id) => children.includes(m.parentMoveListId) ? id : null)
+                    .filter(id => id !== null && !children.includes(id))
+                );
+            }
+            $(ul).insertAfter($(children.map(id => "#move-list > ul.move-list-" + id).join(", ")).last());
         } else {
-            // a move will be added to an existent line
+            // a move will be added to an existent alternative line
             $(li).insertAfter($("#move-list > ul.move-list-" + moveListId + " > li.round-" + (round - 1)));
         }
     }
