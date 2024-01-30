@@ -539,8 +539,10 @@ export default class HiveCanvas {
         let specialPiece = specialPieces.find(([id, , , ]) => id === piece.id);
         if (piece.id === this.#canvasPlayer.selectedPieceId) {
             if (this.#canvasPlayer.hoverPieceId === null && this.#canvasPlayer.dragging) {
-                // drawing selected piece dragging
-                this.#drawPieceWithStyle(piece, path, "drag");
+                if (this.#canvasPlayer.selectedTargetId === null) {
+                    // drawing selected piece dragging
+                    this.#drawPieceWithStyle(piece, path, "drag");
+                }
             } else if (this.#canvasPlayer.selectedTargetId === null &&
                 !piece.targets.find(p => p.id === this.#canvasPlayer.hoverPieceId)) {
                 // drawing selected piece only if not hovering target or confirming
