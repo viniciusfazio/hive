@@ -432,9 +432,10 @@ export const PieceType = Object.freeze({
         linked: "pillBug",
         standard: false,
         play: (board, piece, standard) => {
-            if (stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
-                move1(board, piece);
+            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                return;
             }
+            move1(board, piece);
             if (piece.type.id === PieceType.mosquito.id) {
                 return;
             }

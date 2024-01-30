@@ -708,10 +708,10 @@ export default class HiveCanvas {
     toggleDebug() {
         this.#debug = !this.#debug;
     }
-    #playRound(withAnimation = true, forcePlayerPlaying = false) {
+    #playRound(dragging = false, confirming = false, forcePlayerPlaying = false) {
         const moveList = this.getMoveList();
-        this.#goTo(this.board, moveList.moves.length + 1, (p, forceAnimation) => {
-            if (forceAnimation || withAnimation) {
+        this.#goTo(this.board, moveList.moves.length + 1, (p, extraPieceMoving) => {
+            if (!confirming && (extraPieceMoving || !dragging)) {
                 p.transition = 1;
             }
         }, this.currentMoveListId);
@@ -732,7 +732,7 @@ export default class HiveCanvas {
         const moveList = this.getMoveList();
         moveList.addResign(time);
         this.#callbacks.resign(moveList.moves.length % 2 === 1 ? PieceColor.white.id : PieceColor.black.id);
-        this.#playRound(true, true);
+        this.#playRound(false, false, true);
     }
     draw(time = null) {
         if (this.gameOver) return;
@@ -746,7 +746,7 @@ export default class HiveCanvas {
         const moveList = this.getMoveList();
         moveList.addTimeout(time);
         this.#callbacks.timeout(moveList.moves.length % 2 === 1 ? PieceColor.white.id : PieceColor.black.id);
-        this.#playRound(true, true);
+        this.#playRound(false, false, true);
     }
     playNotation(move, time = null) {
         if (move.match(/^(\d+\D *)?draw by agreement/)) {
@@ -845,7 +845,7 @@ export default class HiveCanvas {
         this.play(from, to, time);
         return null;
     }
-    play(piece, target, time = null, withAnimation = true) {
+    play(piece, target, time = null, dragging = false, confirming = false) {
         let moveList = this.getMoveList();
         if (this.gameOver && (this.board.round <= moveList.moves.length || this.currentMoveListId === 0)) {
             // an alternative move happened. Create a new list
@@ -859,7 +859,7 @@ export default class HiveCanvas {
         }
         // save the move
         moveList.addMove(piece, target, time);
-        this.#playRound(withAnimation);
+        this.#playRound(dragging, confirming);
         const whiteLoses = this.board.isQueenDead(PieceColor.white.id);
         const blackLoses = this.board.isQueenDead(PieceColor.black.id);
         if (whiteLoses || blackLoses) {
@@ -945,8 +945,8 @@ export default class HiveCanvas {
                     // mantis special move
                     const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
                     callbackMove(p2, true);
-                    p2.play(fromX, fromY, p2.z);
-                    p.play(fromX, fromY, toZ);
+                    p2.play(fromX, fromY, 0);
+                    p.play(fromX, fromY, 1);
                 } else if (p.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
                     // dragonfly special move
                     const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
@@ -957,8 +957,8 @@ export default class HiveCanvas {
                     // centipede special move
                     const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
                     callbackMove(p2, true);
-                    p2.play(fromX, fromY, p2.z);
-                    p.play(toX, toY, p.z);
+                    p2.play(fromX, fromY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [fromX, fromY, 0]]);
+                    p.play(toX, toY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [toX, toY, 0]]);
                 } else {
                     callbackMove(p, false);
                     p.play(toX, toY, toZ, move.moveSteps);
@@ -979,8 +979,8 @@ export default class HiveCanvas {
                     // mantis special move
                     const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
                     callbackMove(p2, true);
-                    p2.play(toX, toY, p2.z);
-                    p.play(fromX, fromY, fromZ);
+                    p2.play(toX, toY, 0);
+                    p.play(fromX, fromY, 0);
                 } else if (p.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
                     // dragonfly special move
                     const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === p.z - 1);
@@ -991,8 +991,8 @@ export default class HiveCanvas {
                     // centipede special move
                     const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
                     callbackMove(p2, true);
-                    p2.play(toX, toY, p2.z);
-                    p.play(fromX, fromY, p.z);
+                    p2.play(toX, toY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [toX, toY, 0]]);
+                    p.play(fromX, fromY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [fromX, fromY, 0]]);
                 } else {
                     p.play(fromX, fromY, fromZ, move.moveSteps.toReversed());
                 }

@@ -95,7 +95,7 @@ export default class CanvasPlayer extends Player {
             if (!mouseUp) {
                 const [, , , , , hoverConfirm] = this.overConfirm();
                 if (hoverConfirm) {
-                    this.confirm(false);
+                    this.confirm();
                 } else {
                     this.reset();
                 }
@@ -136,14 +136,14 @@ export default class CanvasPlayer extends Player {
                 const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
                 this.selectedTargetId = piece.targets.findIndex(p => p.id === this.hoverPieceId);
                 if (!confirmMove || this.hive.gameOver) {
-                    this.confirm(!mouseUp);
+                    this.confirm(true, mouseUp);
                 }
             }
         }
     }
-    confirm(withAnimation = false) {
+    confirm(autoConfirm = false, dragging = false) {
         const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
-        this.hive.play(piece, piece.targets[this.selectedTargetId], null, withAnimation);
+        this.hive.play(piece, piece.targets[this.selectedTargetId], null, dragging, !autoConfirm);
         this.reset();
     }
 }
