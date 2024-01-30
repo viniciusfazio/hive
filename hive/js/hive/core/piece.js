@@ -443,8 +443,8 @@ export const PieceType = Object.freeze({
             coordsAroundWithNeighbor(board, piece.x, piece.y).filter(([, , z, z1, z2]) => z === 0 && (z1 < 0 || z2 < 0))
                 .forEach(([x, y, , , ]) => {
                 const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
-                const isPrey = prey && !board.lastMovedPiecesId.includes(prey.id);
-                if (isPrey && ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
+                const lastMove = prey && !board.lastMovedPiecesId.includes(prey.id);
+                if (lastMove && ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
                     if (![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
                         piece.insertTarget(x, y, piece.z + 1);
                     }

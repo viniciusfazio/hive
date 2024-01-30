@@ -916,11 +916,11 @@ export default class HiveCanvas {
                 const p1 = this.board.pieces.find(p => p.id === move.pieceId);
                 const [fromX, fromY, fromZ] = move.moveSteps[0];
                 const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
-                if (p1.type.id === PieceType.mantis.id && fromZ === 0) {
+                if (p1.type.id === PieceType.mantis.id && fromX !== null && fromY !== null && fromZ === 0 && toZ === 1) {
                     // mantis special move has 2 last move piece
                     const p2 = this.board.pieces.find(p => p.x === fromX && p.y === fromY && p.z === 0);
                     this.board.lastMovedPiecesId.push(p2.id);
-                } else if (p1.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
+                } else if (p1.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
                     // dragonfly special move has 2 last move piece
                     const p2 = this.board.pieces.find(p => p.x === toX && p.y === toY && p.z === 0);
                     this.board.lastMovedPiecesId.push(p2.id);
@@ -941,13 +941,13 @@ export default class HiveCanvas {
                 callbackMove(p, false);
                 const [fromX, fromY, fromZ] = move.moveSteps[0];
                 const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
-                if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null) {
+                if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
                     // mantis special move
                     const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
                     callbackMove(p2, true);
                     p2.play(fromX, fromY, 0);
                     p.play(fromX, fromY, 1);
-                } else if (fromX !== null && fromY !== null && p.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
+                } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
                     // dragonfly special move
                     const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
                     callbackMove(p2, true);
@@ -975,13 +975,13 @@ export default class HiveCanvas {
                 callbackMove(p, false);
                 const [fromX, fromY, fromZ] = move.moveSteps[0];
                 const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
-                if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null) {
+                if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
                     // mantis special move
                     const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
                     callbackMove(p2, true);
                     p2.play(toX, toY, 0);
                     p.play(fromX, fromY, 0);
-                } else if (p.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
+                } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
                     // dragonfly special move
                     const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === p.z - 1);
                     callbackMove(p2, true);
