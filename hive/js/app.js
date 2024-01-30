@@ -188,6 +188,9 @@ function tryParseFile(fileContent, standardRules) {
     hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, standardRules);
     let timeControl = false;
     fileContent.find(move => {
+        if (move.trim() === "") {
+            return false;
+        }
         if (hive.board.round === 1) {
             const matches = move.match(/Start - time control: ([.\d]*\d)m\+(\d+)s/);
             if (matches) {
@@ -195,6 +198,14 @@ function tryParseFile(fileContent, standardRules) {
                 hive.newGame(PieceColor.white, canvasPlayer, canvasPlayer, matches[1], matches[2], standardRules);
                 return false;
             }
+        }
+        const matches = move.match(/^variation \d+ parent (\d+) start (\d+)$/);
+        if (matches) {
+            const round = matches[2];
+            const parentId = matches[1];
+            hive.gameOver = true;
+            hive.setRound(parseInt(round), parseInt(parentId));
+            return false;
         }
         let time = null;
         if (timeControl) {
@@ -228,9 +239,15 @@ function tryParseFile(fileContent, standardRules) {
 }
 function download() {
     let text = "";
-    $("#move-list > ul.move-list-0 > li").each((i, v) => {
-        text += $(v).text() + "\n";
+    hive.moveLists.forEach((moveList, id) => {
+        if (id > 0) {
+            text += "\n\nvariation " + id + " parent " + moveList.parentMoveListId + " start " + moveList.variationRound + "\n";
+        }
+        $("#move-list > ul.move-list-" + id + " > li").each((i, v) => {
+            text += $(v).text() + "\n";
+        });
     });
+
     const pom = document.createElement('a');
     pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
     const date = new Date();
