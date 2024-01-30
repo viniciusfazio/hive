@@ -327,9 +327,10 @@ export const PieceType = Object.freeze({
                 PieceType.beetle.play(board, piece, standard);
             } else if (piece.type.id !== PieceType.mosquito.id) {
                 coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
-                    const neighbor = board.inGameTopPieces.find(p => p.x === x && p.y === y);
-                    const canEat = z === 0 && (z1 < 0 || z2 < 0) && neighbor.type.id !== PieceType.scorpion.id;
-                    if (canEat && stillOneHiveAfterRemoveOnXY(board, neighbor.x, neighbor.y)) {
+                    const hasSpace = z === 0 && (z1 < 0 || z2 < 0);
+                    const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    const canEat = prey && prey.type.id !== PieceType.scorpion.id && !board.lastMovedPiecesId.includes(prey.id);
+                    if (canEat && hasSpace && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
                         piece.insertTarget(x, y, z + 1);
                     }
                 });
@@ -442,7 +443,8 @@ export const PieceType = Object.freeze({
             coordsAroundWithNeighbor(board, piece.x, piece.y).filter(([, , z, z1, z2]) => z === 0 && (z1 < 0 || z2 < 0))
                 .forEach(([x, y, , , ]) => {
                 const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
-                if (prey && ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
+                const isPrey = prey && !board.lastMovedPiecesId.includes(prey.id);
+                if (isPrey && ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
                     if (![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
                         piece.insertTarget(x, y, piece.z + 1);
                     }

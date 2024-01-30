@@ -437,20 +437,20 @@ export default class HiveCanvas {
         if (targetPiece) {
             if (targetPiece.type.id === PieceType.mantis.id) {
                 const [x, y, z] = targetPiece.moveSteps[0];
-                if (z === 0) {
+                if (x !== null && y !== null && z === 0) {
                     specialPieces.push([targetPiece.id, x, y, 1]);
                     const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
                     specialPieces.push([prey.id, x, y, 0]);
                 }
             } else if (targetPiece.type.id === PieceType.dragonfly.id) {
                 const [x, y, z] = targetPiece.moveSteps[0];
-                if (z > 0 && targetPiece.z === 0) {
+                if (x !== null && y !== null && z > 0 && targetPiece.z === 0) {
                     specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 1]);
                     const prey = this.board.pieces.find(p => p.inGame && p.x === x && p.y === y && p.z === z - 1);
                     specialPieces.push([prey.id, targetPiece.x, targetPiece.y, 0]);
                 }
             } else if (targetPiece.type.id === PieceType.centipede.id) {
-                if (targetPiece.z > 0) {
+                if (x !== null && y !== null && targetPiece.z > 0) {
                     const [x, y, ] = targetPiece.moveSteps[0];
                     specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 0]);
                     const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
@@ -941,19 +941,19 @@ export default class HiveCanvas {
                 callbackMove(p, false);
                 const [fromX, fromY, fromZ] = move.moveSteps[0];
                 const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
-                if (p.type.id === PieceType.mantis.id && fromZ === 0) {
+                if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null) {
                     // mantis special move
                     const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
                     callbackMove(p2, true);
                     p2.play(fromX, fromY, 0);
                     p.play(fromX, fromY, 1);
-                } else if (p.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
+                } else if (fromX !== null && fromY !== null && p.type.id === PieceType.dragonfly.id && fromZ > 0 && toZ === 0) {
                     // dragonfly special move
                     const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
                     callbackMove(p2, true);
                     p2.play(toX, toY, 0);
                     p.play(toX, toY, 1);
-                } else if (p.type.id === PieceType.centipede.id && toZ > 0) {
+                } else if (fromX !== null && fromY !== null && p.type.id === PieceType.centipede.id && toZ > 0) {
                     // centipede special move
                     const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
                     callbackMove(p2, true);
@@ -975,7 +975,7 @@ export default class HiveCanvas {
                 callbackMove(p, false);
                 const [fromX, fromY, fromZ] = move.moveSteps[0];
                 const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
-                if (p.type.id === PieceType.mantis.id && fromZ === 0) {
+                if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null) {
                     // mantis special move
                     const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
                     callbackMove(p2, true);
@@ -1001,7 +1001,7 @@ export default class HiveCanvas {
         this.board.round++;
     }
     setRound(round, moveListId) {
-        this.#goTo(this.board, round, p => p.transition = 1, moveListId);
+        this.#goTo(this.board, round, (p, ) => p.transition = 1, moveListId);
         this.#initRound();
     }
     #initRound(forcePlayerPlaying = false) {

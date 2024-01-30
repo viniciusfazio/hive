@@ -177,7 +177,7 @@ export class Move {
             // not first move
             const p1 = board.pieces.find(p => p.id === move.pieceId);
             let p2 = null;
-            if (p1.type.id === PieceType.mantis.id && fromZ === 0) {
+            if (p1.type.id === PieceType.mantis.id && fromX !== null && fromY !== null && fromZ === 0) {
                 // mantis special move
                 p2 = board.pieces.find(p => p.inGame && p.x === fromX && p.y === fromY && p.z === fromZ);
             } else if (p1.type.id === PieceType.centipede.id && toZ > 0) {

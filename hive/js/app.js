@@ -83,7 +83,10 @@ function setRound(round, moveListId) {
 function addRound(qty) {
     const round = hive.board.round + qty;
     const moveListId = hive.currentMoveListId;
-    const $li = $("ul.move-list-" + moveListId + " > li.round-" + round);
+    let $li = $("ul.move-list-" + moveListId + " > li.round-" + round);
+    if ($li.length === 0 && qty < 0) {
+        $li = $("ul.move-list-" + hive.getMoveList().parentMoveListId + " > li.round-" + round);
+    }
     if ($li.length !== 0) {
         $li.click();
     }
