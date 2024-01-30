@@ -72,7 +72,6 @@ export default class OnlinePlayer extends Player {
     #initConn(conn, callbacks) {
         this.#conn = conn;
         conn.on("data", data => {
-            console.log(data);
             switch (data.type) {
                 case "connect":
                     this.#conn.send({type: "connected"});
