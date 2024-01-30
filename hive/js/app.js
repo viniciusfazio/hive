@@ -92,8 +92,19 @@ function addRound(qty) {
     }
 }
 function appendMoveList(round, move, moveListId = 0) {
-    const li = '<li style="cursor: pointer" class="text-nowrap list-group-item list-group-item-action ' + (moveListId > 0 ? "list-group-item-secondary" : "") + ' py-0 round-' + round + '">' + move + '</li>';
-    const li2 = '<li style="cursor: pointer" class="text-nowrap list-group-item list-group-item-action ' + (moveListId > 0 ? "list-group-item-secondary" : "") + ' py-0 empty"></li>';
+    const style = [
+        "list-group-item-primary",
+        "list-group-item-secondary",
+        "list-group-item-warning",
+        "list-group-item-success",
+        "list-group-item-danger",
+        "list-group-item-info",
+        "list-group-item-dark",
+    ];
+    const moveList = hive.moveLists[moveListId];
+    const moveListStyle = moveListId > 0 ? style[(moveList.depth - 1) % style.length] : "";
+    const li = '<li style="cursor: pointer" class="text-nowrap list-group-item list-group-item-action ' + moveListStyle + ' py-0 round-' + round + '">' + move + '</li>';
+    const li2 = '<li style="cursor: pointer" class="text-nowrap list-group-item list-group-item-action ' + moveListStyle + ' py-0 empty"></li>';
     const ul = '<ul class="list-group list-group-horizontal move-list-' + moveListId + '">' + li + '</ul>';
     const ul2 = '<ul class="list-group list-group-horizontal move-list-' + moveListId + '">' + li2 + li + '</ul>';
     if (moveListId === 0) {
@@ -110,7 +121,7 @@ function appendMoveList(round, move, moveListId = 0) {
         let $ul = $("#move-list > ul.move-list-" + moveListId);
         if ($ul.length === 0) {
             // it doesn't exist yet
-            $ul = $("#move-list > ul.move-list-0 > li.round-" + round).parent();
+            $ul = $("#move-list > ul.move-list-" + moveList.parentMoveListId + " > li.round-" + round).parent();
             if ($ul.length === 0) {
                 // it is after last move
                 $("#move-list").append(round % 2 === 0 ? ul : ul2);

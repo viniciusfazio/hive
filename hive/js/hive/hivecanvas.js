@@ -850,12 +850,10 @@ export default class HiveCanvas {
         if (this.gameOver && (this.board.round <= moveList.moves.length || this.currentMoveListId === 0)) {
             // an alternative move happened. Create a new list
             const initialRound = this.currentMoveListId === 0 ? this.board.round : moveList.initialRound;
-            moveList = new MoveList(0, 0, moveList.moves.map(m => {return {...m};}));
-            this.moveLists.push(moveList);
-            moveList.parentMoveListId =this.currentMoveListId;
-            this.currentMoveListId = this.moveLists.length - 1;
+            moveList = new MoveList(0, 0, moveList, this.currentMoveListId, initialRound);
             moveList.moves = moveList.moves.slice(0, this.board.round - 1);
-            moveList.initialRound = initialRound;
+            this.moveLists.push(moveList);
+            this.currentMoveListId = this.moveLists.length - 1;
         }
         // save the move
         moveList.addMove(piece, target, time);

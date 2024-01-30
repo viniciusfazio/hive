@@ -9,15 +9,20 @@ export default class MoveList {
     #lastMoveTimestamp = null;
     whitePiecesTimeLeft = null;
     blackPiecesTimeLeft = null;
-    initialRound = 0;
-    parentMoveListId = null;
+    parentMoveListId;
+    depth = 0;
 
-    constructor(totalTime = 0, increment = 0, moves = []) {
+    constructor(totalTime, increment, parentMoveList = null, parentMoveListId = null, initialRound = 0) {
         this.totalTime = totalTime * 60;
         this.increment = increment;
         this.whitePiecesTimeLeft = this.totalTime * 1000;
         this.blackPiecesTimeLeft = this.totalTime * 1000;
-        this.moves = moves;
+        if (parentMoveList !== null) {
+            this.moves = parentMoveList.moves.map(m => {return {...m};});
+            this.depth = parentMoveList.depth + 1;
+        }
+        this.parentMoveListId = parentMoveListId;
+        this.initialRound = initialRound;
         if (totalTime > 0) {
             this.#lastMoveTimestamp = (new Date()).getTime();
         }
