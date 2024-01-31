@@ -2,12 +2,14 @@ import Board from "./core/board.js";
 import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
+import OnlinePlayer from "./player/onlineplayer.js";
 
 const CAMERA_SPEED = .2;   // between 0 and 1, higher is faster
 const PIECE_SPEED = .15;   // between 0 and 1, higher is faster
 const UPDATE_IN_MS = 20;   // update frame time. Every speed depends of it
 const REDRAW_IN_MS = 10;   // draw frame time. Affects FPS only
 const MIN_FPS = 40;        // below MIN_FPS, it prints FPS on screen
+const MAX_PING = 50;       // above MAX_PING, it prints PING on screen
 const GLOWING_SPEED = .1;  // between 0 and 1, higher is faster
 const BORDER_SPEED = .05;  // between 0 and 1, higher is faster
 
@@ -59,13 +61,13 @@ export default class HiveCanvas {
         this.#canvasPlayer = canvasPlayer;
         this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, true);
         this.gameOver = true;
-        this.#FPSUpdateTime = (new Date()).getTime();
+        this.#FPSUpdateTime = Date.now();
         this.#update();
         this.#redraw();
     }
 
     #update() {
-        const start = (new Date()).getTime();
+        const start = Date.now();
 
         // update timer
         const moveList = this.getMoveList();
@@ -91,7 +93,7 @@ export default class HiveCanvas {
         this.camera.update();
 
         // setup next update
-        const waitTime = UPDATE_IN_MS - ((new Date()).getTime() - start);
+        const waitTime = UPDATE_IN_MS - (Date.now() - start);
         this.#tooSlow = waitTime < 1;
         setTimeout(() => this.#update(), Math.max(1, waitTime));
     }
@@ -185,7 +187,7 @@ export default class HiveCanvas {
 
         this.#drawTime();
 
-        this.#drawFPS();
+        this.#drawPerformance();
 
         this.#drawPieces();
 
@@ -199,7 +201,7 @@ export default class HiveCanvas {
 
         this.#drawDebug();
 
-        const waitTime = REDRAW_IN_MS - ((new Date()).getTime() - this.#frameTime);
+        const waitTime = REDRAW_IN_MS - (Date.now() - this.#frameTime);
         setTimeout(() => this.#redraw(), Math.max(1, waitTime));
     }
     #drawPassAlert() {
@@ -212,27 +214,36 @@ export default class HiveCanvas {
             this.#drawText(["Click anywhere to pass"], w2, h2, "middle", "center", fh, "rgb(255, 255, 0)");
         }
     }
-    #drawFPS() {
-        if (this.#tooSlow || this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
+    #drawPerformance() {
+        let texts = [];
+        if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
+            texts.push(this.#framesPerSecond + " FPS");
+        }
+        if (this.#tooSlow) {
+            texts.push("SLOW PERFORMANCE");
+        }
+        let onlinePlayer = null;
+        if (this.whitePlayer instanceof OnlinePlayer) {
+            onlinePlayer = this.whitePlayer;
+        } else if (this.blackPlayer instanceof OnlinePlayer) {
+            onlinePlayer = this.blackPlayer;
+        }
+        if (onlinePlayer !== null && onlinePlayer.ping > MAX_PING) {
+            texts.push("ping " + onlinePlayer.ping + "ms")
+        }
+        if (texts.length > 0) {
             const hudHeight = this.getHudHeight();
             const fh = Math.ceil(20 * this.canvas.width / 1000);
             const color = "rgb(255, 0, 0)";
-            let texts = [];
-            if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
-                texts.push(this.#framesPerSecond + " FPS");
-            }
-            if (this.#tooSlow) {
-                texts.push("SLOW PERFORMANCE");
-            }
             this.#drawText(texts, this.canvas.width - 2, hudHeight + 2, "top", "right", fh, color);
         }
     }
     #updateFPS() {
-        this.#frameTime = (new Date()).getTime();
+        this.#frameTime = Date.now();
         const CALCULATE_FPS_EVERY_N_FRAMES = 20;
         this.#frameQty++;
         if (this.#frameQty === CALCULATE_FPS_EVERY_N_FRAMES) {
-            const now = (new Date()).getTime();
+            const now = Date.now();
             this.#framesPerSecond = Math.round(1 / ((now - this.#FPSUpdateTime) / (CALCULATE_FPS_EVERY_N_FRAMES * 1000)));
             this.#FPSUpdateTime = now;
             this.#frameQty = 0;

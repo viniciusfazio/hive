@@ -28,12 +28,12 @@ export default class MoveList {
         this.variationRound = variationRound;
         this.moves = this.moves.slice(0, variationRound - 1);
         if (totalTime > 0) {
-            this.#lastMoveTimestamp = (new Date()).getTime();
+            this.#lastMoveTimestamp = Date.now();
         }
     }
     #pushMoveWithTime(move, time, withIncrement = false) {
         if (this.totalTime > 0) {
-            const now = (new Date()).getTime();
+            const now = Date.now();
             move.time = time ?? (this.moves.length === 0 ? 0 : now - this.#lastMoveTimestamp);
             this.computeTime(time, withIncrement);
             move.whitePiecesTimeLeft = this.whitePiecesTimeLeft;
@@ -101,7 +101,7 @@ export default class MoveList {
                 }
             });
             if (time === null) {
-                timePast += (new Date()).getTime() - this.#lastMoveTimestamp;
+                timePast += Date.now() - this.#lastMoveTimestamp;
             } else {
                 timePast += time;
             }

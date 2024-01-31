@@ -6,6 +6,8 @@ export default class OnlinePlayer extends Player {
     #peer;
     #conn;
     #challenge;
+    #pingSendTime;
+    ping = 0;
     constructor(hive) {
         super(hive);
     }
@@ -72,6 +74,7 @@ export default class OnlinePlayer extends Player {
     #initConn(conn, callbacks) {
         this.#conn = conn;
         conn.on("data", data => {
+            // console.log(data);
             switch (data.type) {
                 case "connect":
                     this.#conn.send({type: "connected"});
@@ -112,9 +115,15 @@ export default class OnlinePlayer extends Player {
                 case "move":
                     this.hive.playNotation(data.move, data.time);
                     break;
+                case "ping":
+                    this.#conn.send({type: "pong"});
+                    break;
+                case "pong":
+                    this.#pong();
+                    break;
             }
         }).on("close", () => this.#resetConnection(callbacks));
-        this.#ping();
+        setTimeout(() => this.#ping(), 5000);
     }
     newGame(color, totalTime, increment, standardRules) {
         this.#conn.send({
@@ -147,9 +156,13 @@ export default class OnlinePlayer extends Player {
     }
     #ping() {
         if (this.#conn) {
+            this.#pingSendTime = Date.now();
             this.#conn.send({type: "ping"});
-            setTimeout(() => this.#ping(), 30000);
         }
+    }
+    #pong() {
+        this.ping = Math.ceil((Date.now() - this.#pingSendTime) / 2);
+        setTimeout(() => this.#ping(), 5000);
     }
 
 }
