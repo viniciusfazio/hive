@@ -412,8 +412,7 @@ export default class HiveCanvas {
         this.ctx.arc(x, y, r, 0, 2 * Math.PI);
         this.ctx.fill();
 
-        const img = document.getElementById(hover ? "flip_hover" : "flip");
-        this.ctx.drawImage(img, x - r / 2, y - r / 2, r, r);
+        this.#drawImage(hover ? "flip_hover" : "flip", r / 2, x, y);
     }
     #drawConfirm() {
         if (this.#canvasPlayer.selectedTargetId === null) {
@@ -465,8 +464,8 @@ export default class HiveCanvas {
                     specialPieces.push([prey.id, targetPiece.x, targetPiece.y, 0]);
                 }
             } else if (targetPiece.type.id === PieceType.centipede.id) {
-                if (x !== null && y !== null && targetPiece.z > 0) {
-                    const [x, y, ] = targetPiece.moveSteps[0];
+                const [x, y, z] = targetPiece.moveSteps[0];
+                if (x !== null && y !== null && z > 0) {
                     specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 0]);
                     const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
                     specialPieces.push([prey.id, x, y, 0]);
@@ -624,10 +623,8 @@ export default class HiveCanvas {
         this.ctx.fill(path);
 
         // draw piece image, rotating according to the number identification
-        const rxy = Math.min(rx, ry);
-        this.ctx.rotate(-Math.PI / 2 + (Math.max(1, piece.number) - 1) * Math.PI / 3);
-        const img = document.getElementById("piece" + piece.type.id);
-        this.ctx.drawImage(img, -rxy, -rxy, 2 * rxy, 2 * rxy);
+        this.ctx.rotate(-Math.PI / 2 + Math.max(0, piece.number - 1) * Math.PI / 3);
+        this.#drawImage("piece" + piece.type.id, .75 * (rx + ry) / 2);
         this.ctx.setTransform(1, 0, 0, 1, x, y);
 
         // draw border
@@ -1024,6 +1021,15 @@ export default class HiveCanvas {
         this.getPlayerPlaying(forcePlayerPlaying).initPlayerTurn();
         this.camera.recenter(this);
     }
+    #drawImage(id, r, x = 0, y = 0) {
+        const img = document.getElementById(id);
+        if (img.width > 0 && img.height > 0) {
+            const ratio = img.width / img.height;
+            const w = r * Math.min(1, ratio);
+            const h = r * Math.min(1, 1 / ratio);
+            this.ctx.drawImage(img, x - w, y - h, 2 * w, 2 * h);
+        }
+    }
 }
 class Camera {
     scale = 1;
@@ -1074,4 +1080,3 @@ function scaleTimeFontHeight(txt, fh) {
     const qtySeparators = txt.length - qtyDigits;
     return fh * 4.5 / Math.max(4.5, qtyDigits + qtySeparators / 2);
 }
-
