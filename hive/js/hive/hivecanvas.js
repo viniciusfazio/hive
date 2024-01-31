@@ -272,6 +272,7 @@ export default class HiveCanvas {
                 "white player: " + this.whitePlayer.constructor.name,
                 "black player: " + this.blackPlayer.constructor.name,
                 "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
+                "fps: " + this.#framesPerSecond,
             ];
             const fh = Math.ceil(24 * this.canvas.width / 1000);
             this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
@@ -722,10 +723,7 @@ export default class HiveCanvas {
             (this.board.round % 2 === 1 ? this.whitePlayer : this.blackPlayer);
     }
     toggleDebug() {
-        console.trace();
-        console.log("TOGGLE " + this.#debug);
         this.#debug = !this.#debug;
-        console.log("TOGGLED " + this.#debug);
     }
     #playRound(dragging = false, confirming = false, forcePlayerPlaying = false) {
         const moveList = this.getMoveList();

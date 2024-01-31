@@ -2,6 +2,8 @@ import Player from "./player.js";
 import {PieceColor} from "../core/piece.js";
 import {Move} from "../core/movelist.js";
 
+const PING_CHECK = 3000;      // check ping every n milliseconds
+
 export default class OnlinePlayer extends Player {
     #peer;
     #conn;
@@ -162,7 +164,7 @@ export default class OnlinePlayer extends Player {
     }
     #pong() {
         this.ping = Math.ceil((Date.now() - this.#pingSendTime) / 2);
-        setTimeout(() => this.#ping(), 5000);
+        setTimeout(() => this.#ping(), PING_CHECK);
     }
 
 }

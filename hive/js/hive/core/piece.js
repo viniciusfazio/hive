@@ -116,43 +116,36 @@ function coordsAroundWithNeighbor(board, cx, cy, ignoreX = null, ignoreY = null)
 }
 
 function stillOneHiveAfterRemoveOnXY(board, x, y, levels = 1) {
+    // if not in game of piece is stacked, it is one hive
     const pCheck = board.inGameTopPieces.find(p => p.x === x && p.y === y);
     if (!pCheck || pCheck.z >= levels) {
         return true;
     }
 
+    // get pieces around and count how many groups of piece there are
+    let fistPosition = null;
+    let lastPosition = null;
+    let groupsAround = 0;
     let piecesAround = [];
-    const occupied = Board.coordsAround(x, y).map(([ax, ay]) => {
+    Board.coordsAround(x, y).forEach(([ax, ay]) => {
         const piece = board.inGameTopPieces.find(p => p.x === ax && p.y === ay);
+        if (lastPosition === null) {
+            lastPosition = piece;
+            fistPosition = piece;
+        } else if (!lastPosition && piece) {
+            groupsAround++;
+        }
         if (piece) {
             piecesAround.push(piece);
-            return true;
         }
-        return false;
+        lastPosition = piece;
     });
-    if (piecesAround.length < 2 || piecesAround.length > 4) {
+    if (!lastPosition && fistPosition) {
+        groupsAround++;
+    }
+    if (groupsAround <= 1) {
+        // if there is only 1 ou 0 group of pieces around, it is one hive
         return true;
-    }
-    // with 2 or 3 pieces around and no isolated pieces, it is one hive.
-    if (piecesAround.length < 4) {
-        let isolatedPiece = false;
-        for (let i = 1; i <= 6; i++) {
-            if (!occupied[i - 1] && occupied[i % 6] && !occupied[(i + 1) % 6]) {
-                isolatedPiece = true;
-                break;
-            }
-        }
-        if (!isolatedPiece) {
-            return true;
-        }
-    }
-    // with 4 straight pieces around, it is one hive.
-    if (piecesAround.length === 4) {
-        for (let i = 1; i <= 6; i++) {
-            if (!occupied[i - 1] && !occupied[i % 6]) {
-                return true;
-            }
-        }
     }
     // try "paint the hive" in an edge. If all pieces around get painted, it is one hive
     let marked = [pCheck, piecesAround[0]];
