@@ -1,12 +1,12 @@
 import Player from "./player.js";
 
 export default class CanvasPlayer extends Player {
-    mouseX = 0;
-    mouseY = 0;
-    selectedPieceId = null;
-    selectedTargetId = null;
-    hoverPieceId = null;
-    dragging = null;
+    mouseX;
+    mouseY;
+    selectedPieceId;
+    selectedTargetId;
+    hoverPieceId;
+    dragging;
 
     reset() {
         this.selectedPieceId = null;
@@ -28,6 +28,8 @@ export default class CanvasPlayer extends Player {
         // check if mouse is over
         const hover = !this.hive.standardRules &&
             (this.selectedPieceId === null || !this.dragging) &&
+            this.selectedTargetId === null &&
+            !(this.hive.board.passRound && this.hive.getMoveList().moves.length < this.board.round) &&
             this.mouseX >= x - r && this.mouseX <= x + r &&
             this.mouseY >= y - r && this.mouseY <= y + r;
 
@@ -45,10 +47,11 @@ export default class CanvasPlayer extends Player {
 
         return [0, y, w, hh, fh, hover];
     }
-    hover(x, y, dragging = false) {
-        [this.dragging, this.mouseX, this.mouseY] = [dragging, x, y];
+    hover(mouse = null, dragging = false) {
+        this.dragging = dragging;
+        [this.mouseX, this.mouseY] = mouse ?? [-1, -1];
         if (this.selectedTargetId !== null) {
-            return;
+            return true;
         }
         const path = this.hive.getPiecePath2D();
 
@@ -58,7 +61,7 @@ export default class CanvasPlayer extends Player {
             .concat(targets);
         let pieceHover = allPieces.find(p => {
             const [px, py] = this.hive.getPiecePixelPosition(p);
-            return this.hive.ctx.isPointInPath(path, px - x, py - y);
+            return this.hive.ctx.isPointInPath(path, px - this.mouseX, py - this.mouseY);
         });
         if (pieceHover) {
             pieceHover = this.#getPieceOnTop(allPieces, pieceHover);
@@ -90,29 +93,27 @@ export default class CanvasPlayer extends Player {
     }
 
 
-    click(x, y, autoMove = false, confirmMove = false, mouseUp = false) {
-        if (this.selectedTargetId !== null) {
-            if (!mouseUp) {
-                const [, , , , , hoverConfirm] = this.overConfirm();
-                if (hoverConfirm) {
-                    this.confirm();
-                } else {
-                    this.reset();
+    click(mouse = null, autoMove = false, confirmMove = false, mouseUp = false) {
+        if (this.hover(mouse)) {
+            const [, , , hoverFlip] = this.overFlip();
+            if (this.selectedTargetId !== null) {
+                if (!mouseUp) {
+                    const [, , , , , hoverConfirm] = this.overConfirm();
+                    if (hoverConfirm) {
+                        this.confirm();
+                    } else {
+                        this.reset();
+                    }
                 }
-            }
-            return;
-        }
-        const [, , , hoverFlip] = this.overFlip();
-        if (hoverFlip) {
-            if (!mouseUp) {
-                this.hive.flippedPieces = !this.hive.flippedPieces;
-            }
-        } else if (this.hover(x, y)) {
-            if (this.hive.board.passRound) {
+            } else if (this.hive.board.passRound) {
                 this.hoverPieceId = null;
                 if (!mouseUp) {
                     this.selectedPieceId = null;
                     this.hive.pass();
+                }
+            } else if (hoverFlip) {
+                if (!mouseUp) {
+                    this.hive.flippedPieces = !this.hive.flippedPieces;
                 }
             } else if (this.hoverPieceId === null) {
                 // clicked on nothing

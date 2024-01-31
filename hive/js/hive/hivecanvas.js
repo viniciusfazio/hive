@@ -265,6 +265,7 @@ export default class HiveCanvas {
                 "selected: " + this.#canvasPlayer.selectedPieceId,
                 "target: " + this.#canvasPlayer.selectedTargetId,
                 "mouse: " + this.#canvasPlayer.mouseX + "," + this.#canvasPlayer.mouseY,
+                "canvas: " + this.canvas.width + "," + this.canvas.height,
                 "time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
                 "round: " + this.board.round + " / " + moveList.moves.length,
                 "moves available: " + totalMoves,
@@ -273,7 +274,7 @@ export default class HiveCanvas {
                 "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
                 "fps: " + this.#framesPerSecond,
             ];
-            const fh = Math.ceil(24 * this.canvas.width / 1000);
+            const fh = Math.ceil(26 * this.canvas.width / 1000);
             this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
         }
     }

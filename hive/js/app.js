@@ -34,23 +34,26 @@ $(() => {
                 break;
         }
     });
-    const size = Math.min(window.innerWidth, window.innerHeight) - 2;
+
     const $autoMove = $("#autoMove");
     const $confirmMove = $("#confirmMove");
+    $("#canvasContainer").append(createCanvas("hive", Math.min(window.innerWidth, window.innerHeight) - 2));
     const $hive = $("#hive");
-    $hive.css("border", "1px solid black").prop("width", size).prop("height", size);
-    $hive.mousemove(e => canvasPlayer.hover(e.offsetX, e.offsetY, (e.buttons & 1) > 0));
+    $hive.css("border", "1px solid black");
+    $hive.mousemove(e => {
+        canvasPlayer.hover(getMousePosition(e), (e.buttons & 1) > 0);
+    });
     $hive.mousedown(e => {
         if (e.button === 2) {
-            canvasPlayer.click(-1, -1);
+            canvasPlayer.click();
         } else if (e.button === 0) {
-            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked"), $confirmMove.prop("checked"));
+            canvasPlayer.click(getMousePosition(e), $autoMove.prop("checked"), $confirmMove.prop("checked"));
         }
     });
-    $hive.mouseout(() => canvasPlayer.hover(-1, -1));
+    $hive.mouseout(() => canvasPlayer.hover());
     $hive.mouseup(e => {
         if (e.button === 0) {
-            canvasPlayer.click(e.offsetX, e.offsetY, $autoMove.prop("checked"), $confirmMove.prop("checked"), true);
+            canvasPlayer.click(getMousePosition(e), $autoMove.prop("checked"), $confirmMove.prop("checked"), true);
         }
     });
     $hive.contextmenu(event => event.preventDefault());
@@ -76,6 +79,20 @@ $(() => {
     window.onbeforeunload = () => "-";
     window.d = () => hive.toggleDebug();
 });
+function getMousePosition(e) {
+    return [e.offsetX * window.devicePixelRatio, e.offsetY * window.devicePixelRatio];
+}
+function createCanvas(id, size) {
+    const ratio = window.devicePixelRatio;
+    const canvas = document.createElement('canvas');
+    canvas.id = id;
+    canvas.width = Math.round(size * ratio);
+    canvas.height = Math.round(size * ratio);
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    canvas.tabIndex = 1;
+    return canvas;
+}
 function setRound(round, moveListId) {
     round = Math.max(1, Math.min(round, hive.moveLists[moveListId].moves.length + 1));
     hive.setRound(round, moveListId);
