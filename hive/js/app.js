@@ -201,7 +201,6 @@ function upload() {
                     $alternativeRules.prop('checked', standardRules);
                 }
             }
-            hive.gameOver = true;
         };
         fileReader.readAsText(files[0]);
     } else if (files.length === 0) {
