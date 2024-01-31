@@ -255,22 +255,25 @@ export default class HiveCanvas {
             const moveList = this.getMoveList();
             let totalMoves = 0;
             this.board.pieces.forEach(p => totalMoves += p.targets.length);
+            let onlinePlayer = null;
+            if (this.whitePlayer instanceof OnlinePlayer) {
+                onlinePlayer = this.whitePlayer;
+            } else if (this.blackPlayer instanceof OnlinePlayer) {
+                onlinePlayer = this.blackPlayer;
+            }
             let text = [
-                "Selected: " + player.selectedPieceId,
+                "hover: " + player.hoverPieceId,
+                "selected: " + player.selectedPieceId,
                 "target: " + player.selectedTargetId,
-                "Hover: " + player.hoverPieceId,
-                "mouseX: " + player.mouseX,
-                "mouseY: " + player.mouseY,
-                "White: " + moveList.whitePiecesTimeLeft,
-                "Black: " + moveList.blackPiecesTimeLeft,
-                "Round: " + this.board.round,
-                "moves since start: " + moveList.moves.length,
-                "total moves available: " + totalMoves,
-                "pass round: " + (this.board.passRound ? 1 : 0),
+                "mouse: " + player.mouseX + "," + player.mouseY,
+                "time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
+                "round: " + this.board.round + " / " + moveList.moves.length,
+                "moves available: " + totalMoves,
                 "white player: " + this.whitePlayer.constructor.name,
                 "black player: " + this.blackPlayer.constructor.name,
+                "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
             ];
-            const fh = Math.ceil(16 * this.canvas.width / 1000);
+            const fh = Math.ceil(24 * this.canvas.width / 1000);
             this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
         }
     }
@@ -719,7 +722,10 @@ export default class HiveCanvas {
             (this.board.round % 2 === 1 ? this.whitePlayer : this.blackPlayer);
     }
     toggleDebug() {
+        console.trace();
+        console.log("TOGGLE " + this.#debug);
         this.#debug = !this.#debug;
+        console.log("TOGGLED " + this.#debug);
     }
     #playRound(dragging = false, confirming = false, forcePlayerPlaying = false) {
         const moveList = this.getMoveList();

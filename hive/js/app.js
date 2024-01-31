@@ -7,7 +7,6 @@ const SHORT_ON_TIME = 20; // time to be short on time, in s
 
 let hive, canvasPlayer, onlinePlayer;
 $(() => {
-    window.onbeforeunload = () => "-";
     hive = new HiveCanvas(localCallbacks(), SHORT_ON_TIME);
     canvasPlayer = new CanvasPlayer(hive);
     $("#confirmMoveLabel").text("Must confirm move if time > " + SHORT_ON_TIME + "s");
@@ -74,6 +73,8 @@ $(() => {
     if (id !== null) {
         connect(id);
     }
+    window.onbeforeunload = () => "-";
+    window.d = () => hive.toggleDebug();
 });
 function setRound(round, moveListId) {
     round = Math.max(1, Math.min(round, hive.moveLists[moveListId].moves.length + 1));
