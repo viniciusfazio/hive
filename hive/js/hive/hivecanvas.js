@@ -9,7 +9,7 @@ const PIECE_SPEED = .15;   // between 0 and 1, higher is faster
 const UPDATE_IN_MS = 20;   // update frame time. Every speed depends of it
 const REDRAW_IN_MS = 10;   // draw frame time. Affects FPS only
 const MIN_FPS = 40;        // below MIN_FPS, it prints FPS on screen
-const MAX_PING = 50;       // above MAX_PING, it prints PING on screen
+const MAX_PING = 100;      // above MAX_PING, it prints PING on screen
 const GLOWING_SPEED = .1;  // between 0 and 1, higher is faster
 const BORDER_SPEED = .05;  // between 0 and 1, higher is faster
 
@@ -251,7 +251,6 @@ export default class HiveCanvas {
     }
     #drawDebug() {
         if (this.#debug) {
-            const player = this.getPlayerPlaying();
             const moveList = this.getMoveList();
             let totalMoves = 0;
             this.board.pieces.forEach(p => totalMoves += p.targets.length);
@@ -262,10 +261,10 @@ export default class HiveCanvas {
                 onlinePlayer = this.blackPlayer;
             }
             let text = [
-                "hover: " + player.hoverPieceId,
-                "selected: " + player.selectedPieceId,
-                "target: " + player.selectedTargetId,
-                "mouse: " + player.mouseX + "," + player.mouseY,
+                "hover: " + this.#canvasPlayer.hoverPieceId,
+                "selected: " + this.#canvasPlayer.selectedPieceId,
+                "target: " + this.#canvasPlayer.selectedTargetId,
+                "mouse: " + this.#canvasPlayer.mouseX + "," + this.#canvasPlayer.mouseY,
                 "time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
                 "round: " + this.board.round + " / " + moveList.moves.length,
                 "moves available: " + totalMoves,

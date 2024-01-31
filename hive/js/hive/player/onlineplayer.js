@@ -125,7 +125,7 @@ export default class OnlinePlayer extends Player {
                     break;
             }
         }).on("close", () => this.#resetConnection(callbacks));
-        setTimeout(() => this.#ping(), 5000);
+        setTimeout(() => this.#ping(), PING_CHECK);
     }
     newGame(color, totalTime, increment, standardRules) {
         this.#conn.send({
