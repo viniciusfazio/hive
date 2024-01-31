@@ -220,7 +220,7 @@ export default class HiveCanvas {
             texts.push(this.#framesPerSecond + " FPS");
         }
         if (this.#tooSlow) {
-            texts.push("SLOW PERFORMANCE");
+            texts.push("SLOW");
         }
         let onlinePlayer = null;
         if (this.whitePlayer instanceof OnlinePlayer) {
@@ -265,7 +265,7 @@ export default class HiveCanvas {
                 "selected: " + this.#canvasPlayer.selectedPieceId,
                 "target: " + this.#canvasPlayer.selectedTargetId,
                 "mouse: " + this.#canvasPlayer.mouseX + "," + this.#canvasPlayer.mouseY,
-                "canvas: " + this.canvas.width + "," + this.canvas.height,
+                "canvas: " + this.canvas.width + " x " + this.canvas.height + " : " + window.devicePixelRatio,
                 "time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
                 "round: " + this.board.round + " / " + moveList.moves.length,
                 "moves available: " + totalMoves,
@@ -700,7 +700,7 @@ export default class HiveCanvas {
     #drawText(texts, x = 0, y = 0, valign = "middle", align = "center",
              height, color = "rgb(255, 255, 255)", borderColor = "rgb(0, 0, 0)") {
         this.ctx.font = height + "px Sans-serif";
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = 2 * this.canvas.width / 750;
         this.ctx.textAlign = align;
         this.ctx.textBaseline = valign;
         if (texts.length > 1 && valign !== "top") {
