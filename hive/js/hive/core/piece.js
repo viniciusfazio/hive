@@ -490,9 +490,7 @@ function moveAround(board, piece, n = null, colorId = null) {
 }
 function fly(board, piece, colorId = null) {
     board.piecePlacement(colorId, piece.x, piece.y).forEach(([x, y]) => {
-        piece.z = board.flyZ();
-        piece.insertTarget(x, y, 0);
-        piece.z = 0;
+        piece.insertTarget(x, y, 0, [[piece.x, piece.y, board.flyZ()]]);
     });
 }
 function moveOver(board, piece, n = null, colorId = null) {

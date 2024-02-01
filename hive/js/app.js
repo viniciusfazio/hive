@@ -265,7 +265,7 @@ function tryParseFile(fileContent, standardRules) {
     return error;
 }
 function download() {
-    let text = "";
+    let text = "Ruleset: " + (hive.standardRules ? "standard" : "variant") + "\n";
     hive.moveLists.forEach((moveList, id) => {
         if (id > 0) {
             text += "\n\nvariation " + id + " parent " + moveList.parentMoveListId + " start " + moveList.variationRound + "\n";

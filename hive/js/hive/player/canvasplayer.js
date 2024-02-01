@@ -94,51 +94,57 @@ export default class CanvasPlayer extends Player {
 
 
     click(mouse = null, autoMove = false, confirmMove = false, mouseUp = false) {
-        if (this.hover(mouse)) {
-            const [, , , hoverFlip] = this.overFlip();
-            if (this.selectedTargetId !== null) {
-                if (!mouseUp) {
-                    const [, , , , , hoverConfirm] = this.overConfirm();
-                    if (hoverConfirm) {
-                        this.confirm();
-                    } else {
-                        this.reset();
-                    }
-                }
-            } else if (this.hive.board.passRound) {
-                this.hoverPieceId = null;
-                if (!mouseUp) {
-                    this.selectedPieceId = null;
-                    this.hive.pass();
-                }
-            } else if (hoverFlip) {
+        const [, , , hoverFlip] = this.overFlip();
+        if (!this.hover(mouse)) {
+            if (hoverFlip) {
                 if (!mouseUp) {
                     this.hive.flippedPieces = !this.hive.flippedPieces;
                 }
-            } else if (this.hoverPieceId === null) {
-                // clicked on nothing
-                this.reset();
-            } else if (this.selectedPieceId === null) {
-                // clicked on a piece when no piece was selected
-                this.selectedPieceId = this.hoverPieceId;
-                if (this.hive.board.round <= 2 && autoMove) {
-                    this.selectedTargetId = 0;
-                    if (!confirmMove || this.hive.gameOver) {
-                        this.confirm(true);
-                    }
+            }
+            return;
+        }
+        if (this.selectedTargetId !== null) {
+            if (!mouseUp) {
+                const [, , , , , hoverConfirm] = this.overConfirm();
+                if (hoverConfirm) {
+                    this.confirm();
+                } else {
+                    this.reset();
                 }
-                this.hoverPieceId = null;
-            } else if (this.hive.board.pieces.find(p => p.id === this.hoverPieceId)) {
-                // clicked on piece when another piece was selected
-                this.selectedPieceId = this.hoverPieceId;
-                this.hoverPieceId = null;
-            } else {
-                // clicked on target
-                const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
-                this.selectedTargetId = piece.targets.findIndex(p => p.id === this.hoverPieceId);
+            }
+        } else if (this.hive.board.passRound) {
+            this.hoverPieceId = null;
+            if (!mouseUp) {
+                this.selectedPieceId = null;
+                this.hive.pass();
+            }
+        } else if (hoverFlip) {
+            if (!mouseUp) {
+                this.hive.flippedPieces = !this.hive.flippedPieces;
+            }
+        } else if (this.hoverPieceId === null) {
+            // clicked on nothing
+            this.reset();
+        } else if (this.selectedPieceId === null) {
+            // clicked on a piece when no piece was selected
+            this.selectedPieceId = this.hoverPieceId;
+            if (this.hive.board.round <= 2 && autoMove) {
+                this.selectedTargetId = 0;
                 if (!confirmMove || this.hive.gameOver) {
-                    this.confirm(true, mouseUp);
+                    this.confirm(true);
                 }
+            }
+            this.hoverPieceId = null;
+        } else if (this.hive.board.pieces.find(p => p.id === this.hoverPieceId)) {
+            // clicked on piece when another piece was selected
+            this.selectedPieceId = this.hoverPieceId;
+            this.hoverPieceId = null;
+        } else {
+            // clicked on target
+            const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
+            this.selectedTargetId = piece.targets.findIndex(p => p.id === this.hoverPieceId);
+            if (!confirmMove || this.hive.gameOver) {
+                this.confirm(true, mouseUp);
             }
         }
     }
