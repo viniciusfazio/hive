@@ -162,7 +162,7 @@ export default class Board {
         return ret;
     }
     // noinspection JSUnusedLocalSymbols
-    play(to, p, moveSteps = null, callbackMove = (piece, extraPieceMoving) => {}) {
+    play(to, p, moveSteps = [], callbackMove = (piece, extraPieceMoving) => {}) {
         callbackMove(p, false);
         const [fromX, fromY, fromZ] = [p.x, p.y, p.z];
         const [toX, toY, toZ] = to;
@@ -182,15 +182,15 @@ export default class Board {
             // centipede special move
             const p2 = this.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
             callbackMove(p2, true);
-            p2.play(fromX, fromY, 0, moveSteps === null ? null : [[p2.x, p2.y, p2.z], [toX, toY, 0], [fromX, fromY, 0]]);
-            p.play(toX, toY, 0, moveSteps === null ? null : [[p.x, p.y, p.z], [toX, toY, 1], [toX, toY, 0]]);
+            p2.play(fromX, fromY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [fromX, fromY, 0]]);
+            p.play(toX, toY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [toX, toY, 0]]);
         } else {
             callbackMove(p, false);
             p.play(toX, toY, toZ, moveSteps);
         }
     }
     // noinspection JSUnusedLocalSymbols
-    playBack(from, p, moveSteps, callbackMove) {
+    playBack(from, p, moveSteps = [], callbackMove = (piece, extraPieceMoving) => {}) {
         const [fromX, fromY, fromZ] = from;
         const [toX, toY, toZ] = [p.x, p.y, p.z];
         callbackMove(p, false);

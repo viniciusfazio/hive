@@ -5,7 +5,7 @@ import Board from "./board.js";
 
 export default class Piece {
     // variable
-    moveSteps = null;
+    moveSteps = [];
     x;
     y;
     inGame;
@@ -32,10 +32,10 @@ export default class Piece {
             this.id = id;
         }
     }
-    clone(cloneTarget = false) {
+    clone() {
         const piece = new Piece(this.color, this.type, this.number, this.subNumber, this.id);
         [piece.x, piece.y, piece.z, piece.inGame] = [this.x, this.y, this.z, this.inGame];
-        piece.targets = cloneTarget ? this.targets.map(t => t.clone()) : [];
+        piece.targets = [];
         return piece;
     }
     insertTarget(x, y, z, moveSteps = []) {
@@ -59,15 +59,13 @@ export default class Piece {
         this.targets = [];
     }
     play(x, y, z, moveSteps = []) {
-        if (moveSteps !== null && moveSteps.length === 0) {
+        if (moveSteps.length === 0) {
             moveSteps =  [[this.x, this.y, this.z], [x, y, z]];
         }
         this.x = x;
         this.y = y;
         this.z = z;
-        if (moveSteps !== null) {
-            this.moveSteps = moveSteps.map(xyz => [...xyz]);
-        }
+        this.moveSteps = moveSteps.map(xyz => [...xyz]);
         this.inGame = x !== null;
         this.targets = [];
     }

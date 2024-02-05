@@ -279,7 +279,6 @@ export default class HiveCanvas {
                 "black player: " + this.blackPlayer.constructor.name,
                 "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
                 "ai iter.: " + (aiPlayer === null ? "-" : aiPlayer.iterations),
-                "ai stack: " + (aiPlayer === null ? "-" : aiPlayer.stackSize),
                 "ai IPS.: " + (aiPlayer === null ? "-" : aiPlayer.getIterationsPerSecond()),
                 "fps: " + this.#framesPerSecond,
             ];
@@ -733,7 +732,7 @@ export default class HiveCanvas {
     }
     #playRound(dragging = false, confirming = false, forcePlayerPlaying = false) {
         const moveList = this.getMoveList();
-        this.#goTo(this.board, moveList.moves.length + 1, (p, extraPieceMoving) => {
+        this.#goTo(moveList.moves.length + 1, (p, extraPieceMoving) => {
             if (!confirming && (extraPieceMoving || !dragging)) {
                 p.transition = 1;
             }
@@ -894,7 +893,7 @@ export default class HiveCanvas {
             this.#playRound();
         }
     }
-    #goTo(board, round, callbackMove, moveListId) {
+    #goTo(round, callbackMove, moveListId) {
         this.#canvasPlayer.reset();
         if (this.currentMoveListId === moveListId) {
             // same list
@@ -974,7 +973,7 @@ export default class HiveCanvas {
         this.board.round++;
     }
     setRound(round, moveListId) {
-        this.#goTo(this.board, round, (p, ) => p.transition = 1, moveListId);
+        this.#goTo(round, (p, ) => p.transition = 1, moveListId);
         this.#initRound();
     }
     #initRound(forcePlayerPlaying = false) {
