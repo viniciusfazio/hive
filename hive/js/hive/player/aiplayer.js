@@ -198,12 +198,26 @@ const priority = [
     PieceType.spider.id,
 ];
 function getMoves(board) {
-
     let moves = [];
+    const colorId = board.getColorPlaying();
+    const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id !== colorId);
+    let queenZone = [];
+    if (queen) {
+        queenZone = Board.coordsAround(queen.x, queen.y).map(([x, y]) => x * 1000000 + y);
+        queenZone.push(queen.x * 1000000 + queen.y);
+    }
     board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p])));
     moves.sort((a, b) => {
-        const [, , p1] = a;
-        const [, , p2] = b;
+        const [, to1, p1] = a;
+        const [, to2, p2] = b;
+        const p1Queen = queenZone.includes(to1[0] * 1000000 + to1[1]);
+        const p2Queen = queenZone.includes(to2[0] * 1000000 + to2[1]);
+        if (p1Queen && !p2Queen) {
+            return -1;
+        }
+        if (p2Queen && !p1Queen) {
+            return 1;
+        }
         return priority.indexOf(p1.type.id) - priority.indexOf(p2.type.id);
     })
     return moves;
