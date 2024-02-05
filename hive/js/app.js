@@ -292,8 +292,8 @@ function newGame() {
     const [totalTime, increment] = getTime();
     hive.newGame(
         color,
-        color.id === PieceColor.white.id ? canvasPlayer : new AIPlayer(hive),
-        color.id === PieceColor.black.id ? canvasPlayer : new AIPlayer(hive),
+        canvasPlayer, //color.id === PieceColor.white.id ? canvasPlayer : new AIPlayer(hive),
+        canvasPlayer, //color.id === PieceColor.black.id ? canvasPlayer : new AIPlayer(hive),
         totalTime, increment, standardRules);
 }
 function getTime() {
