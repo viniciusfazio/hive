@@ -10,9 +10,6 @@ export default class OnlinePlayer extends Player {
     #challenge;
     #pingSendTime;
     ping = 0;
-    constructor(hive) {
-        super(hive);
-    }
     initPlayerTurn() {
         const moveList = this.hive.getMoveList();
         if (this.#conn && moveList.moves.length > 0) {

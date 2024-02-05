@@ -1,29 +1,18 @@
 import Piece, {PieceColor, PieceType} from "./piece.js"
-class Board {
+export default class Board {
     round;
-    pieces;
-    allPieces;
     lastMovedPiecesId;
-    passRound;
+    #standardRules;
+    allPieces;
 
+    pieces;
     inGame;
     inGameTopPieces;
     #sameColorInGameTopPieces;
-
-    #standardRules;
+    passRound;
 
     constructor(board = null) {
-        if (board) {
-            this.round = board.round;
-            this.lastMovedPiecesId = [...board.lastMovedPiecesId];
-            this.passRound = board.passRound;
-            this.allPieces = board.allPieces.map(piece => {
-                const p = {...piece};
-                // noinspection JSPrimitiveTypeWrapperUsage
-                p.targets = [];
-                return p;
-            });
-        } else {
+        if (board === null) {
             this.allPieces = [];
             for (const keyColor in PieceColor) {
                 for (const keyType in PieceType) {
@@ -34,6 +23,11 @@ class Board {
                 }
             }
             this.reset(true);
+        } else {
+            this.round = board.round;
+            this.lastMovedPiecesId = [...board.lastMovedPiecesId];
+            this.#standardRules = board.#standardRules;
+            this.allPieces = board.allPieces.map(p => p.clone());
         }
     }
     reset(standardRules) {
@@ -70,7 +64,9 @@ class Board {
     );
     }
     computeLegalMoves(canMove) {
-        this.pieces.forEach(p => p.targets = []);
+        if (this.pieces) {
+            this.pieces.forEach(p => p.targets = []);
+        }
         this.#computePieces();
         this.inGame = this.pieces.filter(p => p.inGame);
         this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
@@ -95,7 +91,7 @@ class Board {
         let total = 0;
         this.#sameColorInGameTopPieces.forEach(p => {
             if (!this.lastMovedPiecesId.includes(p.id)) {
-                p.type.play(this, p, this.#standardRules);
+                p.type.moves(this, p, this.#standardRules);
                 total += p.targets.length;
             }
         });
@@ -165,6 +161,61 @@ class Board {
         });
         return ret;
     }
+    // noinspection JSUnusedLocalSymbols
+    play(to, p, moveSteps = null, callbackMove = (piece, extraPieceMoving) => {}) {
+        callbackMove(p, false);
+        const [fromX, fromY, fromZ] = [p.x, p.y, p.z];
+        const [toX, toY, toZ] = to;
+        if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
+            // mantis special move
+            const p2 = this.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
+            callbackMove(p2, true);
+            p2.play(fromX, fromY, 0);
+            p.play(fromX, fromY, 1);
+        } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
+            // dragonfly special move
+            const p2 = this.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
+            callbackMove(p2, true);
+            p2.play(toX, toY, 0);
+            p.play(toX, toY, 1);
+        } else if (fromX !== null && fromY !== null && p.type.id === PieceType.centipede.id && toZ > 0) {
+            // centipede special move
+            const p2 = this.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
+            callbackMove(p2, true);
+            p2.play(fromX, fromY, 0, moveSteps === null ? null : [[p2.x, p2.y, p2.z], [toX, toY, 0], [fromX, fromY, 0]]);
+            p.play(toX, toY, 0, moveSteps === null ? null : [[p.x, p.y, p.z], [toX, toY, 1], [toX, toY, 0]]);
+        } else {
+            callbackMove(p, false);
+            p.play(toX, toY, toZ, moveSteps);
+        }
+    }
+    // noinspection JSUnusedLocalSymbols
+    playBack(from, p, moveSteps, callbackMove) {
+        const [fromX, fromY, fromZ] = from;
+        const [toX, toY, toZ] = [p.x, p.y, p.z];
+        callbackMove(p, false);
+        if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
+            // mantis special move
+            const p2 = this.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
+            callbackMove(p2, true);
+            p2.play(toX, toY, 0);
+            p.play(fromX, fromY, 0);
+        } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
+            // dragonfly special move
+            const p2 = this.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === p.z - 1);
+            callbackMove(p2, true);
+            p2.play(fromX, fromY, fromZ - 1);
+            p.play(fromX, fromY, fromZ);
+        } else if (p.type.id === PieceType.centipede.id && toZ > 0) {
+            // centipede special move
+            const p2 = this.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
+            callbackMove(p2, true);
+            p2.play(toX, toY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [toX, toY, 0]]);
+            p.play(fromX, fromY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [fromX, fromY, 0]]);
+        } else {
+            p.play(fromX, fromY, fromZ, moveSteps.toReversed());
+        }
+    }
     static coordsAround(x, y) {
         return [
             [x + 2, y + 0],
@@ -184,4 +235,3 @@ class Board {
     }
 
 }
-export default Board;

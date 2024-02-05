@@ -5,7 +5,7 @@ import Board from "./board.js";
 
 export default class Piece {
     // variable
-    moveSteps;
+    moveSteps = null;
     x;
     y;
     inGame;
@@ -19,14 +19,24 @@ export default class Piece {
     subNumber;
     id;
 
-    constructor(color, type, number, subNumber = 0) {
+    constructor(color, type, number, subNumber = 0, id = null) {
         this.color = color;
         this.type = type;
         this.number = number;
         this.subNumber = subNumber;
-        this.id = this.color.id + this.type.id + (this.number > 0 ? this.number : "")
-                                               + (this.subNumber > 0 ? "-" + this.subNumber : "");
-        this.reset();
+        if (id === null) {
+            this.id = this.color.id + this.type.id + (this.number > 0 ? this.number : "")
+                                                   + (this.subNumber > 0 ? "-" + this.subNumber : "");
+            this.reset();
+        } else {
+            this.id = id;
+        }
+    }
+    clone(cloneTarget = false) {
+        const piece = new Piece(this.color, this.type, this.number, this.subNumber, this.id);
+        [piece.x, piece.y, piece.z, piece.inGame] = [this.x, this.y, this.z, this.inGame];
+        piece.targets = cloneTarget ? this.targets.map(t => t.clone()) : [];
+        return piece;
     }
     insertTarget(x, y, z, moveSteps = []) {
         const piece = new Piece(this.color, this.type, this.number, this.targets.length + 1);
@@ -49,13 +59,15 @@ export default class Piece {
         this.targets = [];
     }
     play(x, y, z, moveSteps = []) {
-        if (moveSteps.length === 0) {
+        if (moveSteps !== null && moveSteps.length === 0) {
             moveSteps =  [[this.x, this.y, this.z], [x, y, z]];
         }
         this.x = x;
         this.y = y;
         this.z = z;
-        this.moveSteps = moveSteps.map(xyz => [...xyz]);
+        if (moveSteps !== null) {
+            this.moveSteps = moveSteps.map(xyz => [...xyz]);
+        }
         this.inGame = x !== null;
         this.targets = [];
     }
@@ -179,11 +191,11 @@ export const PieceType = Object.freeze({
         qty: 1,
         linked: null,
         standard: true,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            move1(board, piece);
+            move1Around(board, piece);
         },
     }),
     beetle: Object.freeze({
@@ -191,16 +203,11 @@ export const PieceType = Object.freeze({
         qty: 2,
         linked: "mantis",
         standard: true,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
-                const canMoveOver = !board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id === PieceType.scorpion.id);
-                if (canMoveOver && onHiveAndNoGate(piece.z, z, z1, z2)) {
-                    piece.insertTarget(x, y, z + 1);
-                }
-            });
+            move1(board, piece);
         },
     }),
     grasshopper: Object.freeze({
@@ -208,7 +215,7 @@ export const PieceType = Object.freeze({
         qty: 3,
         linked: "fly",
         standard: true,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -220,7 +227,7 @@ export const PieceType = Object.freeze({
         qty: 2,
         linked: "scorpion",
         standard: true,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -235,7 +242,7 @@ export const PieceType = Object.freeze({
         qty: 3,
         linked: "wasp",
         standard: true,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -248,7 +255,7 @@ export const PieceType = Object.freeze({
         qty: 1,
         linked: "cockroach",
         standard: true,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -260,14 +267,17 @@ export const PieceType = Object.freeze({
         qty: 1,
         linked: "dragonfly",
         standard: true,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (piece.z > 0) {
-                PieceType.beetle.play(board, piece, standard);
+                if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                    return;
+                }
+                move1(board, piece);
             } else {
                 Board.coordsAround(piece.x, piece.y).forEach(([x, y]) => {
                     const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
                     if (p && p.type.id !== PieceType.mosquito.id) {
-                        p.type.play(board, piece, standard);
+                        p.type.moves(board, piece, standard);
                     }
                 });
             }
@@ -278,9 +288,9 @@ export const PieceType = Object.freeze({
         qty: 1,
         linked: "centipede",
         standard: true,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
-                move1(board, piece);
+                move1Around(board, piece);
             }
             // move preys
             if (standard || piece.type.id !== PieceType.mosquito.id) {
@@ -315,9 +325,12 @@ export const PieceType = Object.freeze({
         qty: 2,
         linked: "beetle",
         standard: false,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (piece.z > 0) {
-                PieceType.beetle.play(board, piece, standard);
+                if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                    return;
+                }
+                move1(board, piece);
             } else if (piece.type.id !== PieceType.mosquito.id) {
                 coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
                     const hasSpace = z === 0 && (z1 < 0 || z2 < 0);
@@ -335,11 +348,11 @@ export const PieceType = Object.freeze({
         qty: 3,
         linked: "grasshopper",
         standard: false,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            if (move1(board, piece) === 0) {
+            if (move1Around(board, piece) === 0) {
                 fly(board, piece);
             }
         }
@@ -349,7 +362,7 @@ export const PieceType = Object.freeze({
         qty: 2,
         linked: "spider",
         standard: false,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -361,7 +374,7 @@ export const PieceType = Object.freeze({
         qty: 3,
         linked: "ant",
         standard: false,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -374,7 +387,7 @@ export const PieceType = Object.freeze({
         qty: 1,
         linked: "ladybug",
         standard: false,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -386,7 +399,7 @@ export const PieceType = Object.freeze({
         qty: 1,
         linked: "mosquito",
         standard: false,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -425,11 +438,11 @@ export const PieceType = Object.freeze({
         qty: 1,
         linked: "pillBug",
         standard: false,
-        play: (board, piece, standard) => {
+        moves: (board, piece, standard) => {
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            move1(board, piece);
+            move1Around(board, piece);
             if (piece.type.id === PieceType.mosquito.id) {
                 return;
             }
@@ -446,7 +459,7 @@ export const PieceType = Object.freeze({
         }
     }),
 });
-function move1(board, piece) {
+function move1Around(board, piece) {
     let qty = 0;
     coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
         const noPiece = z < 0;
@@ -456,6 +469,15 @@ function move1(board, piece) {
         }
     });
     return qty;
+}
+function move1(board, piece) {
+    coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+        const canMoveOver = !board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id === PieceType.scorpion.id);
+        if (canMoveOver && onHiveAndNoGate(piece.z, z, z1, z2)) {
+            piece.insertTarget(x, y, z + 1);
+        }
+    });
+
 }
 function moveAround(board, piece, n = null, colorId = null) {
     let paths = [[[piece.x, piece.y, 0]]];

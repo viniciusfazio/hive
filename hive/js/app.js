@@ -2,6 +2,7 @@ import HiveCanvas from "./hive/hivecanvas.js";
 import CanvasPlayer from "./hive/player/canvasplayer.js";
 import {PieceColor} from "./hive/core/piece.js";
 import OnlinePlayer from "./hive/player/onlineplayer.js";
+import AIPlayer from "./hive/player/aiplayer.js";
 
 const SHORT_ON_TIME = 20; // time to be short on time, in s
 
@@ -289,7 +290,11 @@ function newGame() {
     const color = piece === "b" || piece !== "w" && Math.random() < .5 ? PieceColor.black : PieceColor.white;
     const standardRules = !$('#alternativeRules').prop('checked');
     const [totalTime, increment] = getTime();
-    hive.newGame(color, canvasPlayer, canvasPlayer, totalTime, increment, standardRules);
+    hive.newGame(
+        color,
+        color.id === PieceColor.white.id ? canvasPlayer : new AIPlayer(hive),
+        color.id === PieceColor.black.id ? canvasPlayer : new AIPlayer(hive),
+        totalTime, increment, standardRules);
 }
 function getTime() {
     let totalTimeVal = $("#totalTime").val();

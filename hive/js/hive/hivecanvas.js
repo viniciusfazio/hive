@@ -3,6 +3,7 @@ import Piece, {PieceColor, PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
 import OnlinePlayer from "./player/onlineplayer.js";
+import AIPlayer from "./player/aiplayer.js";
 
 const CAMERA_SPEED = .2;   // between 0 and 1, higher is faster
 const PIECE_SPEED = .15;   // between 0 and 1, higher is faster
@@ -59,8 +60,7 @@ export default class HiveCanvas {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
         this.#canvasPlayer = canvasPlayer;
-        this.newGame(PieceColor.white, canvasPlayer, canvasPlayer, 0, 0, true);
-        this.gameOver = true;
+        this.newGame(PieceColor.white, canvasPlayer, new AIPlayer(this), 0, 0, true);
         this.#FPSUpdateTime = Date.now();
         this.#update();
         this.#redraw();
@@ -260,18 +260,27 @@ export default class HiveCanvas {
             } else if (this.blackPlayer instanceof OnlinePlayer) {
                 onlinePlayer = this.blackPlayer;
             }
+            let aiPlayer = null;
+            if (this.whitePlayer instanceof AIPlayer) {
+                aiPlayer = this.whitePlayer;
+            } else if (this.blackPlayer instanceof AIPlayer) {
+                aiPlayer = this.blackPlayer;
+            }
             let text = [
                 "hover: " + this.#canvasPlayer.hoverPieceId,
                 "selected: " + this.#canvasPlayer.selectedPieceId,
                 "target: " + this.#canvasPlayer.selectedTargetId,
-                "mouse: " + this.#canvasPlayer.mouseX + "," + this.#canvasPlayer.mouseY,
-                "canvas: " + this.canvas.width + " x " + this.canvas.height + " : " + window.devicePixelRatio,
+                "mouse: " + Math.round(this.#canvasPlayer.mouseX) + "," + Math.round(this.#canvasPlayer.mouseY),
+                "canvas: " + this.canvas.width + " x " + this.canvas.height + " : " + Math.round(window.devicePixelRatio * 100) / 100,
                 "time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
                 "round: " + this.board.round + " / " + moveList.moves.length,
                 "moves available: " + totalMoves,
                 "white player: " + this.whitePlayer.constructor.name,
                 "black player: " + this.blackPlayer.constructor.name,
                 "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
+                "ai iter.: " + (aiPlayer === null ? "-" : aiPlayer.iterations),
+                "ai stack: " + (aiPlayer === null ? "-" : aiPlayer.stackSize),
+                "ai IPS.: " + (aiPlayer === null ? "-" : aiPlayer.getIterationsPerSecond()),
                 "fps: " + this.#framesPerSecond,
             ];
             const fh = Math.ceil(26 * this.canvas.width / 1000);
@@ -949,31 +958,7 @@ export default class HiveCanvas {
             const move = moveList.moves[this.board.round - 1];
             if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
-                callbackMove(p, false);
-                const [fromX, fromY, fromZ] = move.moveSteps[0];
-                const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
-                if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
-                    // mantis special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
-                    callbackMove(p2, true);
-                    p2.play(fromX, fromY, 0);
-                    p.play(fromX, fromY, 1);
-                } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
-                    // dragonfly special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
-                    callbackMove(p2, true);
-                    p2.play(toX, toY, 0);
-                    p.play(toX, toY, 1);
-                } else if (fromX !== null && fromY !== null && p.type.id === PieceType.centipede.id && toZ > 0) {
-                    // centipede special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
-                    callbackMove(p2, true);
-                    p2.play(fromX, fromY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [fromX, fromY, 0]]);
-                    p.play(toX, toY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [toX, toY, 0]]);
-                } else {
-                    callbackMove(p, false);
-                    p.play(toX, toY, toZ, move.moveSteps);
-                }
+                this.board.play(move.moveSteps[move.moveSteps.length - 1], p, move.moveSteps, callbackMove);
             }
         }
     }
@@ -983,30 +968,7 @@ export default class HiveCanvas {
             const move = moveList.moves[this.board.round - 1];
             if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
-                callbackMove(p, false);
-                const [fromX, fromY, fromZ] = move.moveSteps[0];
-                const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
-                if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
-                    // mantis special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
-                    callbackMove(p2, true);
-                    p2.play(toX, toY, 0);
-                    p.play(fromX, fromY, 0);
-                } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
-                    // dragonfly special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === p.z - 1);
-                    callbackMove(p2, true);
-                    p2.play(fromX, fromY, fromZ - 1);
-                    p.play(fromX, fromY, fromZ);
-                } else if (p.type.id === PieceType.centipede.id && toZ > 0) {
-                    // centipede special move
-                    const p2 = this.board.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
-                    callbackMove(p2, true);
-                    p2.play(toX, toY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [toX, toY, 0]]);
-                    p.play(fromX, fromY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [fromX, fromY, 0]]);
-                } else {
-                    p.play(fromX, fromY, fromZ, move.moveSteps.toReversed());
-                }
+                this.board.playBack(move.moveSteps[0], p, move.moveSteps, callbackMove);
             }
         }
         this.board.round++;
