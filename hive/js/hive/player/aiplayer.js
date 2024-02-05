@@ -170,9 +170,42 @@ class MinimaxData {
         }
     }
 }
+const priority = [
+    PieceType.queen.id,
+
+    PieceType.beetle.id,
+
+    PieceType.ant.id,
+
+    PieceType.ladybug.id,
+    PieceType.cockroach.id,
+
+    PieceType.mosquito.id,
+    PieceType.dragonfly.id,
+
+    PieceType.fly.id,
+
+    PieceType.scorpion.id,
+
+    PieceType.pillBug.id,
+    PieceType.centipede.id,
+
+    PieceType.wasp.id,
+
+    PieceType.mantis.id,
+    PieceType.grasshopper.id,
+
+    PieceType.spider.id,
+];
 function getMoves(board) {
+
     let moves = [];
     board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p])));
+    moves.sort((a, b) => {
+        const [, , p1] = a;
+        const [, , p2] = b;
+        return priority.indexOf(p1.type.id) - priority.indexOf(p2.type.id);
+    })
     return moves;
 }
 function queenEval(board, colorId, otherColorId) {
