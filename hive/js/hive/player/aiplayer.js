@@ -3,7 +3,7 @@ import Board from "../core/board.js";
 import {PieceColor, PieceType} from "../core/piece.js";
 
 const MAX_PIECE_INDEX = 9999;
-const ITERATION_STEP = 200;
+const ITERATION_STEP = 500;
 
 export default class AIPlayer extends Player {
     #initTurnTime;
@@ -23,14 +23,16 @@ export default class AIPlayer extends Player {
             return;
         }
         // minimax
-        this.#run(this.#alphaBeta(3));
+        this.#run(this.#alphaBeta(4));
     }
     #run(generator) {
         const ret = generator.next();
         if (ret.done) {
             this.#running = false;
-            const [pieceId, target] = ret.value;
+            const [pieceId, targetCoords] = ret.value;
+            const [tx, ty, tz] = targetCoords;
             const piece = this.hive.board.pieces.find(p => p.id === pieceId);
+            const target = piece.targets.find(t => t.x === tx && t.y === ty && t.z === tz);
             this.hive.play(piece, target);
         } else {
             setTimeout(() => this.#run(generator), 10);
@@ -49,9 +51,7 @@ export default class AIPlayer extends Player {
 
         let chosenPiece = null;
         let chosenTarget = null;
-        const rootData = new MinimaxData(getMoves(board));
-        rootData.depth = maxDepth;
-        let stack = [rootData];
+        let stack = [new MinimaxData(getMoves(board))];
 
         this.#initTurnTime = Date.now();
         this.#running = true;
@@ -60,29 +60,22 @@ export default class AIPlayer extends Player {
                 yield;
             }
             const data = stack[stack.length - 1];
-            if (data.depth === 0) { // leaf node (depth 0), evaluate
+            if (stack.length > maxDepth) { // leaf node (max depth), evaluate
                 data.evaluation = this.evaluate(board, colorId);
                 data.moveId = MAX_PIECE_INDEX;
-            } else if (board.passRound) { // node with only 1 branch
-                board.round++;
-                board.computeLegalMoves(true);
-                stack.push(new MinimaxData(getMoves(board), data, true));
-                continue;
-            } else if (data.moves.length === 0) { // leaf node (terminal), evaluate
+            } else if (data.moves.length === 0) { // leaf node (terminal) or pass round
                 const queenDead = board.isQueenDead(colorId);
                 const queenDefeated = board.isQueenDead(colorId === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id);
                 if (queenDead && queenDefeated) {
                     data.evaluation = 0;
                 } else if (queenDead) {
-                    data.evaluation = -999999;
+                    data.evaluation = -999999999;
                 } else if (queenDefeated) {
-                    data.evaluation = 999999;
-                } else {
-                    console.trace();
-                    throw new Error('Invalid state');
+                    data.evaluation = 999999999;
                 }
+                data.moveId = MAX_PIECE_INDEX;
             }
-            if (++data.moveId >= data.moves.length) { // no more node to open
+            if (++data.moveId >= data.moves.length && data.evaluation !== null) { // no more node to open
                 if (stack.length === 1) { // ended
                     if (chosenPiece === null || chosenTarget === null) {
                         console.trace();
@@ -96,8 +89,8 @@ export default class AIPlayer extends Player {
                 if (parent.maximizing) {
                     if (parent.evaluation === null || data.evaluation > parent.evaluation) {
                         parent.evaluation = data.evaluation;
-                        if (parent.depth === maxDepth) {
-                            [, , chosenPiece, chosenTarget] = parent.moves[parent.moveId];
+                        if (stack.length === 2) {
+                            [, chosenTarget, chosenPiece] = parent.moves[parent.moveId];
                         }
                         if (parent.alpha === null || parent.evaluation > parent.alpha) {
                             parent.alpha = parent.evaluation;
@@ -118,14 +111,11 @@ export default class AIPlayer extends Player {
                     }
                 }
                 // move back
-                stack.pop();
-                if (!parent.pass) {
-                    if (!parent || !parent.moves) {
-                        console.log(parent);
-                    }
-                    const [from, , p, ] = parent.moves[parent.moveId];
+                if (parent.moves.length > 0) {
+                    const [from, , p] = parent.moves[parent.moveId];
                     board.playBack(from, p);
                 }
+                stack.pop();
                 board.round--;
                 // skip if pruned
                 if (ended) {
@@ -134,49 +124,46 @@ export default class AIPlayer extends Player {
                 continue;
             }
             // move
-            const [, to, p, ] = data.moves[data.moveId];
-            board.play(to, p);
+            if (data.moves.length > 0) {
+                const [, to, p] = data.moves[data.moveId];
+                board.play(to, p);
+            }
             board.round++;
             board.computeLegalMoves(true);
-            let newData = new MinimaxData(getMoves(board), data);
-            stack.push(newData);
+            stack.push(new MinimaxData(getMoves(board), data));
         }
         console.trace();
         throw new Error('Invalid end loop');
     }
 
     evaluate(board, colorId) {
-        let otherColor = PieceColor.white.id === colorId ? PieceColor.black.id : PieceColor.white.id;
-        let evaluation = 10000 * (queenEval(board, colorId) - queenEval(board, otherColor));
-        const totalMoves = board.pieces.reduce((total, p) => total + p.targets.length, 0);
-        const stuck = board.pieces.filter(p => p.inGame && p.color.id === colorId && p.targets.length === 0).length;
+        let otherColorId = PieceColor.white.id === colorId ? PieceColor.black.id : PieceColor.white.id;
+        let evaluation = 10000 * (queenEval(board, colorId, otherColorId) - queenEval(board, otherColorId, colorId));
+        const totalMoves = board.inGameTopPieces.reduce((total, p) => total + p.targets.length, 0);
         if (board.getColorPlaying().id === colorId) {
-            evaluation += totalMoves - 100 * stuck;
+            evaluation += totalMoves;
         } else {
-            evaluation -= totalMoves - 100 * stuck;
+            evaluation -= totalMoves;
         }
 
         return evaluation;
+
     }
 
 
 }
 class MinimaxData {
     moves;
-    depth;
     evaluation;
     moveId;
     alpha = null;
     beta = null;
     maximizing = true;
-    pass = false;
-    constructor(moves, data = null, pass = false) {
+    constructor(moves, data = null) {
         this.moves = moves;
         this.evaluation = null;
         this.moveId = -1;
-        this.pass = pass;
         if (data !== null) {
-            this.depth = data.depth - 1;
             this.alpha = data.alpha;
             this.beta = data.beta;
             this.maximizing = !data.maximizing;
@@ -185,21 +172,18 @@ class MinimaxData {
 }
 function getMoves(board) {
     let moves = [];
-    board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
+    board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p])));
     return moves;
 }
-function queenEval(board, color) {
-    const queen = board.pieces.find(p =>
-        p.inGame &&
-        p.type.id === PieceType.queen.id &&
-        p.color.id === color
-    );
+function queenEval(board, colorId, otherColorId) {
+    const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
     if (!queen) {
         return 6;
     }
-    let qtdEmpty = Board.coordsAround(queen.x, queen.y).filter(([x, y]) => !board.inGameTopPieces.find(p => p.x === x && p.y === y)).length;
-    if (!board.inGameTopPieces.find(p => p.id === queen.id)) {
-        qtdEmpty -= 2;
+    let qtdEmpty = Board.coordsAround(queen.x, queen.y).reduce((qtd, [x, y]) =>
+        qtd + (board.inGameTopPieces.find(p => p.x === x && p.y === y && p.color.id === otherColorId) ? 0 : 1), 0);
+    if (board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id === otherColorId)) {
+        qtdEmpty -= 3;
     }
     return qtdEmpty;
 
