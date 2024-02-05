@@ -10,6 +10,7 @@ export default class Piece {
     y;
     inGame;
     targets;
+    targetsB;
     z;
 
     // constant
@@ -36,6 +37,7 @@ export default class Piece {
         const piece = new Piece(this.color, this.type, this.number, this.subNumber, this.id);
         [piece.x, piece.y, piece.z, piece.inGame] = [this.x, this.y, this.z, this.inGame];
         piece.targets = [];
+        piece.targetsB = [];
         return piece;
     }
     insertTarget(x, y, z, moveSteps = []) {
@@ -57,6 +59,7 @@ export default class Piece {
         this.moveSteps = [[this.x, this.y, this.z]];
         this.inGame = false;
         this.targets = [];
+        this.targetsB = [];
     }
     play(x, y, z, moveSteps = []) {
         if (moveSteps.length === 0) {
@@ -68,6 +71,7 @@ export default class Piece {
         this.moveSteps = moveSteps.map(xyz => [...xyz]);
         this.inGame = x !== null;
         this.targets = [];
+        this.targetsB = [];
     }
     static parse(p, standardRules) {
         if (p.length < 2 || p.length > 3) {

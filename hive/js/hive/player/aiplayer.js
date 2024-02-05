@@ -3,7 +3,7 @@ import Board from "../core/board.js";
 import {PieceColor, PieceType} from "../core/piece.js";
 
 const MAX_PIECE_INDEX = 9999;
-const ITERATION_STEP = 500;
+const ITERATION_STEP = 250;
 
 export default class AIPlayer extends Player {
     #initTurnTime;
@@ -47,7 +47,7 @@ export default class AIPlayer extends Player {
     *#alphaBeta(maxDepth) {
         const colorId = this.hive.board.getColorPlaying().id;
         const board = new Board(this.hive.board);
-        board.computeLegalMoves(true);
+        board.computeLegalMoves(true, true);
 
         let chosenPiece = null;
         let chosenTarget = null;
@@ -129,7 +129,7 @@ export default class AIPlayer extends Player {
                 board.play(to, p);
             }
             board.round++;
-            board.computeLegalMoves(true);
+            board.computeLegalMoves(true, true);
             stack.push(new MinimaxData(getMoves(board), data));
         }
         console.trace();
@@ -138,16 +138,7 @@ export default class AIPlayer extends Player {
 
     evaluate(board, colorId) {
         let otherColorId = PieceColor.white.id === colorId ? PieceColor.black.id : PieceColor.white.id;
-        let evaluation = 10000 * (queenEval(board, colorId, otherColorId) - queenEval(board, otherColorId, colorId));
-        const totalMoves = board.inGameTopPieces.reduce((total, p) => total + p.targets.length, 0);
-        if (board.getColorPlaying().id === colorId) {
-            evaluation += totalMoves;
-        } else {
-            evaluation -= totalMoves;
-        }
-
-        return evaluation;
-
+        return queenEval(board, colorId) - queenEval(board, otherColorId);
     }
 
 
@@ -170,68 +161,90 @@ class MinimaxData {
         }
     }
 }
-const priority = [
+const PRIORITY = [
     PieceType.queen.id,
-
     PieceType.beetle.id,
-
-    PieceType.ant.id,
-
     PieceType.ladybug.id,
     PieceType.cockroach.id,
-
     PieceType.mosquito.id,
     PieceType.dragonfly.id,
-
-    PieceType.fly.id,
-
+    PieceType.ant.id,
     PieceType.scorpion.id,
-
+    PieceType.fly.id,
     PieceType.pillBug.id,
-    PieceType.centipede.id,
-
     PieceType.wasp.id,
-
-    PieceType.mantis.id,
     PieceType.grasshopper.id,
-
+    PieceType.centipede.id,
+    PieceType.mantis.id,
     PieceType.spider.id,
 ];
 function getMoves(board) {
     let moves = [];
-    const colorId = board.getColorPlaying();
+    const colorId = board.getColorPlaying().id;
     const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id !== colorId);
-    let queenZone = [];
-    if (queen) {
-        queenZone = Board.coordsAround(queen.x, queen.y).map(([x, y]) => x * 1000000 + y);
-        queenZone.push(queen.x * 1000000 + queen.y);
-    }
+    const queenZone = queen ? Board.coordsAround(queen.x, queen.y, true) : [];
     board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p])));
+    const enemyZone = [];
+    board.inGameTopPieces.forEach(p => {
+        if (p.color.id !== colorId) {
+            Board.coordsAround(p.x, p.y, true).forEach(([ax, ay]) => {
+                if (!enemyZone.find(([ex, ey]) => ex === ax && ey === ay)) {
+                    enemyZone.push([ax, ay]);
+                }
+            });
+        }
+    });
     moves.sort((a, b) => {
         const [, to1, p1] = a;
         const [, to2, p2] = b;
-        const p1Queen = queenZone.includes(to1[0] * 1000000 + to1[1]);
-        const p2Queen = queenZone.includes(to2[0] * 1000000 + to2[1]);
+        const [x1, y1, ] = to1;
+        const [x2, y2, ] = to2;
+        const p1Queen = queenZone.find(([x, y]) => x === x1 && y === y1);
+        const p2Queen = queenZone.find(([x, y]) => x === x2 && y === y2);
         if (p1Queen && !p2Queen) {
             return -1;
         }
         if (p2Queen && !p1Queen) {
             return 1;
         }
-        return priority.indexOf(p1.type.id) - priority.indexOf(p2.type.id);
-    })
+        const touchEnemy1 = p1.inGame && enemyZone.find(([x, y]) => x === x1 && y === y1);
+        const touchEnemy2 = p2.inGame && enemyZone.find(([x, y]) => x === x2 && y === y2);
+        if (touchEnemy1 && !touchEnemy2) {
+            return -1;
+        }
+        if (touchEnemy2 && !touchEnemy1) {
+            return 1;
+        }
+        return PRIORITY.indexOf(p1.type.id) - PRIORITY.indexOf(p2.type.id);
+    });
     return moves;
 }
-function queenEval(board, colorId, otherColorId) {
+function queenEval(board, colorId) {
     const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
     if (!queen) {
-        return 6;
+        return 0;
     }
-    let qtdEmpty = Board.coordsAround(queen.x, queen.y).reduce((qtd, [x, y]) =>
-        qtd + (board.inGameTopPieces.find(p => p.x === x && p.y === y && p.color.id === otherColorId) ? 0 : 1), 0);
-    if (board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id === otherColorId)) {
-        qtdEmpty -= 3;
+    const evaluation = board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id !== queen.color.id) ? -1 : 0;
+    if (board.getColorPlaying().id === colorId) {
+        return Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) => {
+            if (board.inGameTopPieces.find(p => p.x === x && p.y === y)) {
+                return qty - 2;
+            }
+            if (board.inGameTopPieces.find(p => p.targetsB.find(t => t.x === x && t.y === y))) {
+                return qty - 1;
+            }
+            return qty;
+        }, evaluation);
+    } else {
+        return Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) => {
+            if (board.inGameTopPieces.find(p => p.x === x && p.y === y)) {
+                return qty - 2;
+            }
+            if (board.inGameTopPieces.find(p => p.targets.find(t => t.x === x && t.y === y))) {
+                return qty - 1;
+            }
+            return qty;
+        }, evaluation);
     }
-    return qtdEmpty;
 
 }

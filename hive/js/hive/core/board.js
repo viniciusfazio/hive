@@ -63,42 +63,58 @@ export default class Board {
             )
     );
     }
-    computeLegalMoves(canMove) {
+    computeLegalMoves(canMove, computeOtherSide = false) {
         if (this.pieces) {
-            this.pieces.forEach(p => p.targets = []);
+            this.pieces.forEach(p => {
+                p.targetsB = [];
+                p.targets = [];
+            });
         }
         this.#computePieces();
         this.inGame = this.pieces.filter(p => p.inGame);
         this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
-        const colorPlayingId = this.getColorPlaying().id;
-        this.#sameColorInGameTopPieces = this.inGameTopPieces.filter(p => p.color.id === colorPlayingId);
         this.passRound = false;
         if (this.isQueenDead(PieceColor.white.id) || this.isQueenDead(PieceColor.black.id)) {
             return;
         }
         if (canMove) {
+            if (computeOtherSide) {
+                this.#computePiecePlacements(true);
+                this.#computeMoves(true);
+                this.pieces.forEach(p => {
+                    p.targetsB = p.targets;
+                    p.targets = [];
+                });
+            }
             this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;
         }
     }
-    #computeMoves() {
+    #computeMoves(otherSide = false) {
+        let colorId = this.getColorPlaying().id;
+        if (otherSide) {
+            colorId = colorId === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
+        }
         // cant move if queen is not in game
         if (!this.pieces.find(p =>
             p.inGame && p.type.id === PieceType.queen.id &&
-            p.color.id === this.getColorPlaying().id
+            p.color.id === colorId
         )) {
             return 0;
         }
         let total = 0;
-        this.#sameColorInGameTopPieces.forEach(p => {
-            if (!this.lastMovedPiecesId.includes(p.id)) {
+        this.inGameTopPieces.forEach(p => {
+            if (p.color.id === colorId && !this.lastMovedPiecesId.includes(p.id)) {
                 p.type.moves(this, p, this.#standardRules);
                 total += p.targets.length;
             }
         });
         return total;
     }
-    #computePiecePlacements() {
-        const colorPlayingId = this.getColorPlaying().id;
+    #computePiecePlacements(otherSide = false) {
+        let colorPlayingId = this.getColorPlaying().id;
+        if (otherSide) {
+            colorPlayingId = colorPlayingId === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
+        }
         let hudTopPieces = this.pieces.filter(p => p.color.id === colorPlayingId && !p.inGame);
         hudTopPieces = hudTopPieces.filter(p => !hudTopPieces.find(p2 => p2.z > p.z && p2.type.id === p.type.id));
 
@@ -216,7 +232,18 @@ export default class Board {
             p.play(fromX, fromY, fromZ, moveSteps.toReversed());
         }
     }
-    static coordsAround(x, y) {
+    static coordsAround(x, y, includePoint = false) {
+        if (includePoint) {
+            return [
+                [x + 2, y + 0],
+                [x + 1, y + 1],
+                [x - 1, y + 1],
+                [x - 2, y + 0],
+                [x - 1, y - 1],
+                [x + 1, y - 1],
+                [x, y],
+            ];
+        }
         return [
             [x + 2, y + 0],
             [x + 1, y + 1],
