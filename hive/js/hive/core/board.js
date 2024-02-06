@@ -8,7 +8,6 @@ export default class Board {
     pieces;
     inGame;
     inGameTopPieces;
-    #sameColorInGameTopPieces;
     passRound;
 
     constructor(board = null) {
