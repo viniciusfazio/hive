@@ -489,9 +489,13 @@ function moveAround(board, piece, n = null, colorId = null) {
         paths.forEach(path => {
             const [stepX, stepY, stepZ] = path[path.length - 1];
             coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+                if (n === null && paths.find(path => path.find(([cx, cy, ]) => cx === x && cy === y))) {
+                    return;
+                } else if (path.find(([cx, cy, ]) => cx === x && cy === y)) {
+                    return;
+                }
                 const noPiece = z < 0;
-                const unexplored = !path.find(([cx, cy, ]) => cx === x && cy === y);
-                if (noPiece && unexplored && onHiveAndNoGate(stepZ, z, z1, z2)) {
+                if (noPiece && onHiveAndNoGate(stepZ, z, z1, z2)) {
                     // new step with no repetition
                     if (n === null || path.length < n) {
                         let newPath = [...path];
@@ -525,11 +529,15 @@ function moveOver(board, piece, n = null, colorId = null) {
         paths.forEach(path => {
             const [stepX, stepY, stepZ] = path[path.length - 1];
             coordsAroundWithNeighbor(board, stepX, stepY, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+                if (n === null && paths.find(path => path.find(([cx, cy, ]) => cx === x && cy === y))) {
+                    return;
+                } else if (path.find(([cx, cy, ]) => cx === x && cy === y)) {
+                    return;
+                }
                 const pBelow = board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id !== PieceType.scorpion.id);
                 const canGoUp = z >= 0 && pBelow && (colorId === null || pBelow.color.id === colorId);
                 const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
-                const unexplored = !path.find(([cx, cy, ]) => cx === x && cy === y);
-                if (unexplored && (canGoUp || canGoDown) && onHiveAndNoGate(stepZ, z, z1, z2)) {
+                if ((canGoUp || canGoDown) && onHiveAndNoGate(stepZ, z, z1, z2)) {
                     // new step with no repetition
                     if (canGoUp) {
                         let newPath = path.map(xyz => [...xyz]);
