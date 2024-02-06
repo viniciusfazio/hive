@@ -216,6 +216,11 @@ export default class HiveCanvas {
     }
     #drawPerformance() {
         let texts = [];
+        if (this.whitePlayer instanceof AIPlayer) {
+            texts.push("Ev: " + this.whitePlayer.evaluation);
+        } else if (this.blackPlayer instanceof AIPlayer) {
+            texts.push("Ev: " + (-1 * this.blackPlayer.evaluation));
+        }
         if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
             texts.push(this.#framesPerSecond + " FPS");
         }
@@ -280,7 +285,6 @@ export default class HiveCanvas {
                 "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
                 "ai iter.: " + (aiPlayer === null ? "-" : aiPlayer.iterations),
                 "ai IPS: " + (aiPlayer === null ? "-" : aiPlayer.getIterationsPerSecond()),
-                "ai eval: " + (aiPlayer === null ? "-" : aiPlayer.evaluation),
                 "fps: " + this.#framesPerSecond,
             ];
             const fh = Math.ceil(26 * this.canvas.width / 1000);

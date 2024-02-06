@@ -483,16 +483,12 @@ function move1(board, piece) {
 }
 function moveAround(board, piece, n = null, colorId = null) {
     let paths = [[[piece.x, piece.y, 0]]];
-    const allPath = [];
     while (paths.length > 0) {
         let newPaths = [];
-        for (const [path, fromX, fromY, fromZ, x, y, z, z1, z2] of moveAllPath(board, piece, paths, allPath)) {
+        for (const [path, fromX, fromY, fromZ, x, y, z, z1, z2] of moveAllPath(board, piece, paths)) {
             const noPiece = z < 0;
             if (noPiece && onHiveAndNoGate(fromZ, z, z1, z2)) {
                 // new step with no repetition
-                if (n === null) {
-                    allPath.push([x, y]);
-                }
                 if (n === null || path.length < n) {
                     let newPath = [...path];
                     newPath.push([x, y, 0]);
@@ -516,7 +512,7 @@ function fly(board, piece, colorId = null) {
         piece.insertTarget(x, y, 0, [[piece.x, piece.y, board.flyZ()]]);
     });
 }
-function *moveAllPath(board, piece, paths, allPath) {
+function *moveAllPath(board, piece, paths, allPath = []) {
     // test all paths possible
     const coords = [];
     for (const path of paths) {
