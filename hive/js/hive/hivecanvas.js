@@ -279,7 +279,8 @@ export default class HiveCanvas {
                 "black player: " + this.blackPlayer.constructor.name,
                 "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
                 "ai iter.: " + (aiPlayer === null ? "-" : aiPlayer.iterations),
-                "ai IPS.: " + (aiPlayer === null ? "-" : aiPlayer.getIterationsPerSecond()),
+                "ai IPS: " + (aiPlayer === null ? "-" : aiPlayer.getIterationsPerSecond()),
+                "ai eval: " + (aiPlayer === null ? "-" : aiPlayer.evaluation),
                 "fps: " + this.#framesPerSecond,
             ];
             const fh = Math.ceil(26 * this.canvas.width / 1000);
@@ -441,49 +442,68 @@ export default class HiveCanvas {
         const path = this.getPiecePath2D();
 
         // get targets to draw
-        let targets = [];
         const player = this.getPlayerPlaying();
         let selectedPieceId = this.#canvasPlayer.selectedPieceId;
         let selectedTargetId = this.#canvasPlayer.selectedTargetId;
         let hoverPieceId = this.#canvasPlayer.hoverPieceId;
-        const id = selectedPieceId ?? hoverPieceId;
-        if (id !== null) {
-            targets = this.board.pieces.find(p => p.id === id).targets;
-        }
-        // sort pieces to draw in correct order
         const dragId = player?.dragging ? player.selectedPieceId : null;
-        const targetPiece = this.#canvasPlayer.selectedPieceId === null || this.#canvasPlayer.selectedTargetId === null ? null :
-            this.board.pieces.find(p => p.id === this.#canvasPlayer.selectedPieceId).targets[this.#canvasPlayer.selectedTargetId];
+        if (this.board.round > this.getMoveList().moves.length && player instanceof AIPlayer && player.target !== null) {
+            const target = player.target;
+            const piece = this.board.pieces.find(p => p.id === player.pieceId);
+            selectedPieceId = piece.id;
+            selectedTargetId = piece.targets.findIndex(t => t.x === target.x && t.y === target.y && t.z === target.z);
+            hoverPieceId = piece.targets[selectedTargetId].id;
+        }
+        const targetPiece = selectedPieceId === null || selectedTargetId === null ? null :
+            this.board.pieces.find(p => p.id === selectedPieceId).targets[selectedTargetId];
 
-        let specialPieces = [];
+        const position = this.#getSpecialPiecesPosition(targetPiece, dragId, player);
+        this.#getPiecesToDraw(selectedPieceId, selectedTargetId, hoverPieceId, dragId)
+            .forEach(p => this.#drawPiece(p, path, selectedPieceId, selectedTargetId, hoverPieceId, targetPiece, position));
+
+        this.#drawBorderOverStackedQueen(path);
+    }
+    #getSpecialPiecesPosition(targetPiece, dragId, player) {
+        // get position of the piece in special cases
+        let position = [];
+        if (dragId !== null) {
+            position.push([dragId, [player.mouseX, player.mouseY]]);
+        }
         if (targetPiece) {
             if (targetPiece.type.id === PieceType.mantis.id) {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z === 0) {
-                    specialPieces.push([targetPiece.id, x, y, 1]);
+                    position.push([targetPiece.id, this.positionToPixel(x, y, 1)]);
                     const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
-                    specialPieces.push([prey.id, x, y, 0]);
+                    position.push([prey.id, this.positionToPixel(x, y, 0)]);
                 }
             } else if (targetPiece.type.id === PieceType.dragonfly.id) {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z > 0 && targetPiece.z === 0) {
-                    specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 1]);
+                    position.push([targetPiece.id, this.positionToPixel(targetPiece.x, targetPiece.y, 1)]);
                     const prey = this.board.pieces.find(p => p.inGame && p.x === x && p.y === y && p.z === z - 1);
-                    specialPieces.push([prey.id, targetPiece.x, targetPiece.y, 0]);
+                    position.push([prey.id, this.positionToPixel(targetPiece.x, targetPiece.y, 0)]);
                 }
             } else if (targetPiece.type.id === PieceType.centipede.id) {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z > 0) {
-                    specialPieces.push([targetPiece.id, targetPiece.x, targetPiece.y, 0]);
+                    position.push([targetPiece.id, this.positionToPixel(targetPiece.x, targetPiece.y, 0)]);
                     const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
-                    specialPieces.push([prey.id, x, y, 0]);
+                    position.push([prey.id, this.positionToPixel(x, y, 0)]);
                 }
             }
         }
-
-        this.board.pieces.filter(p => p.inGame || p.type.linked === null || p.transition > 0 ||
-                            p.type.standard === !this.flippedPieces && !this.#linkedPieceInAnimation(p))
-            .concat(targets).sort((a, b) => {
+        return position;
+    }
+    #getPiecesToDraw(selectedPieceId, selectedTargetId, hoverPieceId, dragId) {
+        // get the pieces sorted for drawing
+        const pieces = this.board.pieces.filter(p => p.inGame || p.type.linked === null || p.transition > 0 ||
+            p.type.standard === !this.flippedPieces && !this.#linkedPieceInAnimation(p));
+        const id = selectedPieceId ?? hoverPieceId;
+        if (id !== null) {
+            this.board.pieces.find(p => p.id === id).targets.forEach(p => pieces.push(p));
+        }
+        return pieces.sort((a, b) => {
             // dragging pieces draw at the end
             if (a.id === dragId) {
                 return 1;
@@ -531,9 +551,7 @@ export default class HiveCanvas {
                 return -1;
             }
             return 0;
-        }).forEach(p => this.#drawPiece(p, path, targetPiece, specialPieces));
-
-        this.#drawBorderOverStackedQueen(path);
+        });
     }
     #linkedPieceInAnimation(p) {
         return this.board.pieces.find(l => l.type.id === PieceType[p.type.linked].id && l.color.id === p.color.id && l.number === p.number && l.transition > 0);
@@ -557,29 +575,22 @@ export default class HiveCanvas {
         return path;
     }
 
-    #drawPiece(piece, path, targetPiece, specialPieces) {
-        let specialPiece = specialPieces.find(([id, , , ]) => id === piece.id);
-        if (piece.id === this.#canvasPlayer.selectedPieceId) {
-            if (this.#canvasPlayer.hoverPieceId === null && this.#canvasPlayer.dragging) {
-                if (this.#canvasPlayer.selectedTargetId === null) {
-                    // drawing selected piece dragging
-                    this.#drawPieceWithStyle(piece, path, "drag");
-                }
-            } else if (this.#canvasPlayer.selectedTargetId === null &&
-                !piece.targets.find(p => p.id === this.#canvasPlayer.hoverPieceId)) {
+    #drawPiece(piece, path, selectedPieceId, selectedTargetId, hoverPieceId, targetPiece, position) {
+        const pos = position.find(([id, ]) => id === piece.id);
+        if (pos) {
+            this.#drawPieceWithStyle(piece, path, "selected", pos[1]);
+        } else if (piece.id === selectedPieceId) {
+            if (selectedTargetId === null &&
+                !piece.targets.find(p => p.id === hoverPieceId)) {
                 // drawing selected piece only if not hovering target or confirming
                 this.#drawPieceWithStyle(piece, path, "selected");
             }
-        } else if (specialPiece) {
-            // drawing special cases of target being confirmed
-            specialPiece.shift();
-            this.#drawPieceWithStyle(piece, path, "selected", specialPiece);
         } else if (targetPiece && targetPiece.id === piece.id) {
             // drawing target being confirmed
             this.#drawPieceWithStyle(piece, path, "selected");
-        } else if (piece.id === this.#canvasPlayer.hoverPieceId) {
+        } else if (piece.id === hoverPieceId) {
             if (piece.selectedPieceId !== null) {
-                if (this.board.pieces.find(p => p.id === this.#canvasPlayer.hoverPieceId)) {
+                if (this.board.pieces.find(p => p.id === hoverPieceId)) {
                     // drawing another piece being hovered while a piece has been selected
                     this.#drawPieceWithStyle(piece, path, "hover");
                 } else {
@@ -609,12 +620,8 @@ export default class HiveCanvas {
     #drawPieceWithStyle(piece, path, style = "", pos = null) {
         // get position
         let x, y;
-        if (style === "drag") {
-            const player = this.getPlayerPlaying();
-            [x, y] = [player.mouseX, player.mouseY];
-        } else if (pos !== null) {
-            const [px, py, pz] = pos;
-            [x, y] = this.positionToPixel(px, py, pz);
+        if (pos !== null) {
+            [x, y] = pos;
         } else {
             [x, y] = this.getPiecePixelPosition(piece);
         }
@@ -647,7 +654,7 @@ export default class HiveCanvas {
             dash = true;
         } else if (style === "movable") {
             dash = true;
-        } else if (style === "selected" || style === "target" || style === "drag") {
+        } else if (style === "selected" || style === "target") {
             borderColor = "rgb(255, 0, 0)";
             dash = true;
         }

@@ -8,8 +8,14 @@ const ITERATION_STEP = 250;
 export default class AIPlayer extends Player {
     #initTurnTime;
     iterations;
-    #running;
+    #running = false;
+    pieceId;
+    target;
+    evaluation;
     initPlayerTurn() {
+        if (this.#running) {
+            return;
+        }
         if (this.hive.board.passRound) {
             this.hive.pass();
             return;
@@ -26,14 +32,10 @@ export default class AIPlayer extends Player {
         this.#run(this.#alphaBeta(4));
     }
     #run(generator) {
-        const ret = generator.next();
-        if (ret.done) {
+        if (generator.next().done) {
             this.#running = false;
-            const [pieceId, targetCoords] = ret.value;
-            const [tx, ty, tz] = targetCoords;
-            const piece = this.hive.board.pieces.find(p => p.id === pieceId);
-            const target = piece.targets.find(t => t.x === tx && t.y === ty && t.z === tz);
-            this.hive.play(piece, target);
+            const piece = this.hive.board.pieces.find(p => p.id === this.pieceId);
+            this.hive.play(piece, this.target);
         } else {
             setTimeout(() => this.#run(generator), 10);
         }
@@ -49,12 +51,13 @@ export default class AIPlayer extends Player {
         const board = new Board(this.hive.board);
         board.computeLegalMoves(true, true);
 
-        let chosenPiece = null;
-        let chosenTarget = null;
         let stack = [new MinimaxData(getMoves(board))];
 
         this.#initTurnTime = Date.now();
         this.#running = true;
+        this.pieceId = null;
+        this.target = null;
+        this.evaluation = null;
         for (this.iterations = 0; stack.length > 0; this.iterations++) {
             if (this.iterations % ITERATION_STEP === 0) {
                 yield;
@@ -77,11 +80,11 @@ export default class AIPlayer extends Player {
             }
             if (++data.moveId >= data.moves.length && data.evaluation !== null) { // no more node to open
                 if (stack.length === 1) { // ended
-                    if (chosenPiece === null || chosenTarget === null) {
+                    if (this.pieceId === null || this.target === null) {
                         console.trace();
                         throw new Error('Invalid result');
                     }
-                    return [chosenPiece.id, chosenTarget];
+                    return;
                 }
                 // send info to parent
                 const parent = stack[stack.length - 2];
@@ -90,7 +93,10 @@ export default class AIPlayer extends Player {
                     if (parent.evaluation === null || data.evaluation > parent.evaluation) {
                         parent.evaluation = data.evaluation;
                         if (stack.length === 2) {
-                            [, chosenTarget, chosenPiece] = parent.moves[parent.moveId];
+                            const [, , p, t] = parent.moves[parent.moveId];
+                            this.pieceId = p.id;
+                            this.target = t;
+                            this.evaluation = data.evaluation;
                         }
                         if (parent.alpha === null || parent.evaluation > parent.alpha) {
                             parent.alpha = parent.evaluation;
@@ -112,7 +118,7 @@ export default class AIPlayer extends Player {
                 }
                 // move back
                 if (parent.moves.length > 0) {
-                    const [from, , p] = parent.moves[parent.moveId];
+                    const [from, , p, ] = parent.moves[parent.moveId];
                     board.playBack(from, p);
                 }
                 stack.pop();
@@ -125,7 +131,7 @@ export default class AIPlayer extends Player {
             }
             // move
             if (data.moves.length > 0) {
-                const [, to, p] = data.moves[data.moveId];
+                const [, to, p, ] = data.moves[data.moveId];
                 board.play(to, p);
             }
             board.round++;
@@ -183,7 +189,7 @@ function getMoves(board) {
     const colorId = board.getColorPlaying().id;
     const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id !== colorId);
     const queenZone = queen ? Board.coordsAround(queen.x, queen.y, true) : [];
-    board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p])));
+    board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
     const enemyZone = [];
     board.inGameTopPieces.forEach(p => {
         if (p.color.id !== colorId) {
@@ -195,8 +201,8 @@ function getMoves(board) {
         }
     });
     moves.sort((a, b) => {
-        const [, to1, p1] = a;
-        const [, to2, p2] = b;
+        const [, to1, p1, ] = a;
+        const [, to2, p2, ] = b;
         const [x1, y1, ] = to1;
         const [x2, y2, ] = to2;
         const p1Queen = queenZone.find(([x, y]) => x === x1 && y === y1);
@@ -220,31 +226,25 @@ function getMoves(board) {
     return moves;
 }
 function queenEval(board, colorId) {
-    const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
+    const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id !== colorId);
     if (!queen) {
         return 0;
     }
-    const evaluation = board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id !== queen.color.id) ? -1 : 0;
-    if (board.getColorPlaying().id === colorId) {
-        return Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) => {
-            if (board.inGameTopPieces.find(p => p.x === x && p.y === y)) {
-                return qty - 2;
-            }
-            if (board.inGameTopPieces.find(p => p.targetsB.find(t => t.x === x && t.y === y))) {
-                return qty - 1;
-            }
-            return qty;
-        }, evaluation);
-    } else {
-        return Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) => {
-            if (board.inGameTopPieces.find(p => p.x === x && p.y === y)) {
-                return qty - 2;
-            }
-            if (board.inGameTopPieces.find(p => p.targets.find(t => t.x === x && t.y === y))) {
-                return qty - 1;
-            }
-            return qty;
-        }, evaluation);
-    }
+    const above = board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id !== queen.color.id) ? 1 : 0;
+    const qtyOcuppied = Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) =>
+        board.inGameTopPieces.find(p => p.x === x && p.y === y) ? qty + 1 : qty, 0);
 
+    const qtyAttacked = board.getColorPlaying().id === colorId ?
+        Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) =>
+            board.inGameTopPieces.find(p => p.targets.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0) :
+        Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) =>
+            board.inGameTopPieces.find(p => p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
+
+    const qtyAttacking = board.getColorPlaying().id === colorId ?
+        board.inGameTopPieces.reduce((qty, p) =>
+            Board.coordsAround(queen.x, queen.y).find(([x, y]) => p.targets.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0) :
+        board.inGameTopPieces.reduce((qty, p) =>
+            Board.coordsAround(queen.x, queen.y).find(([x, y]) => p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
+
+    return above * 2 + qtyOcuppied * 2 + Math.min(qtyAttacked, qtyAttacking);
 }

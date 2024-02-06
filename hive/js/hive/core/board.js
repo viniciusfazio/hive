@@ -102,7 +102,7 @@ export default class Board {
         }
         let total = 0;
         this.inGameTopPieces.forEach(p => {
-            if (p.color.id === colorId && !this.lastMovedPiecesId.includes(p.id)) {
+            if (p.color.id === colorId && (otherSide || !this.lastMovedPiecesId.includes(p.id))) {
                 p.type.moves(this, p, this.#standardRules);
                 total += p.targets.length;
             }
