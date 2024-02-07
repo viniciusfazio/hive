@@ -197,10 +197,15 @@ function upload() {
                 if (tryParseFile(fileContent, !standardRules) !== null) {
                     // still cant parse
                     showMessage(tryParseFile(fileContent, standardRules));
+                    return;
                 } else {
                     // success with different ruleset
                     $alternativeRules.prop('checked', standardRules);
                 }
+            }
+            if (!hive.gameOver) {
+                hive.blackPlayer = new AIPlayer(hive);
+                hive.getPlayerPlaying().initPlayerTurn();
             }
         };
         fileReader.readAsText(files[0]);

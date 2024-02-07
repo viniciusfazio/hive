@@ -69,32 +69,49 @@ function queenEval(board, colorId) {
         return 0;
     }
     const above = board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id === colorId);
-    const occupy = Board.coordsAround(queen.x, queen.y).map(([x, y]) =>
-        board.inGameTopPieces.find(p => p.x === x && p.y === y)).filter(p => p);
+    const occupy = [];
+    const freeCoords = [];
+    Board.coordsAround(queen.x, queen.y).forEach(([x, y]) => {
+        const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+        if (p) {
+            occupy.push(p);
+        } else {
+            freeCoords.push([x, y]);
+        }
+    });
 
     const allyOccupy = occupy.filter(p => p.color.id === colorId);
 
-    const occupyIds = occupy.map(p => p.id);
+    const enemyOccupy = occupy.filter(p => p.color.id !== colorId);
+
+    const pillbugDefense = occupy.find(p => p.type.id === PieceType.pillBug.id && p.color.id !== colorId);
+
+    const occupyIds = occupy.filter(p => p.z === 0).map(p => p.id);
     if (above) {
         occupyIds.push(above.id);
+    } else {
+        freeCoords.push([queen.x, queen.y]);
     }
 
-    const qtyAttacked = board.getColorPlaying().id === colorId ?
-        Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) =>
+    const colorIsPlaying = board.getColorPlaying().id === colorId;
+    const qtyAttacked = colorIsPlaying ?
+        freeCoords.reduce((qty, [x, y]) =>
             board.pieces.find(p => !occupyIds.includes(p.id) &&
                 p.targets.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0) :
-        Board.coordsAround(queen.x, queen.y).reduce((qty, [x, y]) =>
+        freeCoords.reduce((qty, [x, y]) =>
             board.pieces.find(p => !occupyIds.includes(p.id) &&
                 p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
 
-    const qtyAttacking = board.getColorPlaying().id === colorId ?
+    const qtyAttacking = colorIsPlaying ?
         board.pieces.reduce((qty, p) => !occupyIds.includes(p.id) && p.targets.length > 0 &&
-        Board.coordsAround(queen.x, queen.y).find(([x, y]) => p.targets.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0) :
+            freeCoords.find(([x, y]) => p.targets.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0) :
         board.pieces.reduce((qty, p) => !occupyIds.includes(p.id) && p.targetsB.length > 0 &&
-        Board.coordsAround(queen.x, queen.y).find(([x, y]) => p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
+            freeCoords.find(([x, y]) => p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
 
-    return occupyIds.length +
-        allyOccupy.length +
-        Math.min(qtyAttacked, qtyAttacking);
+    return -enemyOccupy.length +
+        (above ? 3 : 0) +
+        allyOccupy.length * 2 +
+        (pillbugDefense ? -1 : 0) +
+        Math.min(qtyAttacked, qtyAttacking) +
+        (colorIsPlaying ? 1 : 0);
 }
-

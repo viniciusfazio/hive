@@ -38,11 +38,7 @@ export default class Board {
         this.#computePieces();
     }
     isQueenDead(colorId) {
-        const queen = this.pieces.find(p =>
-            p.inGame &&
-            p.type.id === PieceType.queen.id &&
-            p.color.id === colorId
-        );
+        const queen = this.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
         return queen &&
             !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.inGameTopPieces.find(p => p.x === x && p.y === y));
     }
