@@ -217,9 +217,9 @@ export default class HiveCanvas {
     #drawPerformance() {
         let texts = [];
         if (this.whitePlayer instanceof AIPlayer) {
-            texts.push("Ev: " + this.whitePlayer.evaluation);
+            texts.push("Ev: " + (this.whitePlayer.state?.evaluation ?? "N/A"));
         } else if (this.blackPlayer instanceof AIPlayer) {
-            texts.push("Ev: " + (-1 * this.blackPlayer.evaluation));
+            texts.push("Ev: " + (this.blackPlayer.state?.evaluation ?? "N/A"));
         }
         if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
             texts.push(this.#framesPerSecond + " FPS");
@@ -283,7 +283,7 @@ export default class HiveCanvas {
                 "white player: " + this.whitePlayer.constructor.name,
                 "black player: " + this.blackPlayer.constructor.name,
                 "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
-                "ai iter.: " + (aiPlayer === null ? "-" : aiPlayer.iterations),
+                "ai iter.: " + (aiPlayer === null ? "-" : aiPlayer.state.iterations),
                 "ai IPS: " + (aiPlayer === null ? "-" : aiPlayer.getIterationsPerSecond()),
                 "fps: " + this.#framesPerSecond,
             ];
@@ -451,9 +451,9 @@ export default class HiveCanvas {
         let selectedTargetId = this.#canvasPlayer.selectedTargetId;
         let hoverPieceId = this.#canvasPlayer.hoverPieceId;
         const dragId = player?.dragging ? player.selectedPieceId : null;
-        if (this.board.round > this.getMoveList().moves.length && player instanceof AIPlayer && player.target !== null) {
-            const target = player.target;
-            const piece = this.board.pieces.find(p => p.id === player.pieceId);
+        if (this.board.round > this.getMoveList().moves.length && player instanceof AIPlayer && player.state.target !== null) {
+            const target = player.state.target;
+            const piece = this.board.pieces.find(p => p.id === player.state.pieceId);
             selectedPieceId = piece.id;
             selectedTargetId = piece.targets.findIndex(t => t.x === target.x && t.y === target.y && t.z === target.z);
             hoverPieceId = piece.targets[selectedTargetId].id;

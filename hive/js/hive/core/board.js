@@ -1,8 +1,8 @@
-import Piece, {PieceColor, PieceType} from "./piece.js"
+import Piece, {getPieceMoves, PieceColor, PieceType} from "./piece.js"
 export default class Board {
     round;
     lastMovedPiecesId;
-    #standardRules;
+    standardRules;
     allPieces;
 
     pieces;
@@ -25,15 +25,15 @@ export default class Board {
         } else {
             this.round = board.round;
             this.lastMovedPiecesId = [...board.lastMovedPiecesId];
-            this.#standardRules = board.#standardRules;
-            this.allPieces = board.allPieces.map(p => p.clone());
+            this.standardRules = board.standardRules;
+            this.allPieces = board.allPieces.map(p => Piece.clone(p));
         }
     }
     reset(standardRules) {
         this.round = 1;
         this.lastMovedPiecesId = [];
         this.passRound = false;
-        this.#standardRules = standardRules;
+        this.standardRules = standardRules;
         this.allPieces.forEach(p => p.reset());
         this.#computePieces();
     }
@@ -49,9 +49,9 @@ export default class Board {
 
     #computePieces() {
         this.pieces = this.allPieces.filter(p =>
-            (!this.#standardRules || p.type.standard) &&
+            (!this.standardRules || p.type.standard) &&
             (
-                this.#standardRules ||
+                this.standardRules ||
                 p.type.linked === null ||
                 !this.allPieces.find(l => // if linked piece is in game, can't play
                     l.inGame &&
@@ -103,7 +103,7 @@ export default class Board {
         let total = 0;
         this.inGameTopPieces.forEach(p => {
             if (p.color.id === colorId && (otherSide || !this.lastMovedPiecesId.includes(p.id))) {
-                p.type.moves(this, p, this.#standardRules);
+                getPieceMoves(p.type.id, this, p, this.standardRules);
                 total += p.targets.length;
             }
         });

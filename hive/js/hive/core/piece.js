@@ -33,9 +33,9 @@ export default class Piece {
             this.id = id;
         }
     }
-    clone() {
-        const piece = new Piece(this.color, this.type, this.number, this.subNumber, this.id);
-        [piece.x, piece.y, piece.z, piece.inGame] = [this.x, this.y, this.z, this.inGame];
+    static clone(p) {
+        const piece = new Piece(p.color, p.type, p.number, p.subNumber, p.id);
+        [piece.x, piece.y, piece.z, piece.inGame] = [p.x, p.y, p.z, p.inGame];
         piece.targets = [];
         piece.targetsB = [];
         return piece;
@@ -193,43 +193,113 @@ export const PieceType = Object.freeze({
         qty: 1,
         linked: null,
         standard: true,
-        moves: (board, piece, standard) => {
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
-                return;
-            }
-            move1Around(board, piece);
-        },
     }),
     beetle: Object.freeze({
         id: "B",
         qty: 2,
         linked: "mantis",
         standard: true,
-        moves: (board, piece, standard) => {
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
-                return;
-            }
-            move1(board, piece);
-        },
     }),
     grasshopper: Object.freeze({
         id: "G",
         qty: 3,
         linked: "fly",
         standard: true,
-        moves: (board, piece, standard) => {
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
-                return;
-            }
-            jumpOver(board, piece);
-        },
     }),
     spider: Object.freeze({
         id: "S",
         qty: 2,
         linked: "scorpion",
         standard: true,
-        moves: (board, piece, standard) => {
+    }),
+    ant: Object.freeze({
+        id: "A",
+        qty: 3,
+        linked: "wasp",
+        standard: true,
+    }),
+    ladybug: Object.freeze({
+        id: "L",
+        qty: 1,
+        linked: "cockroach",
+        standard: true,
+    }),
+    mosquito: Object.freeze({
+        id: "M",
+        qty: 1,
+        linked: "dragonfly",
+        standard: true,
+    }),
+    pillBug: Object.freeze({
+        id: "P",
+        qty: 1,
+        linked: "centipede",
+        standard: true,
+    }),
+    mantis: Object.freeze({
+        id: "T",
+        qty: 2,
+        linked: "beetle",
+        standard: false,
+    }),
+    fly: Object.freeze({
+        id: "F",
+        qty: 3,
+        linked: "grasshopper",
+        standard: false,
+    }),
+    scorpion: Object.freeze({
+        id: "N",
+        qty: 2,
+        linked: "spider",
+        standard: false,
+    }),
+    wasp: Object.freeze({
+        id: "W",
+        qty: 3,
+        linked: "ant",
+        standard: false,
+    }),
+    cockroach: Object.freeze({
+        id: "R",
+        qty: 1,
+        linked: "ladybug",
+        standard: false,
+    }),
+    dragonfly: Object.freeze({
+        id: "D",
+        qty: 1,
+        linked: "mosquito",
+        standard: false,
+    }),
+    centipede: Object.freeze({
+        id: "C",
+        qty: 1,
+        linked: "pillBug",
+        standard: false,
+    }),
+});
+export function getPieceMoves(pieceType, board, piece, standard) {
+    switch (pieceType) {
+        case PieceType.queen.id:
+            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                return;
+            }
+            move1Around(board, piece);
+            break;
+        case PieceType.beetle.id:
+            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                return;
+            }
+            move1(board, piece);
+            break;
+        case PieceType.grasshopper.id:
+            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                return;
+            }
+            jumpOver(board, piece);
+            break;
+        case PieceType.spider.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -237,39 +307,21 @@ export const PieceType = Object.freeze({
             if (!standard) {
                 jumpOver(board, piece, 1);
             }
-        }
-    }),
-    ant: Object.freeze({
-        id: "A",
-        qty: 3,
-        linked: "wasp",
-        standard: true,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.ant.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
             const otherColorId = piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
             moveAround(board, piece, null, standard ? null : otherColorId);
-        }
-    }),
-    ladybug: Object.freeze({
-        id: "L",
-        qty: 1,
-        linked: "cockroach",
-        standard: true,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.ladybug.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
             moveOver(board, piece, 3);
-        },
-    }),
-    mosquito: Object.freeze({
-        id: "M",
-        qty: 1,
-        linked: "dragonfly",
-        standard: true,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.mosquito.id:
             if (piece.z > 0) {
                 if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                     return;
@@ -279,18 +331,12 @@ export const PieceType = Object.freeze({
                 Board.coordsAround(piece.x, piece.y).forEach(([x, y]) => {
                     const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
                     if (p && p.type.id !== PieceType.mosquito.id) {
-                        p.type.moves(board, piece, standard);
+                        getPieceMoves(p.type.id, board, piece, standard);
                     }
                 });
             }
-        }
-    }),
-    pillBug: Object.freeze({
-        id: "P",
-        qty: 1,
-        linked: "centipede",
-        standard: true,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.pillBug.id:
             if (stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 move1Around(board, piece);
             }
@@ -320,14 +366,8 @@ export const PieceType = Object.freeze({
                     }
                 });
             }
-        }
-    }),
-    mantis: Object.freeze({
-        id: "T",
-        qty: 2,
-        linked: "beetle",
-        standard: false,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.mantis.id:
             if (piece.z > 0) {
                 if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                     return;
@@ -343,65 +383,34 @@ export const PieceType = Object.freeze({
                     }
                 });
             }
-        }
-    }),
-    fly: Object.freeze({
-        id: "F",
-        qty: 3,
-        linked: "grasshopper",
-        standard: false,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.fly.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
             if (move1Around(board, piece) === 0) {
                 fly(board, piece);
             }
-        }
-    }),
-    scorpion: Object.freeze({
-        id: "N",
-        qty: 2,
-        linked: "spider",
-        standard: false,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.scorpion.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
             moveAround(board, piece, 3);
-        },
-    }),
-    wasp: Object.freeze({
-        id: "W",
-        qty: 3,
-        linked: "ant",
-        standard: false,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.wasp.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
-            const otherColorId = piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
-            fly(board, piece, otherColorId);
-        }
-    }),
-    cockroach: Object.freeze({
-        id: "R",
-        qty: 1,
-        linked: "ladybug",
-        standard: false,
-        moves: (board, piece, standard) => {
+            fly(board, piece, piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id);
+            break;
+        case PieceType.cockroach.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
             moveOver(board, piece, null, piece.color.id);
-        }
-    }),
-    dragonfly: Object.freeze({
-        id: "D",
-        qty: 1,
-        linked: "mosquito",
-        standard: false,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.dragonfly.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -433,14 +442,8 @@ export const PieceType = Object.freeze({
                     }
                 });
             }
-        }
-    }),
-    centipede: Object.freeze({
-        id: "C",
-        qty: 1,
-        linked: "pillBug",
-        standard: false,
-        moves: (board, piece, standard) => {
+            break;
+        case PieceType.centipede.id:
             if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
                 return;
             }
@@ -450,17 +453,18 @@ export const PieceType = Object.freeze({
             }
             coordsAroundWithNeighbor(board, piece.x, piece.y).filter(([, , z, z1, z2]) => z === 0 && (z1 < 0 || z2 < 0))
                 .forEach(([x, y, , , ]) => {
-                const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
-                const lastMove = prey && !board.lastMovedPiecesId.includes(prey.id);
-                if (lastMove && ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
-                    if (![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
-                        piece.insertTarget(x, y, piece.z + 1);
+                    const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    const lastMove = prey && !board.lastMovedPiecesId.includes(prey.id);
+                    if (lastMove && ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
+                        if (![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
+                            piece.insertTarget(x, y, piece.z + 1);
+                        }
                     }
-                }
-            });
-        }
-    }),
-});
+                });
+            break;
+    }
+
+}
 function move1Around(board, piece) {
     let qty = 0;
     coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
