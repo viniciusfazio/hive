@@ -489,22 +489,31 @@ function moveAround(board, piece, n = null, colorId = null) {
     let paths = [[[piece.x, piece.y, 0]]];
     while (paths.length > 0) {
         let newPaths = [];
-        for (const [path, fromX, fromY, fromZ, x, y, z, z1, z2] of moveAllPath(board, piece, paths)) {
-            const noPiece = z < 0;
-            if (noPiece && onHiveAndNoGate(fromZ, z, z1, z2)) {
-                // new step with no repetition
-                if (n === null || path.length < n) {
-                    let newPath = [...path];
-                    newPath.push([x, y, 0]);
-                    newPaths.push(newPath);
+        const visitedInThisStep = [];
+        for (const path of paths) {
+            const [fromX, fromY, fromZ] = path[path.length - 1];
+            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, fromX, fromY, piece.x, piece.y)) {
+                // if path repeats, continue
+                if (path.find(([cx, cy,]) => cx === x && cy === y) || visitedInThisStep.find(([cx, cy]) => cx === x && cy === y)) {
+                    continue;
                 }
-                const validColor = colorId === null || Board.coordsAround(x, y).find(([ax, ay]) =>
-                    board.inGameTopPieces.find(p => p.x === ax && p.y === ay && p.color.id === colorId));
-                const validMoveCount = n === null || path.length === n;
-                if (validColor && validMoveCount) {
-                    let moveSteps = path.map(xyz => [...xyz]);
-                    moveSteps.shift();
-                    piece.insertTarget(x, y, 0, moveSteps);
+                visitedInThisStep.push([x, y]);
+                const noPiece = z < 0;
+                if (noPiece && onHiveAndNoGate(fromZ, z, z1, z2)) {
+                    // new step with no repetition
+                    if (n === null || path.length < n) {
+                        let newPath = [...path];
+                        newPath.push([x, y, 0]);
+                        newPaths.push(newPath);
+                    }
+                    const validColor = colorId === null || Board.coordsAround(x, y).find(([ax, ay]) =>
+                        board.inGameTopPieces.find(p => p.x === ax && p.y === ay && p.color.id === colorId));
+                    const validMoveCount = n === null || path.length === n;
+                    if (validColor && validMoveCount) {
+                        let moveSteps = path.map(xyz => [...xyz]);
+                        moveSteps.shift();
+                        piece.insertTarget(x, y, 0, moveSteps);
+                    }
                 }
             }
         }
@@ -516,45 +525,41 @@ function fly(board, piece, colorId = null) {
         piece.insertTarget(x, y, 0, [[piece.x, piece.y, board.flyZ()]]);
     });
 }
-function *moveAllPath(board, piece, paths, allPath = []) {
-    // test all paths possible
-    const coords = [];
-    for (const path of paths) {
-        const [fromX, fromY, fromZ] = path[path.length - 1];
-        for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, fromX, fromY, piece.x, piece.y)) {
-            // if path repeats, continue
-            if (allPath.find(([cx, cy, ]) => cx === x && cy === y)) {
-                continue;
-            } else if (path.find(([cx, cy,]) => cx === x && cy === y) || coords.find(([cx, cy]) => cx === x && cy === y)) {
-                continue;
-            }
-            coords.push([x, y]);
-            yield [path, fromX, fromY, fromZ, x, y, z, z1, z2];
-        }
-    }
-}
 function moveOver(board, piece, n = null, colorId = null) {
     let paths = [[[piece.x, piece.y, piece.z]]];
-    let allPath = [];
+    let visitedEver = [];
     while (paths.length > 0) {
         let newPaths = [];
-        for (const [path, fromX, fromY, fromZ, x, y, z, z1, z2] of moveAllPath(board, piece, paths, allPath)) {
-            const pBelow = board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id !== PieceType.scorpion.id);
-            const canGoUp = z >= 0 && pBelow && (colorId === null || pBelow.color.id === colorId);
-            const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
-            if ((canGoUp || canGoDown) && onHiveAndNoGate(fromZ, z, z1, z2)) {
-                // new step with no repetition
-                if (n === null) {
-                    allPath.push([x, y]);
+        const visitedInThisStep = [];
+        for (const path of paths) {
+            const [fromX, fromY, fromZ] = path[path.length - 1];
+            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, fromX, fromY, piece.x, piece.y)) {
+                // if path repeats, continue
+                if (visitedEver.find(([cx, cy]) => cx === x && cy === y)) {
+                    continue;
+                } else if (path.find(([cx, cy, ]) => cx === x && cy === y) ||
+                    visitedInThisStep.find(([cx, cy]) => cx === x && cy === y)) {
+                    continue;
                 }
-                if (canGoUp) {
-                    let newPath = path.map(xyz => [...xyz]);
-                    newPath.push([x, y, z + 1]);
-                    newPaths.push(newPath);
-                } else {
-                    let moveSteps = path.map(xyz => [...xyz]);
-                    moveSteps.shift();
-                    piece.insertTarget(x, y, piece.z, moveSteps);
+                if (n !== null) {
+                    visitedInThisStep.push([x, y]);
+                }  else if (path.length > 1) {
+                    visitedEver.push([x, y]);
+                }
+                const pBelow = board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id !== PieceType.scorpion.id);
+                const canGoUp = z >= 0 && pBelow && (colorId === null || pBelow.color.id === colorId);
+                const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
+                if ((canGoUp || canGoDown) && onHiveAndNoGate(fromZ, z, z1, z2)) {
+                    // new step with no repetition
+                    if (canGoUp) {
+                        let newPath = path.map(xyz => [...xyz]);
+                        newPath.push([x, y, z + 1]);
+                        newPaths.push(newPath);
+                    } else {
+                        let moveSteps = path.map(xyz => [...xyz]);
+                        moveSteps.shift();
+                        piece.insertTarget(x, y, piece.z, moveSteps);
+                    }
                 }
             }
         }
