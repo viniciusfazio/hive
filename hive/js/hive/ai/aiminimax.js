@@ -4,7 +4,7 @@ import {getEvaluator, getMoves} from "../player/aiplayer.js";
 
 const ITERATION_STEP = 1000;
 const MAX_EVALUATION = 999999;
-const MAX_DEPTH = 4;
+const MAX_DEPTH = 6;
 
 let board = null;
 let initialMoves = null;

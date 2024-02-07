@@ -204,8 +204,8 @@ function upload() {
                 }
             }
             if (!hive.gameOver) {
-                hive.blackPlayer = new AIPlayer(hive);
-                hive.getPlayerPlaying().initPlayerTurn();
+                //hive.blackPlayer = new AIPlayer(hive);
+                //hive.getPlayerPlaying().initPlayerTurn();
             }
         };
         fileReader.readAsText(files[0]);
