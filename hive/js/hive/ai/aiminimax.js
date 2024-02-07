@@ -1,42 +1,32 @@
 import {PieceColor} from "../core/piece.js";
-import QueenEvaluator from "./queenevaluator.js";
 import Board from "../core/board.js";
-
+import {getEvaluator, getMoves} from "../player/aiplayer.js";
 
 const ITERATION_STEP = 1000;
 const MAX_EVALUATION = 999999;
 const MAX_DEPTH = 4;
 
+let board = null;
+let initialMoves = null;
 onmessage = e => {
-    let evaluator = null;
-    switch (e.data.evaluator) {
-        case "queenai":
-            evaluator = new QueenEvaluator();
-            break;
-        default:
-            throw new Error('Invalid evaluator');
+    const state = e.data;
+    state.iterations = 0;
+    let evaluator = getEvaluator(state.evaluatorId);
+    if (state.board !== null) {
+        board = new Board(state.board);
+        board.computeLegalMoves(true, true);
+        initialMoves = getMoves(board, evaluator);
     }
-    const board = new Board(e.data.board);
-    board.computeLegalMoves(true, true);
-
-    const state = e.data.state;
-
-    const colorId = board.getColorPlaying().id;
-
-    // send first evaluation
-    state.evaluation = evaluator.evaluate(board, colorId);
-    postMessage(state);
-
-    alphaBeta(board, evaluator, state, colorId === PieceColor.white.id);
+    const maximizing = board.getColorPlaying().id === PieceColor.white.id;
+    alphaBeta(board, evaluator, state, maximizing, 0, state.alpha, state.beta, [initialMoves[state.moveId]]);
     state.done = true;
     postMessage(state);
 };
 
-function alphaBeta(board, evaluator, state, maximizing, depth = 0, alpha = null, beta = null) {
-    // sort moves
-    const moves = [];
-    board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
-    evaluator.sortMoves(board, moves);
+function alphaBeta(board, evaluator, state, maximizing, depth, alpha, beta, moves = null) {
+    if (moves === null) {
+        moves = getMoves(board, evaluator);
+    }
 
     // check terminal state or end depth
     const whiteDead = board.isQueenDead(PieceColor.white.id);
@@ -44,6 +34,7 @@ function alphaBeta(board, evaluator, state, maximizing, depth = 0, alpha = null,
     state.iterations++;
     if (state.iterations % ITERATION_STEP === 0) {
         postMessage(state);
+        state.iterations = 0;
     }
     if (whiteDead && blackDead) {
         return 0;
@@ -74,7 +65,6 @@ function alphaBeta(board, evaluator, state, maximizing, depth = 0, alpha = null,
                 state.pieceId = p.id;
                 state.target = t;
                 state.evaluation = evaluation;
-                postMessage(state);
             }
         }
         if (move !== null) {
