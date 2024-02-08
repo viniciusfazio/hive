@@ -24,7 +24,7 @@ export default class Board {
             this.reset(true);
         } else {
             this.round = board.round;
-            this.lastMovedPiecesId = [...board.lastMovedPiecesId];
+            this.lastMovedPiecesId = board.lastMovedPiecesId;
             this.standardRules = board.standardRules;
             this.allPieces = board.allPieces.map(p => Piece.clone(p));
         }
@@ -59,12 +59,10 @@ export default class Board {
     );
     }
     computeLegalMoves(canMove, computeOtherSide = false) {
-        if (this.pieces) {
-            this.pieces.forEach(p => {
-                p.targetsB = [];
-                p.targets = [];
-            });
-        }
+        this.allPieces.forEach(p => {
+            p.targetsB = [];
+            p.targets = [];
+        });
         this.#computePieces();
         this.inGame = this.pieces.filter(p => p.inGame);
         this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
@@ -173,9 +171,9 @@ export default class Board {
         return ret;
     }
     // noinspection JSUnusedLocalSymbols
-    play(to, p, moveSteps = [], callbackMove = (piece, extraPieceMoving) => {}) {
+    play(from, to, p, moveSteps = [], callbackMove = (piece, extraPieceMoving) => {}) {
         callbackMove(p, false);
-        const [fromX, fromY, fromZ] = [p.x, p.y, p.z];
+        const [fromX, fromY, fromZ] = from;
         const [toX, toY, toZ] = to;
         if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
             // mantis special move
@@ -201,9 +199,9 @@ export default class Board {
         }
     }
     // noinspection JSUnusedLocalSymbols
-    playBack(from, p, moveSteps = [], callbackMove = (piece, extraPieceMoving) => {}) {
+    playBack(from, to, p, moveSteps = [], callbackMove = (piece, extraPieceMoving) => {}) {
         const [fromX, fromY, fromZ] = from;
-        const [toX, toY, toZ] = [p.x, p.y, p.z];
+        const [toX, toY, toZ] = to;
         callbackMove(p, false);
         if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
             // mantis special move

@@ -191,6 +191,8 @@ export default class HiveCanvas {
 
         this.#drawPieces();
 
+        this.#drawCoords();
+
         this.#drawFlip();
 
         this.#drawXOverFallenQueens();
@@ -204,6 +206,25 @@ export default class HiveCanvas {
         const waitTime = REDRAW_IN_MS - (Date.now() - this.#frameTime);
         setTimeout(() => this.#redraw(), Math.max(1, waitTime));
     }
+    #drawCoords() {
+        if (this.#debug) {
+            const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
+            const emptyDrawn = [];
+            this.board.inGameTopPieces.forEach(p => {
+                const [px, py] = this.positionToPixel(p.x, p.y, p.z);
+                this.#drawText([p.x + "," + p.y + "," + p.z, p.id], px, py, "middle", "center", h);
+                Board.coordsAround(p.x, p.y).forEach(([x, y]) => {
+                    if (!this.board.inGameTopPieces.find(p => p.x === x && p.y === y) &&
+                        !emptyDrawn.find(([ex, ey]) => ex === x && ey === y)) {
+                        const [px, py] = this.positionToPixel(x, y, 0);
+                        this.#drawText([x + "," + y + ",0"], px, py, "middle", "center", h);
+                        emptyDrawn.push([x, y]);
+                    }
+                });
+
+            });
+        }
+    }
     #drawPassAlert() {
         const isLastRound = this.getMoveList().moves.length < this.board.round;
         if (this.board.passRound && isLastRound && this.getPlayerPlaying() instanceof CanvasPlayer) {
@@ -216,24 +237,17 @@ export default class HiveCanvas {
     }
     #drawPerformance() {
         let texts = [];
-        let aiState = null;
+        let aiPlayer = null;
         if (this.whitePlayer instanceof AIPlayer) {
-            aiState = this.whitePlayer.state;
+            aiPlayer = this.whitePlayer;
         } else if (this.blackPlayer instanceof AIPlayer) {
-            aiState = this.blackPlayer.state;
+            aiPlayer = this.blackPlayer;
         }
-        if (aiState !== null) {
-            if (aiState.moveId !== null) {
-                texts.push("Moves: " + (aiState.moveId + 1) + " / " + aiState.qtyMoves);
-            }
-            if (aiState.evaluation !== null) {
-                let evaluation = aiState.evaluation;
-                if (evaluation === aiState.maxEvaluation) {
-                    evaluation = "+∞";
-                } else if (aiState.evaluation === -aiState.maxEvaluation) {
-                    evaluation = "-∞";
-                }
-                texts.push("Evaluation: " + evaluation);
+        if (aiPlayer !== null) {
+            const aiState = aiPlayer.state;
+            if (aiPlayer.moveId !== null) {
+                texts.push("Moves: " + (aiPlayer.moveId - aiPlayer.qtyWorkers + aiPlayer.idle) + " / " + aiPlayer.qtyMoves);
+                texts.push("Evaluation: " + getEvaluation(aiState.evaluation, aiState.maxEvaluation));
             }
         }
         if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
@@ -287,26 +301,33 @@ export default class HiveCanvas {
                 aiPlayer = this.blackPlayer;
             }
             let text = [
-                "hover: " + this.#canvasPlayer.hoverPieceId,
-                "selected: " + this.#canvasPlayer.selectedPieceId,
-                "target: " + this.#canvasPlayer.selectedTargetId,
-                "mouse: " + Math.round(this.#canvasPlayer.mouseX) + "," + Math.round(this.#canvasPlayer.mouseY),
-                "canvas: " + this.canvas.width + " x " + this.canvas.height + " : " + Math.round(window.devicePixelRatio * 100) / 100,
-                "time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
-                "round: " + this.board.round + " / " + moveList.moves.length,
-                "moves available: " + totalMoves,
-                "white player: " + this.whitePlayer.constructor.name,
-                "black player: " + this.blackPlayer.constructor.name,
-                "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
-                "ai iter.: " + (aiPlayer === null ? "-" : aiPlayer.state.iterations),
-                "ai IPS: " + (aiPlayer === null ? "-" : aiPlayer.getIterationsPerSecond()),
-                "ai idle: " + (aiPlayer === null ? "-" : aiPlayer.idle),
-                "ai moves: " + (aiPlayer === null ? "-" : aiPlayer.moveId + " / " + aiPlayer.qtyMoves),
-                "ai eval: " + (aiPlayer === null ? "-" : aiPlayer.state.alpha + " < " + aiPlayer.state.evaluation + " < " + aiPlayer.state.beta),
-                "fps: " + this.#framesPerSecond,
+                "Hover: " + this.#canvasPlayer.hoverPieceId,
+                "Selected: " + this.#canvasPlayer.selectedPieceId,
+                "Target: " + this.#canvasPlayer.selectedTargetId,
+                "Mouse: " + Math.round(this.#canvasPlayer.mouseX) + "," + Math.round(this.#canvasPlayer.mouseY),
+                "Canvas: " + this.canvas.width + " x " + this.canvas.height + " : " + Math.round(window.devicePixelRatio * 100) / 100,
+                "Time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
+                "Round: " + this.board.round + " / " + moveList.moves.length,
+                "Moves available: " + totalMoves,
+                "White player: " + this.whitePlayer.constructor.name,
+                "Black player: " + this.blackPlayer.constructor.name,
+                "FPS: " + this.#framesPerSecond,
             ];
+            if (onlinePlayer !== null) {
+                text.push("Ping: " + onlinePlayer.ping);
+            }
+            if (aiPlayer !== null) {
+                const aiState = aiPlayer.state;
+                text.push("AI iterations: " + aiState.iterations);
+                text.push("AI speed: " + aiPlayer.getIterationsPerSecond());
+                text.push("AI idle: " + aiPlayer.idle + " / " + aiPlayer.qtyWorkers);
+                const alpha = getEvaluation(aiState.alpha, aiState.maxEvaluation);
+                const evaluation = getEvaluation(aiState.evaluation, aiState.maxEvaluation);
+                const beta = getEvaluation(aiState.beta, aiState.maxEvaluation);
+                text.push("AI evaluation: " + alpha + " <= " + evaluation + " <= " + beta);
+            }
             const fh = Math.ceil(26 * this.canvas.width / 1000);
-            this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
+            this.#drawText(text, 0, 0, "top", "left", fh);
         }
     }
     #clearScreen() {
@@ -483,7 +504,7 @@ export default class HiveCanvas {
         this.#getPiecesToDraw(selectedPieceId, selectedTargetId, hoverPieceId, dragId)
             .forEach(p => this.#drawPiece(p, path, selectedPieceId, selectedTargetId, hoverPieceId, targetPiece, position));
 
-        this.#drawBorderOverStackedQueen(path);
+        this.#drawBorderOverQueen(path);
     }
     #getSpecialPiecesPosition(targetPiece, dragId, player) {
         // get position of the piece in special cases
@@ -598,8 +619,18 @@ export default class HiveCanvas {
     }
 
     #drawPiece(piece, path, selectedPieceId, selectedTargetId, hoverPieceId, targetPiece, position) {
+        if (!piece.inGame && piece.type.linked !== null && piece.subNumber === 0) {
+            // the linked piece has been selected and chosen to play. So, don't draw it in the hud
+            const id = PieceType[piece.type.linked].id;
+            const mirror = this.board.pieces.find(p => p.type.id === id && piece.color.id === p.color.id && p.number === piece.number);
+            if (mirror && mirror.id === selectedPieceId &&
+                (selectedTargetId !== null || mirror.targets.find(p => p.id === hoverPieceId))) {
+                return;
+            }
+        }
         const pos = position.find(([id, ]) => id === piece.id);
         if (pos) {
+            // draw selected piece in specific position
             this.#drawPieceWithStyle(piece, path, "selected", pos[1]);
         } else if (piece.id === selectedPieceId) {
             if (selectedTargetId === null &&
@@ -702,18 +733,9 @@ export default class HiveCanvas {
         this.ctx.setLineDash([]);
         this.ctx.globalAlpha = 1;
 
-        if (this.#debug) {
-            const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
-            if (piece.inGame) {
-                let text = [piece.x + "," + piece.y + "," + piece.z, piece.id];
-                this.#drawText(text, 0, 0, "middle", "center", h);
-            } else {
-                this.#drawText(["", piece.id], 0, 0, "middle", "center", h);
-            }
-        }
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
-    #drawBorderOverStackedQueen(path) {
+    #drawBorderOverQueen(path) {
         let from0to1to0 = Math.round((this.#frameTime % 10000) * GLOWING_SPEED) % 200;
         if (from0to1to0 >= 100) {
             from0to1to0 = 200 - from0to1to0;
@@ -986,7 +1008,8 @@ export default class HiveCanvas {
             const move = moveList.moves[this.board.round - 1];
             if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
-                this.board.play(move.moveSteps[move.moveSteps.length - 1], p, move.moveSteps, callbackMove);
+                const [from, to] = [move.moveSteps[0], move.moveSteps[move.moveSteps.length - 1]];
+                this.board.play(from, to, p, move.moveSteps, callbackMove);
             }
         }
     }
@@ -996,7 +1019,8 @@ export default class HiveCanvas {
             const move = moveList.moves[this.board.round - 1];
             if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
-                this.board.playBack(move.moveSteps[0], p, move.moveSteps, callbackMove);
+                const [from, to] = [move.moveSteps[0], move.moveSteps[move.moveSteps.length - 1]];
+                this.board.playBack(from, to, p, move.moveSteps, callbackMove);
             }
         }
         this.board.round++;
@@ -1064,6 +1088,16 @@ class Camera {
             this.scale += diffScale;
         }
     }
+}
+function getEvaluation(evaluation, maxEvaluation) {
+    if (evaluation === maxEvaluation) {
+        return "+∞";
+    } else if (evaluation === -maxEvaluation) {
+        return "-∞";
+    } else if (evaluation > 0) {
+        return "+" + evaluation;
+    }
+    return evaluation ?? "?";
 }
 function scaleTimeFontHeight(txt, fh) {
     const qtyDigits = txt.replace(/[^0-9]/, "").length;

@@ -13,11 +13,11 @@ export default class AIPlayer extends Player {
     state = new EvaluationState();
     evaluatorId = "queenai";
 
-    #evaluator;
-    qtyMoves;
-    moveId;
+    qtyMoves = null;
+    moveId = null;
+    idle = null;
+    qtyWorkers = QTY_WORKERS;
     #maximizing;
-    idle;
     #ended;
 
     initPlayerTurn() {
@@ -41,8 +41,7 @@ export default class AIPlayer extends Player {
         if (window.Worker) {
             this.#running = true;
             this.#initTurnTime = Date.now();
-            this.#evaluator = getEvaluator(this.evaluatorId);
-            this.qtyMoves = getMoves(this.hive.board, this.#evaluator).length;
+            this.qtyMoves = getMoves(this.hive.board, getEvaluator(this.evaluatorId)).length;
             this.moveId = Math.min(this.qtyMoves, QTY_WORKERS);
             this.#maximizing = this.hive.board.getColorPlaying().id === PieceColor.white.id;
             this.idle = QTY_WORKERS - this.moveId;
@@ -68,6 +67,7 @@ export default class AIPlayer extends Player {
                                     this.state.alpha = wState.evaluation;
                                 }
                                 if (wState.evaluation >= this.state.beta) {
+                                    this.moveId = this.qtyMoves;
                                     this.#ended = true;
                                 }
                             } else {
@@ -75,21 +75,24 @@ export default class AIPlayer extends Player {
                                     this.state.beta = wState.evaluation;
                                 }
                                 if (wState.evaluation <= this.state.alpha) {
+                                    this.moveId = this.qtyMoves;
                                     this.#ended = true;
                                 }
                             }
                         }
-                        if (this.#ended || this.moveId >= this.qtyMoves) {
-                            //console.log("worker " + i + " ended. " + this.#idle + " was idle.");
-                            if (++this.idle >= QTY_WORKERS) {
-                                //console.log("worker " + i + " apply");
+                        if (this.moveId >= this.qtyMoves) {
+                            this.idle++;
+                            if (this.#ended) {
+                                this.reset();
+                                this.idle = QTY_WORKERS;
+                            }
+                            if (this.idle === QTY_WORKERS) {
                                 this.#running = false;
                                 const piece = this.hive.board.pieces.find(p => p.id === this.state.pieceId);
                                 this.hive.play(piece, this.state.target);
                             }
                         } else {
                             this.state.moveId = this.moveId++;
-                            //console.log("worker " + i + " resume");
                             worker.postMessage(this.state);
                         }
                     };
@@ -101,12 +104,10 @@ export default class AIPlayer extends Player {
             state.evaluatorId = this.evaluatorId;
             for (let i = 0; i < this.moveId; i++) {
                 state.moveId = i;
-                //console.log("worker " + i + " start");
                 this.#workers[i].postMessage(state);
             }
             state.board = null;
             state.evaluatorId = null;
-            state.qtyMoves = this.qtyMoves;
             this.state = state;
 
         } else {
@@ -152,7 +153,6 @@ class EvaluationState {
     board = null;
     evaluatorId = null;
     moveId = null;
-    qtyMoves = null;
     done = false;
 }
 

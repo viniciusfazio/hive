@@ -16,7 +16,7 @@ onmessage = e => {
         state.board = null;
         evaluator = getEvaluator(state.evaluatorId);
         state.evaluatorId = null;
-        board.computeLegalMoves(true, true);
+        board.computeLegalMoves(true);
         initialMoves = getMoves(board, evaluator);
     }
     const maximizing = board.getColorPlaying().id === PieceColor.white.id;
@@ -27,6 +27,7 @@ onmessage = e => {
 
 function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     if (moves === null) {
+        board.computeLegalMoves(true, true);
         moves = getMoves(board, evaluator);
     }
 
@@ -45,7 +46,7 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     } else if (blackDead) {
         return state.maxEvaluation;
     } else if (depth >= state.maxDepth) {
-        return evaluator.evaluate(board);
+        return Math.max(-state.maxEvaluation + 1, Math.min(state.maxEvaluation - 1, evaluator.evaluate(board)));
     } else if (moves.length === 0) {
         moves.push(null);
     }
@@ -54,11 +55,11 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     let evaluation = null;
     for (const move of moves) {
         if (move !== null) {
-            const [, to, p, ] = move;
-            board.play(to, p);
+            const [from, to, p, ] = move;
+            board.computeLegalMoves(true, true);
+            board.play(from, to, p);
         }
         board.round++;
-        board.computeLegalMoves(true, true);
         const childEvaluation = alphaBeta(depth + 1, alpha, beta, !maximizing);
         if (evaluation === null || maximizing && childEvaluation > evaluation || !maximizing && childEvaluation < evaluation) {
             evaluation = childEvaluation;
@@ -70,8 +71,9 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
             }
         }
         if (move !== null) {
-            const [from, , p, ] = move;
-            board.playBack(from, p);
+            const [from, to, p, ] = move;
+            board.computeLegalMoves(true);
+            board.playBack(from, to, p);
         }
         board.round--;
         if (maximizing) {

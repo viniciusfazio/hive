@@ -82,8 +82,12 @@
                         <input class="form-check-input" type="checkbox" id="autoMove"/>
                         <label class="form-check-label" for="autoMove">Auto move first piece</label>
                     </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="ai" checked="checked"/>
+                        <label class="form-check-label" for="ai">Local game against AI</label>
+                    </div>
                     <div class="form-check form-switch gameSettings">
-                        <input class="form-check-input" type="checkbox" id="timer" onchange="$('#increment, #totalTime').prop('disabled', !$('#timer').prop('checked'))" checked="checked"/>
+                        <input class="form-check-input" type="checkbox" id="timer" onchange="$('#increment, #totalTime').prop('disabled', !$('#timer').prop('checked'))"/>
                         <label class="form-check-label" for="timer">Time control</label>
                     </div>
                     <div class="form-floating mb-1 gameSettings">
@@ -94,13 +98,13 @@
                         <input type="number" class="form-control" min="0" max="3600" id="increment" value="3"/>
                         <label for="increment">Increment per move (in seconds)</label>
                     </div>
-                    <input type="radio" class="btn-check gameSettings" name="piece" id="whitePiece" autocomplete="off" value="w"/>
+                    <input type="radio" class="btn-check gameSettings" name="piece" id="whitePiece" autocomplete="off" value="w" checked="checked"/>
                     <label class="btn gameSettings" for="whitePiece"><i class="bi bi-bug"></i>&nbsp;Play as White</label>
 
                     <input type="radio" class="btn-check gameSettings" name="piece" id="blackPiece" autocomplete="off" value="b"/>
                     <label class="btn gameSettings" for="blackPiece"><i class="bi bi-bug-fill"></i>&nbsp;Play as Black</label>
 
-                    <input type="radio" class="btn-check gameSettings" name="piece" id="randomPiece" autocomplete="off" value="random" checked="checked"/>
+                    <input type="radio" class="btn-check gameSettings" name="piece" id="randomPiece" autocomplete="off" value="random" />
                     <label class="btn gameSettings" for="randomPiece"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
                     <div class="form-check form-switch gameSettings">
                         <input class="form-check-input" type="checkbox" id="alternativeRules"/>

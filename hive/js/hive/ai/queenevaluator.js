@@ -68,7 +68,7 @@ function queenEval(board, colorId) {
     if (!queen) {
         return 0;
     }
-    const above = board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id === colorId);
+    const aboveQueen = board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id === colorId);
     const occupy = [];
     const freeCoords = [];
     Board.coordsAround(queen.x, queen.y).forEach(([x, y]) => {
@@ -80,15 +80,26 @@ function queenEval(board, colorId) {
         }
     });
 
+
     const allyOccupy = occupy.filter(p => p.color.id === colorId);
+    const aboveAround = allyOccupy.find(p => p.z > 0);
 
     const enemyOccupy = occupy.filter(p => p.color.id !== colorId);
 
-    const pillbugDefense = occupy.find(p => p.type.id === PieceType.pillBug.id && p.color.id !== colorId);
+    const pillBugDefense = enemyOccupy.find(p => p.type.id === PieceType.pillBug.id);
+    const scorpionDefense = enemyOccupy.find(p => p.type.id === PieceType.scorpion.id);
+
+    let mosquitoPillBugDefense = false;
+    if (board.standardRules) {
+        const mosquito = enemyOccupy.find(p => p.type.id === PieceType.mosquito.id && p.z === 0);
+        mosquitoPillBugDefense = mosquito && Board.coordsAround(mosquito.x, mosquito.y).find(([x, y]) =>
+            board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id === PieceType.pillBug.id));
+    }
+
 
     const occupyIds = occupy.filter(p => p.z === 0).map(p => p.id);
-    if (above) {
-        occupyIds.push(above.id);
+    if (aboveQueen) {
+        occupyIds.push(aboveQueen.id);
     } else {
         freeCoords.push([queen.x, queen.y]);
     }
@@ -109,9 +120,12 @@ function queenEval(board, colorId) {
             freeCoords.find(([x, y]) => p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
 
     return -enemyOccupy.length +
-        (above ? 3 : 0) +
+        (aboveQueen ? 3 : 0) +
+        (aboveAround ? 1 : 0) +
         allyOccupy.length * 2 +
-        (pillbugDefense ? -1 : 0) +
+        (pillBugDefense ? -1 : 0) +
+        (scorpionDefense ? -1 : 0) +
+        (mosquitoPillBugDefense ? -1 : 0) +
         Math.min(qtyAttacked, qtyAttacking) +
         (colorIsPlaying ? 1 : 0);
 }
