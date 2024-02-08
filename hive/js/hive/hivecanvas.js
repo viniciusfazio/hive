@@ -191,7 +191,7 @@ export default class HiveCanvas {
 
         this.#drawPieces();
 
-        this.#drawCoords();
+        // this.#drawCoords();
 
         this.#drawFlip();
 
@@ -207,23 +207,21 @@ export default class HiveCanvas {
         setTimeout(() => this.#redraw(), Math.max(1, waitTime));
     }
     #drawCoords() {
-        if (this.#debug) {
-            const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
-            const emptyDrawn = [];
-            this.board.inGameTopPieces.forEach(p => {
-                const [px, py] = this.positionToPixel(p.x, p.y, p.z);
-                this.#drawText([p.x + "," + p.y + "," + p.z, p.id], px, py, "middle", "center", h);
-                Board.coordsAround(p.x, p.y).forEach(([x, y]) => {
-                    if (!this.board.inGameTopPieces.find(p => p.x === x && p.y === y) &&
-                        !emptyDrawn.find(([ex, ey]) => ex === x && ey === y)) {
-                        const [px, py] = this.positionToPixel(x, y, 0);
-                        this.#drawText([x + "," + y + ",0"], px, py, "middle", "center", h);
-                        emptyDrawn.push([x, y]);
-                    }
-                });
-
+        const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
+        const emptyDrawn = [];
+        this.board.inGameTopPieces.forEach(p => {
+            const [px, py] = this.positionToPixel(p.x, p.y, p.z);
+            this.#drawText([p.x + "," + p.y + "," + p.z, p.id], px, py, "middle", "center", h);
+            Board.coordsAround(p.x, p.y).forEach(([x, y]) => {
+                if (!this.board.inGameTopPieces.find(p => p.x === x && p.y === y) &&
+                    !emptyDrawn.find(([ex, ey]) => ex === x && ey === y)) {
+                    const [px, py] = this.positionToPixel(x, y, 0);
+                    this.#drawText([x + "," + y + ",0"], px, py, "middle", "center", h);
+                    emptyDrawn.push([x, y]);
+                }
             });
-        }
+
+        });
     }
     #drawPassAlert() {
         const isLastRound = this.getMoveList().moves.length < this.board.round;
@@ -327,7 +325,7 @@ export default class HiveCanvas {
                 text.push("AI evaluation: " + alpha + " <= " + evaluation + " <= " + beta);
             }
             const fh = Math.ceil(26 * this.canvas.width / 1000);
-            this.#drawText(text, 0, 0, "top", "left", fh);
+            this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
         }
     }
     #clearScreen() {
@@ -855,7 +853,7 @@ export default class HiveCanvas {
             const [colorId, typeId, number] = piece;
             const from = this.board.pieces.find(p => p.type.id === typeId && p.color.id === colorId && p.number === number);
             const to = from.targets[0];
-            this.play(from, to, time);
+            this.play(from.id, to, time);
             return null;
         }
         if (move.match(/^(\d+\D *)?pass/)) {
@@ -915,10 +913,10 @@ export default class HiveCanvas {
         if (!to) {
             return "invalid move";
         }
-        this.play(from, to, time);
+        this.play(from.id, to, time);
         return null;
     }
-    play(piece, target, time = null, dragging = false, confirming = false) {
+    play(pieceId, target, time = null, dragging = false, confirming = false) {
         let moveList = this.getMoveList();
         if (this.gameOver && (this.board.round <= moveList.moves.length || this.currentMoveListId === 0)) {
             // an alternative move happened. Create a new list
@@ -928,7 +926,7 @@ export default class HiveCanvas {
             this.currentMoveListId = this.moveLists.length - 1;
         }
         // save the move
-        moveList.addMove(piece, target, time);
+        moveList.addMove(pieceId, target, time);
         this.#playRound(dragging, confirming);
         const whiteLoses = this.board.isQueenDead(PieceColor.white.id);
         const blackLoses = this.board.isQueenDead(PieceColor.black.id);

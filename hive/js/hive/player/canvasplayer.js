@@ -150,7 +150,7 @@ export default class CanvasPlayer extends Player {
     }
     confirm(autoConfirm = false, dragging = false) {
         const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
-        this.hive.play(piece, piece.targets[this.selectedTargetId], null, dragging, !autoConfirm);
+        this.hive.play(piece.id, piece.targets[this.selectedTargetId], null, dragging, !autoConfirm);
         this.reset();
     }
 }

@@ -68,9 +68,9 @@ export default class MoveList {
         move.blackLoses = blackLoses;
         this.#pushMoveWithTime(move, time);
     }
-    addMove(piece, target, time = null) {
+    addMove(pieceId, target, time = null) {
         const move = new Move();
-        move.pieceId = piece.id;
+        move.pieceId = pieceId;
         move.moveSteps = target.moveSteps.map(xyz => [...xyz]);
         this.#pushMoveWithTime(move, time, true);
     }
