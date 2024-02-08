@@ -103,6 +103,9 @@ export default class AIPlayer extends Player {
                 }
             }
             const state = new EvaluationState();
+            if (!this.#board.standardRules) {
+                state.maxDepth--;
+            }
             state.board = this.#board;
             state.evaluatorId = this.evaluatorId;
             for (let i = 0; i < this.moveId; i++) {
