@@ -216,10 +216,25 @@ export default class HiveCanvas {
     }
     #drawPerformance() {
         let texts = [];
+        let aiState = null;
         if (this.whitePlayer instanceof AIPlayer) {
-            texts.push("Ev: " + (this.whitePlayer.state?.evaluation ?? "N/A"));
+            aiState = this.whitePlayer.state;
         } else if (this.blackPlayer instanceof AIPlayer) {
-            texts.push("Ev: " + (this.blackPlayer.state?.evaluation ?? "N/A"));
+            aiState = this.blackPlayer.state;
+        }
+        if (aiState !== null) {
+            if (aiState.moveId !== null) {
+                texts.push("Moves: " + (aiState.moveId + 1) + " / " + aiState.qtyMoves);
+            }
+            if (aiState.evaluation !== null) {
+                let evaluation = aiState.evaluation;
+                if (evaluation === aiState.maxEvaluation) {
+                    evaluation = "+∞";
+                } else if (aiState.evaluation === -aiState.maxEvaluation) {
+                    evaluation = "-∞";
+                }
+                texts.push("Evaluation: " + evaluation);
+            }
         }
         if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
             texts.push(this.#framesPerSecond + " FPS");
@@ -285,6 +300,9 @@ export default class HiveCanvas {
                 "ping: " + (onlinePlayer === null ? "-" : onlinePlayer.ping),
                 "ai iter.: " + (aiPlayer === null ? "-" : aiPlayer.state.iterations),
                 "ai IPS: " + (aiPlayer === null ? "-" : aiPlayer.getIterationsPerSecond()),
+                "ai idle: " + (aiPlayer === null ? "-" : aiPlayer.idle),
+                "ai moves: " + (aiPlayer === null ? "-" : aiPlayer.moveId + " / " + aiPlayer.qtyMoves),
+                "ai eval: " + (aiPlayer === null ? "-" : aiPlayer.state.alpha + " < " + aiPlayer.state.evaluation + " < " + aiPlayer.state.beta),
                 "fps: " + this.#framesPerSecond,
             ];
             const fh = Math.ceil(26 * this.canvas.width / 1000);

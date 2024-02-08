@@ -3,6 +3,9 @@ import {PieceColor} from "../core/piece.js";
 import QueenEvaluator from "../ai/queenevaluator.js";
 
 const QTY_WORKERS = 7;
+const MAX_EVALUATION = 999999;
+const MAX_DEPTH = 5;
+
 export default class AIPlayer extends Player {
     #initTurnTime;
     #running = false;
@@ -11,10 +14,10 @@ export default class AIPlayer extends Player {
     evaluatorId = "queenai";
 
     #evaluator;
-    #qtyMoves;
-    #moveId;
+    qtyMoves;
+    moveId;
     #maximizing;
-    #idle;
+    idle;
     #ended;
 
     initPlayerTurn() {
@@ -36,16 +39,13 @@ export default class AIPlayer extends Player {
         }
         // minimax
         if (window.Worker) {
-            this.#initTurnTime = Date.now();
             this.#running = true;
-            this.state = new EvaluationState();
-            this.state.board = this.hive.board;
-            this.state.evaluatorId = this.evaluatorId;
+            this.#initTurnTime = Date.now();
             this.#evaluator = getEvaluator(this.evaluatorId);
-            this.#qtyMoves = getMoves(this.state.board, this.#evaluator).length;
-            this.#moveId = Math.min(this.#qtyMoves, QTY_WORKERS);
+            this.qtyMoves = getMoves(this.hive.board, this.#evaluator).length;
+            this.moveId = Math.min(this.qtyMoves, QTY_WORKERS);
             this.#maximizing = this.hive.board.getColorPlaying().id === PieceColor.white.id;
-            this.#idle = QTY_WORKERS - this.#moveId;
+            this.idle = QTY_WORKERS - this.moveId;
             this.#ended = false;
             if (this.#workers.length === 0) {
                 for (let i = 0; i < QTY_WORKERS; i++) {
@@ -61,35 +61,34 @@ export default class AIPlayer extends Player {
                             !this.#maximizing && wState.evaluation < this.state.evaluation) {
                             this.state.evaluation = wState.evaluation;
                             this.state.pieceId = wState.pieceId;
-                            const piece = this.hive.board.pieces.find(p => p.id === this.state.pieceId);
+                            const piece = this.hive.board.pieces.find(p => p.id === wState.pieceId);
                             this.state.target = piece.targets.find(t => t.id === wState.target.id);
                             if (this.#maximizing) {
-                                if (this.state.alpha === null || wState.evaluation > this.state.alpha) {
+                                if (wState.evaluation > this.state.alpha) {
                                     this.state.alpha = wState.evaluation;
                                 }
-                                if (this.state.beta !== null && wState.evaluation - this.state.beta > -1e-4) {
+                                if (wState.evaluation >= this.state.beta) {
                                     this.#ended = true;
                                 }
                             } else {
-                                if (this.state.beta === null || wState.evaluation < this.state.beta) {
+                                if (wState.evaluation < this.state.beta) {
                                     this.state.beta = wState.evaluation;
                                 }
-                                if (this.state.alpha !== null && wState.evaluation - this.state.alpha < 1e-4) {
+                                if (wState.evaluation <= this.state.alpha) {
                                     this.#ended = true;
                                 }
                             }
                         }
-                        if (this.#ended || this.#moveId >= this.#qtyMoves) {
+                        if (this.#ended || this.moveId >= this.qtyMoves) {
                             //console.log("worker " + i + " ended. " + this.#idle + " was idle.");
-                            if (++this.#idle >= QTY_WORKERS) {
+                            if (++this.idle >= QTY_WORKERS) {
                                 //console.log("worker " + i + " apply");
                                 this.#running = false;
                                 const piece = this.hive.board.pieces.find(p => p.id === this.state.pieceId);
                                 this.hive.play(piece, this.state.target);
                             }
                         } else {
-                            this.state.board = null;
-                            this.state.moveId = this.#moveId++;
+                            this.state.moveId = this.moveId++;
                             //console.log("worker " + i + " resume");
                             worker.postMessage(this.state);
                         }
@@ -97,11 +96,19 @@ export default class AIPlayer extends Player {
                     this.#workers.push(worker);
                 }
             }
-            for (let i = 0; i < this.#moveId; i++) {
-                this.state.moveId = i;
+            const state = new EvaluationState();
+            state.board = this.hive.board;
+            state.evaluatorId = this.evaluatorId;
+            for (let i = 0; i < this.moveId; i++) {
+                state.moveId = i;
                 //console.log("worker " + i + " start");
-                this.#workers[i].postMessage(this.state);
+                this.#workers[i].postMessage(state);
             }
+            state.board = null;
+            state.evaluatorId = null;
+            state.qtyMoves = this.qtyMoves;
+            this.state = state;
+
         } else {
             throw Error("Can't create thread for AI player");
         }
@@ -131,17 +138,21 @@ export function getEvaluator(id) {
     }
 }
 class EvaluationState {
+    maxEvaluation = MAX_EVALUATION;
+    maxDepth = MAX_DEPTH;
+
     iterations = 0;
 
     pieceId = null;
     target = null;
     evaluation = null;
-    alpha = null;
-    beta = null;
+    alpha = -MAX_EVALUATION;
+    beta = MAX_EVALUATION;
 
     board = null;
     evaluatorId = null;
     moveId = null;
+    qtyMoves = null;
     done = false;
 }
 

@@ -3,27 +3,29 @@ import Board from "../core/board.js";
 import {getEvaluator, getMoves} from "../player/aiplayer.js";
 
 const ITERATION_STEP = 1000;
-const MAX_EVALUATION = 999999;
-const MAX_DEPTH = 6;
 
 let board = null;
 let initialMoves = null;
+let evaluator = null;
+let state = null;
 onmessage = e => {
-    const state = e.data;
+    state = e.data;
     state.iterations = 0;
-    let evaluator = getEvaluator(state.evaluatorId);
     if (state.board !== null) {
         board = new Board(state.board);
+        state.board = null;
+        evaluator = getEvaluator(state.evaluatorId);
+        state.evaluatorId = null;
         board.computeLegalMoves(true, true);
         initialMoves = getMoves(board, evaluator);
     }
     const maximizing = board.getColorPlaying().id === PieceColor.white.id;
-    alphaBeta(board, evaluator, state, maximizing, 0, state.alpha, state.beta, [initialMoves[state.moveId]]);
+    alphaBeta(0, state.alpha, state.beta, maximizing, [initialMoves[state.moveId]]);
     state.done = true;
     postMessage(state);
 };
 
-function alphaBeta(board, evaluator, state, maximizing, depth, alpha, beta, moves = null) {
+function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     if (moves === null) {
         moves = getMoves(board, evaluator);
     }
@@ -39,10 +41,10 @@ function alphaBeta(board, evaluator, state, maximizing, depth, alpha, beta, move
     if (whiteDead && blackDead) {
         return 0;
     } else if (whiteDead) {
-        return -MAX_EVALUATION;
+        return -state.maxEvaluation;
     } else if (blackDead) {
-        return MAX_EVALUATION;
-    } else if (depth >= MAX_DEPTH) {
+        return state.maxEvaluation;
+    } else if (depth >= state.maxDepth) {
         return evaluator.evaluate(board);
     } else if (moves.length === 0) {
         moves.push(null);
@@ -57,7 +59,7 @@ function alphaBeta(board, evaluator, state, maximizing, depth, alpha, beta, move
         }
         board.round++;
         board.computeLegalMoves(true, true);
-        const childEvaluation = alphaBeta(board, evaluator, state, !maximizing, depth + 1, alpha, beta);
+        const childEvaluation = alphaBeta(depth + 1, alpha, beta, !maximizing);
         if (evaluation === null || maximizing && childEvaluation > evaluation || !maximizing && childEvaluation < evaluation) {
             evaluation = childEvaluation;
             if (depth === 0) {
@@ -73,17 +75,17 @@ function alphaBeta(board, evaluator, state, maximizing, depth, alpha, beta, move
         }
         board.round--;
         if (maximizing) {
-            if (alpha === null || evaluation > alpha) {
+            if (evaluation > alpha) {
                 alpha = evaluation;
             }
-            if (beta !== null && evaluation - beta > -1e-4) {
+            if (evaluation >= beta) {
                 break;
             }
         } else {
-            if (beta === null || evaluation < beta) {
+            if (evaluation < beta) {
                 beta = evaluation;
             }
-            if (alpha !== null && evaluation - alpha < 1e-4) {
+            if (evaluation <= alpha) {
                 break;
             }
         }
