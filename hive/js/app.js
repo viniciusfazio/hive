@@ -14,6 +14,7 @@ $(() => {
     $("#confirmMoveLabel").text("Must confirm move if time > " + SHORT_ON_TIME + "s");
     $("#resign").click(resign);
     $("#newGame").click(newGame);
+    $("#undo").click(undo);
     $("#newOnlineGame").click(newOnlineGame);
     $("#download").click(download);
     $("#upload").change(upload);
@@ -212,6 +213,7 @@ function upload() {
                 } else {
                     hive.whitePlayer = new AIPlayer(hive);
                 }
+                hive.setGameOver(false); // to update undo button
                 hive.getPlayerPlaying().initPlayerTurn();
             }
         };
@@ -243,8 +245,9 @@ function tryParseFile(fileContent, standardRules, color) {
         if (matches) {
             const round = matches[2];
             const parentId = matches[1];
-            hive.gameOver = true;
+            hive.setGameOver(true);
             hive.setRound(parseInt(round), parseInt(parentId));
+
             return false;
         }
         let time = null;
@@ -308,6 +311,22 @@ function newGame() {
         !ai || color.id === PieceColor.white.id ? canvasPlayer : new AIPlayer(hive),
         !ai || color.id === PieceColor.black.id ? canvasPlayer : new AIPlayer(hive),
         totalTime, increment, standardRules);
+}
+function undo() {
+    if (hive.undo()) {
+        if (hive.board.round % 2 === 1) {
+            $("#move-list > ul:last-child").remove();
+        } else {
+            $("#move-list > ul > li.round-" + (hive.board.round + 1)).remove();
+        }
+        if (hive.getPlayerPlaying() instanceof AIPlayer) {
+            undo();
+        } else {
+            updateMoveList(hive.board.round, 0);
+        }
+    } else {
+        showMessage("There is no move to undo...");
+    }
 }
 function getTime() {
     let totalTimeVal = $("#totalTime").val();
@@ -414,6 +433,13 @@ function localCallbacks() {
             }
             gameOver();
         },
+        setGameOver: (gameOver, isOnline) => {
+            if (gameOver || isOnline) {
+                $("#undo").addClass("d-none");
+            } else {
+                $("#undo").removeClass("d-none");
+            }
+        }
     }
 }
 function gameOver() {

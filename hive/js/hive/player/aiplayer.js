@@ -85,12 +85,10 @@ export default class AIPlayer extends Player {
                             }
                         }
                         if (this.moveId >= this.qtyMoves) {
-                            this.idle++;
                             if (this.#ended) {
-                                this.reset();
-                                this.idle = QTY_WORKERS;
-                            }
-                            if (this.idle === QTY_WORKERS) {
+                                this.reset(false);
+                                this.hive.play(this.state.pieceId, this.state.target);
+                            } else if (++this.idle === QTY_WORKERS) {
                                 this.#running = false;
                                 this.hive.play(this.state.pieceId, this.state.target);
                             }
@@ -122,9 +120,15 @@ export default class AIPlayer extends Player {
             throw Error("Can't create thread for AI player");
         }
     }
-    reset() {
+    reset(resetState = true) {
         this.#workers.forEach(w => w.terminate());
         this.#workers = [];
+        this.#running = false;
+        this.idle = QTY_WORKERS;
+        if (resetState) {
+            this.state = new EvaluationState();
+            this.moveId = null;
+        }
     }
     getIterationsPerSecond() {
         if (!this.#running) {

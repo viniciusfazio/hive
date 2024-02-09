@@ -103,7 +103,7 @@ export default class HiveCanvas {
         this.whitePlayer.reset();
         this.blackPlayer.reset();
         this.camera.reset();
-        this.gameOver = false;
+        this.setGameOver(false);
         this.standardRules = standardRules;
         this.flippedPieces = false;
         this.board.reset(standardRules);
@@ -113,6 +113,10 @@ export default class HiveCanvas {
 
         this.#initRound();
         this.#callbacks.newGame(this.getMoveList().timeControlToText());
+    }
+    setGameOver(gameOver) {
+        this.gameOver = gameOver;
+        this.#callbacks.setGameOver(gameOver, this.whitePlayer instanceof OnlinePlayer || this.blackPlayer instanceof OnlinePlayer);
     }
     getPieceZ(piece) {
         if (piece.transition === 0) {
@@ -789,7 +793,7 @@ export default class HiveCanvas {
         const lastMove = moveList.moves[moveList.moves.length - 1];
         const moveText = (this.board.round - 1) + ". " + Move.notation(lastMove, this.board, this.#shortOnTime);
         this.#callbacks.move(this.board.round, moveText, this.currentMoveListId);
-        this.gameOver ||= lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout;
+        this.setGameOver(this.gameOver || lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout);
         this.#initRound(forcePlayerPlaying);
     }
     pass(time = null) {
@@ -915,6 +919,20 @@ export default class HiveCanvas {
         }
         this.play(from.id, to, time);
         return null;
+    }
+    undo() {
+        if (this.moveLists.length > 1) {
+            return false;
+        }
+        const moveList = this.getMoveList();
+        if (moveList.moves.length === 0) {
+            return false;
+        }
+        this.getPlayerPlaying().reset();
+        this.#goTo(moveList.moves.length, (p, ) => p.transition = 1, 0);
+        moveList.moves.pop();
+        this.#initRound();
+        return true;
     }
     play(pieceId, target, time = null, dragging = false, confirming = false) {
         let moveList = this.getMoveList();
