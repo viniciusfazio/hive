@@ -18,6 +18,7 @@ export default class HiveCanvas {
     board = new Board();
 
     #debug = false;
+    #coords = false;
     #frameQty = 0;
     #FPSUpdateTime;
     #frameTime;
@@ -193,9 +194,11 @@ export default class HiveCanvas {
 
         this.#drawPerformance();
 
+        this.#drawEmptySpace();
+
         this.#drawPieces();
 
-        // this.#drawCoords();
+        this.#drawCoords();
 
         this.#drawFlip();
 
@@ -210,22 +213,45 @@ export default class HiveCanvas {
         const waitTime = REDRAW_IN_MS - (Date.now() - this.#frameTime);
         setTimeout(() => this.#redraw(), Math.max(1, waitTime));
     }
-    #drawCoords() {
-        const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
+    #drawEmptySpace() {
+        const path = this.getPiecePath2D();
+        const [, , offset] = this.getSize();
+        this.ctx.strokeStyle = "rgb(128, 128, 128)";
+        this.ctx.lineWidth = Math.ceil(offset / 4);
+        for (const [x, y] of this.#getEmptySpaces()) {
+            const [px, py] = this.positionToPixel(x, y, 0);
+            this.ctx.setTransform(1, 0, 0, 1, px, py);
+            this.ctx.stroke(path);
+        }
+    }
+    *#getEmptySpaces() {
         const emptyDrawn = [];
-        this.board.inGameTopPieces.forEach(p => {
-            const [px, py] = this.positionToPixel(p.x, p.y, p.z);
-            this.#drawText([p.x + "," + p.y + "," + p.z, p.id], px, py, "middle", "center", h);
-            Board.coordsAround(p.x, p.y).forEach(([x, y]) => {
+        for (const p of this.board.inGameTopPieces) {
+            for (const [x, y] of Board.coordsAround(p.x, p.y)) {
                 if (!this.board.inGameTopPieces.find(p => p.x === x && p.y === y) &&
                     !emptyDrawn.find(([ex, ey]) => ex === x && ey === y)) {
-                    const [px, py] = this.positionToPixel(x, y, 0);
-                    this.#drawText([x + "," + y + ",0"], px, py, "middle", "center", h);
                     emptyDrawn.push([x, y]);
+                    yield [x, y];
                 }
-            });
+            }
+        }
+        if (emptyDrawn.length === 0) {
+            yield [0, 0];
+        }
 
-        });
+    }
+    #drawCoords() {
+        if (this.#coords) {
+            const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
+            this.board.inGameTopPieces.forEach(p => {
+                const [px, py] = this.positionToPixel(p.x, p.y, p.z);
+                this.#drawText([p.x + "," + p.y + "," + p.z, p.id], px, py, "middle", "center", h);
+            });
+            for (const [x, y] of this.#getEmptySpaces()) {
+                const [px, py] = this.positionToPixel(x, y, 0);
+                this.#drawText([x + "," + y + ",0"], px, py, "middle", "center", h);
+            }
+        }
     }
     #drawPassAlert() {
         const isLastRound = this.getMoveList().moves.length < this.board.round;
@@ -303,16 +329,16 @@ export default class HiveCanvas {
                 aiPlayer = this.blackPlayer;
             }
             let text = [
+                "Canvas: " + this.canvas.width + " x " + this.canvas.height + " : " + Math.round(window.devicePixelRatio * 100) / 100,
+                "White player: " + this.whitePlayer.constructor.name,
+                "Black player: " + this.blackPlayer.constructor.name,
                 "Hover: " + this.#canvasPlayer.hoverPieceId,
                 "Selected: " + this.#canvasPlayer.selectedPieceId,
                 "Target: " + this.#canvasPlayer.selectedTargetId,
                 "Mouse: " + Math.round(this.#canvasPlayer.mouseX) + "," + Math.round(this.#canvasPlayer.mouseY),
-                "Canvas: " + this.canvas.width + " x " + this.canvas.height + " : " + Math.round(window.devicePixelRatio * 100) / 100,
                 "Time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
                 "Round: " + this.board.round + " / " + moveList.moves.length,
                 "Moves available: " + totalMoves,
-                "White player: " + this.whitePlayer.constructor.name,
-                "Black player: " + this.blackPlayer.constructor.name,
                 "FPS: " + this.#framesPerSecond,
             ];
             if (onlinePlayer !== null) {
@@ -322,11 +348,6 @@ export default class HiveCanvas {
                 const aiState = aiPlayer.state;
                 text.push("AI iterations: " + aiState.iterations);
                 text.push("AI speed: " + aiPlayer.getIterationsPerSecond());
-                text.push("AI idle: " + aiPlayer.idle + " / " + aiPlayer.qtyWorkers);
-                const alpha = getEvaluation(aiState.alpha, aiState.maxEvaluation);
-                const evaluation = getEvaluation(aiState.evaluation, aiState.maxEvaluation);
-                const beta = getEvaluation(aiState.beta, aiState.maxEvaluation);
-                text.push("AI evaluation: " + alpha + " <= " + evaluation + " <= " + beta);
             }
             const fh = Math.ceil(26 * this.canvas.width / 1000);
             this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
@@ -622,11 +643,12 @@ export default class HiveCanvas {
 
     #drawPiece(piece, path, selectedPieceId, selectedTargetId, hoverPieceId, targetPiece, position) {
         if (!piece.inGame && piece.type.linked !== null && piece.subNumber === 0) {
-            // the linked piece has been selected and chosen to play. So, don't draw it in the hud
             const id = PieceType[piece.type.linked].id;
             const mirror = this.board.pieces.find(p => p.type.id === id && piece.color.id === p.color.id && p.number === piece.number);
             if (mirror && mirror.id === selectedPieceId &&
                 (selectedTargetId !== null || mirror.targets.find(p => p.id === hoverPieceId))) {
+                // the linked piece has been selected and hovering target or confirming
+                this.#drawPieceWithStyle(piece, path, "selected-from");
                 return;
             }
         }
@@ -637,8 +659,11 @@ export default class HiveCanvas {
         } else if (piece.id === selectedPieceId) {
             if (selectedTargetId === null &&
                 !piece.targets.find(p => p.id === hoverPieceId)) {
-                // drawing selected piece only if not hovering target or confirming
+                // drawing selected piece not hovering target or confirming
                 this.#drawPieceWithStyle(piece, path, "selected");
+            } else {
+                // drawing selected piece hovering target or confirming
+                this.#drawPieceWithStyle(piece, path, "selected-from");
             }
         } else if (targetPiece && targetPiece.id === piece.id) {
             // drawing target being confirmed
@@ -684,12 +709,15 @@ export default class HiveCanvas {
         const [rx, ry, offset] = this.getSize();
 
         this.ctx.setTransform(1, 0, 0, 1, x, y);
-        if (style === "target") {
+        if (style === "target" || style === "selected-from") {
             this.ctx.globalAlpha = .25;
         }
 
         // fill color
         this.ctx.fillStyle = piece.color.id === "w" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
+        if (style === "selected-from") {
+            this.ctx.fillStyle = "rgb(255, 255, 0)";
+        }
         this.ctx.fill(path);
 
         // draw piece image, rotating according to the number identification
@@ -711,6 +739,9 @@ export default class HiveCanvas {
             dash = true;
         } else if (style === "selected" || style === "target") {
             borderColor = "rgb(255, 0, 0)";
+            dash = true;
+        } else if (style === "selected-from") {
+            borderColor = "rgb(255, 255, 0)";
             dash = true;
         }
         if (dash) {
@@ -776,12 +807,15 @@ export default class HiveCanvas {
             y += height;
         })
     }
-    getPlayerPlaying(forcePlayerPlaying = false) {
-        return this.gameOver && !forcePlayerPlaying ? this.#canvasPlayer :
-            (this.board.round % 2 === 1 ? this.whitePlayer : this.blackPlayer);
+    getPlayerPlaying(notifyOnlinePlayer = false) {
+        const player = this.board.round % 2 === 1 ? this.whitePlayer : this.blackPlayer;
+        return this.gameOver && (!notifyOnlinePlayer || !(player instanceof OnlinePlayer)) ? this.#canvasPlayer : player;
     }
     toggleDebug() {
         this.#debug = !this.#debug;
+    }
+    toggleCoords() {
+        this.#coords = !this.#coords;
     }
     #playRound(dragging = false, confirming = false, forcePlayerPlaying = false) {
         const moveList = this.getMoveList();
@@ -921,18 +955,16 @@ export default class HiveCanvas {
         return null;
     }
     undo() {
-        if (this.moveLists.length > 1) {
-            return false;
-        }
         const moveList = this.getMoveList();
-        if (moveList.moves.length === 0) {
-            return false;
+        if (this.moveLists.length !== 1 || moveList.moves.length === 0) {
+            this.#callbacks.undo(false);
+        } else {
+            this.getPlayerPlaying().reset();
+            this.#goTo(moveList.moves.length, (p, ) => p.transition = 1, 0);
+            moveList.removeMove();
+            this.#initRound();
+            this.#callbacks.undo(true);
         }
-        this.getPlayerPlaying().reset();
-        this.#goTo(moveList.moves.length, (p, ) => p.transition = 1, 0);
-        moveList.moves.pop();
-        this.#initRound();
-        return true;
     }
     play(pieceId, target, time = null, dragging = false, confirming = false) {
         let moveList = this.getMoveList();
@@ -1045,10 +1077,10 @@ export default class HiveCanvas {
         this.#goTo(round, (p, ) => p.transition = 1, moveListId);
         this.#initRound();
     }
-    #initRound(forcePlayerPlaying = false) {
+    #initRound(notifyOnlinePlayer = false) {
         this.board.computeLegalMoves(this.gameOver || this.getMoveList().moves.length < this.board.round);
         this.board.pieces.forEach(p => p.targets.forEach(t => t.transition = 0));
-        this.getPlayerPlaying(forcePlayerPlaying).initPlayerTurn();
+        this.getPlayerPlaying(notifyOnlinePlayer).initPlayerTurn();
         this.camera.recenter(this);
     }
     #drawImage(id, r, x = 0, y = 0) {

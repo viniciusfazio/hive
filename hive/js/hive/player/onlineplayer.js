@@ -90,6 +90,9 @@ export default class OnlinePlayer extends Player {
                 case "draw":
                     callbacks.opponentOffersDraw();
                     break;
+                case "undo":
+                    callbacks.opponentOffersUndo();
+                    break;
                 case "new":
                     const color = data.color === "b" || data.color !== "w" && Math.random() < .5 ? "w" : "b";
                     const colorOpponent = color === "b" ? "w" : "b";
@@ -109,6 +112,9 @@ export default class OnlinePlayer extends Player {
                     break;
                 case "draw_ok":
                     this.hive.draw();
+                    break;
+                case "undo_ok":
+                    this.hive.undo();
                     break;
                 case "move":
                     this.hive.playNotation(data.move, data.time);
@@ -135,6 +141,9 @@ export default class OnlinePlayer extends Player {
     draw() {
         this.#conn.send({type: "draw"});
     }
+    undo() {
+        this.#conn.send({type: "undo"});
+    }
     acceptNewGame(callbacks) {
         if (this.#conn) {
             this.#conn.send(this.#challenge);
@@ -146,6 +155,12 @@ export default class OnlinePlayer extends Player {
         if (this.#conn) {
             this.#conn.send({type: "draw_ok"});
             this.hive.draw();
+        }
+    }
+    acceptUndo() {
+        if (this.#conn) {
+            this.#conn.send({type: "undo_ok"});
+            this.hive.undo();
         }
     }
     #resetConnection(callbacks, showNotification = true) {

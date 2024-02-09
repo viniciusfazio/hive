@@ -65,6 +65,7 @@
                     </div>
                     <button type="button" class="text-nowrap btn btn-warning my-1 d-none" id="undo"><i class="bi bi-arrow-90deg-left"></i>
                         &nbsp;Undo last move</button>
+                    <button type="button" class="text-nowrap btn btn-warning my-1 d-none" id="offerUndo"><i class="bi bi-arrow-90deg-left"></i>&nbsp;Ask to undo last move</button>
                     <button type="button" class="text-nowrap btn btn-warning my-1 d-none" id="resign"><i class="bi bi-flag-fill"></i>&nbsp;Resign</button>
                     <button type="button" class="text-nowrap btn btn-warning my-1 d-none" id="draw"><i class="bi bi-emoji-sunglasses"></i>&nbsp;Offer draw</button>
                     <div><i class="bi bi-list-ul"></i>&nbsp;<b>Move list</b></div>
@@ -84,7 +85,7 @@
                         <input class="form-check-input" type="checkbox" id="autoMove"/>
                         <label class="form-check-label" for="autoMove">Auto move first piece</label>
                     </div>
-                    <div class="form-check form-switch">
+                    <div class="form-check form-switch gameSettings">
                         <input class="form-check-input" type="checkbox" id="ai" checked="checked"/>
                         <label class="form-check-label" for="ai">Local game against AI</label>
                     </div>
@@ -97,7 +98,7 @@
                         <label for="totalTime">Time (in minutes)</label>
                     </div>
                     <div class="form-floating mb-1 gameSettings">
-                        <input type="number" class="form-control" min="0" max="3600" id="increment" value="3"/>
+                        <input type="number" class="form-control" min="0" max="3600" id="increment" value="5"/>
                         <label for="increment">Increment per move (in seconds)</label>
                     </div>
                     <input type="radio" class="btn-check gameSettings" name="piece" id="whitePiece" autocomplete="off" value="w" checked="checked"/>
@@ -167,6 +168,18 @@
                 </div>
             </div>
         </div>
+        <div id="undoToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">Permission to undo last move!</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Your opponent wants to undo last move. Do you accept?
+                <div class="mt-2 pt-2 border-top">
+                    <button type="button" id="acceptUndo" class="btn btn-primary btn-sm">Accept</button>
+                </div>
+            </div>
+        </div>
         <div id="drawSentToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
                 <strong class="me-auto">Draw offered!</strong>
@@ -174,6 +187,15 @@
             </div>
             <div class="toast-body">
                 Your draw offer was sent.
+            </div>
+        </div>
+        <div id="undoSentToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">Undo offered!</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Your undo offer was sent.
             </div>
         </div>
         <div id="challengeSentToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">

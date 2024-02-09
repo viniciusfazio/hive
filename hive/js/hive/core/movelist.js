@@ -42,6 +42,16 @@ export default class MoveList {
         }
         this.moves.push(move);
     }
+    removeMove() {
+        if (this.moves.length > 0) {
+            const move = this.moves.pop();
+            if (this.totalTime > 0) {
+                this.#lastMoveTimestamp = Date.now() - move.time;
+                this.whitePiecesTimeLeft = move.whitePiecesTimeLeft;
+                this.blackPiecesTimeLeft = move.blackPiecesTimeLeft;
+            }
+        }
+    }
     addPass(time = null) {
         const move = new Move();
         move.pass = true;

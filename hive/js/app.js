@@ -13,8 +13,9 @@ $(() => {
     canvasPlayer = new CanvasPlayer(hive);
     $("#confirmMoveLabel").text("Must confirm move if time > " + SHORT_ON_TIME + "s");
     $("#resign").click(resign);
+    $("#offerUndo").click(offerUndo);
     $("#newGame").click(newGame);
-    $("#undo").click(undo);
+    $("#undo").click(() => hive.undo());
     $("#newOnlineGame").click(newOnlineGame);
     $("#download").click(download);
     $("#upload").change(upload);
@@ -27,6 +28,7 @@ $(() => {
     $("#disconnect").click(() => onlinePlayer.disconnect(onlineCallbacks()));
     $("#acceptNewGame").click(acceptNewGame);
     $("#acceptDraw").click(acceptDraw);
+    $("#acceptUndo").click(acceptUndo);
     $("#move-list").keydown(e => {
         switch (e.key) {
             case "ArrowLeft":
@@ -70,6 +72,9 @@ $(() => {
                 break;
             case "D":
                 hive.toggleDebug();
+                break;
+            case "C":
+                hive.toggleCoords();
                 break;
         }
     });
@@ -312,22 +317,6 @@ function newGame() {
         !ai || color.id === PieceColor.black.id ? canvasPlayer : new AIPlayer(hive),
         totalTime, increment, standardRules);
 }
-function undo() {
-    if (hive.undo()) {
-        if (hive.board.round % 2 === 1) {
-            $("#move-list > ul:last-child").remove();
-        } else {
-            $("#move-list > ul > li.round-" + (hive.board.round + 1)).remove();
-        }
-        if (hive.getPlayerPlaying() instanceof AIPlayer) {
-            undo();
-        } else {
-            updateMoveList(hive.board.round, 0);
-        }
-    } else {
-        showMessage("There is no move to undo...");
-    }
-}
 function getTime() {
     let totalTimeVal = $("#totalTime").val();
     let incrementVal = $("#increment").val();
@@ -341,6 +330,11 @@ function draw () {
     onlinePlayer.draw();
     // noinspection JSUnresolvedReference
     $("#drawSentToast").toast("show");
+}
+function offerUndo() {
+    onlinePlayer.undo();
+    // noinspection JSUnresolvedReference
+    $("#undoSentToast").toast("show");
 }
 function newOnlineGame() {
     const piece = $("[name='piece']:checked").val();
@@ -359,6 +353,11 @@ function acceptDraw() {
     // noinspection JSUnresolvedReference
     $("#drawToast").toast("hide");
     onlinePlayer.acceptDraw();
+}
+function acceptUndo() {
+    // noinspection JSUnresolvedReference
+    $("#undoToast").toast("hide");
+    onlinePlayer.acceptUndo();
 }
 function resign() {
     if (hive.getPlayerPlaying() instanceof CanvasPlayer) {
@@ -400,7 +399,7 @@ function localCallbacks() {
             appendMoveList(1, "Start - " + timeControl);
             if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
                 $("#newGame, #newOnlineGame, .gameSettings").addClass("d-none");
-                $("#resign, #draw").removeClass("d-none");
+                $("#resign, #offerUndo, #draw").removeClass("d-none");
             }
         },
         resign: id => {
@@ -414,6 +413,22 @@ function localCallbacks() {
         drawByAgreement: () => {
             showMessage("Draw by agreement!");
             gameOver();
+        },
+        undo: ok => {
+            if (ok) {
+                if (hive.board.round % 2 === 1) {
+                    $("#move-list > ul:last-child").remove();
+                } else {
+                    $("#move-list > ul > li.round-" + (hive.board.round + 1)).remove();
+                }
+                if (hive.getPlayerPlaying() instanceof AIPlayer) {
+                    hive.undo();
+                } else {
+                    updateMoveList(hive.board.round, 0);
+                }
+            } else {
+                showMessage("There is no move to undo...");
+            }
         },
         timeout: id => {
             if (id === "b") {
@@ -445,7 +460,7 @@ function localCallbacks() {
 function gameOver() {
     if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
         $("#newOnlineGame, .gameSettings").removeClass("d-none");
-        $("#resign, #draw").addClass("d-none");
+        $("#resign, #offerUndo, #draw").addClass("d-none");
     }
 }
 function onlineCallbacks() {
@@ -484,6 +499,10 @@ function onlineCallbacks() {
             // noinspection JSUnresolvedReference,SpellCheckingInspection
             $("#drawToast").toast("show", { autohide: false });
         },
+        opponentOffersUndo: () => {
+            // noinspection JSUnresolvedReference,SpellCheckingInspection
+            $("#undoToast").toast("show", { autohide: false });
+        },
         error: err => showMessage("" + err),
         connectionBroken: connectionBroken,
     };
@@ -492,7 +511,7 @@ function connectionBroken(showNotification) {
     if (showNotification) {
         showMessage("Connection broken")
     }
-    $(".connection, #openGame, #newOnlineGame, #resign, #draw, #disconnect").addClass("d-none");
+    $(".connection, #openGame, #newOnlineGame, #resign, #offerUndo, #draw, #disconnect").addClass("d-none");
     $("#receive, #newGame, #openGame, .gameSettings").removeClass("d-none");
     if (hive.whitePlayer instanceof OnlinePlayer) {
         hive.whitePlayer = canvasPlayer;
