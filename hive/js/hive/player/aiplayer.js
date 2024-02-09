@@ -67,20 +67,18 @@ export default class AIPlayer extends Player {
                             const piece = this.#board.pieces.find(p => p.id === wState.pieceId);
                             this.state.target = piece.targets.find(t => t.id === wState.target.id);
                             if (this.#maximizing) {
-                                if (wState.evaluation > this.state.alpha) {
-                                    this.state.alpha = wState.evaluation;
-                                }
                                 if (wState.evaluation >= this.state.beta) {
                                     this.moveId = this.qtyMoves;
                                     this.#ended = true;
+                                } else if (wState.evaluation > this.state.alpha) {
+                                    this.state.alpha = wState.evaluation;
                                 }
                             } else {
-                                if (wState.evaluation < this.state.beta) {
-                                    this.state.beta = wState.evaluation;
-                                }
                                 if (wState.evaluation <= this.state.alpha) {
                                     this.moveId = this.qtyMoves;
                                     this.#ended = true;
+                                } else if (wState.evaluation < this.state.beta) {
+                                    this.state.beta = wState.evaluation;
                                 }
                             }
                         }
@@ -101,11 +99,6 @@ export default class AIPlayer extends Player {
                 }
             }
             const state = new EvaluationState();
-            /*
-            if (!this.#board.standardRules) {
-                state.maxDepth--;
-            }
-             */
             state.board = this.#board;
             state.evaluatorId = this.evaluatorId;
             for (let i = 0; i < this.moveId; i++) {
@@ -139,7 +132,7 @@ export default class AIPlayer extends Player {
 }
 export function getMoves(board, evaluator) {
     const moves = [];
-    board.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
+    board.allPieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
     return evaluator.sortMoves(board, moves);
 }
 export function getEvaluator(id) {

@@ -38,25 +38,20 @@ export default class Board {
         this.#computePieces();
     }
     isQueenDead(colorId) {
-        const queen = this.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
+        const queen = this.allPieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
         return queen &&
-            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.inGameTopPieces.find(p => p.x === x && p.y === y));
+            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.allPieces.find(p => p.inGame && p.x === x && p.y === y));
     }
 
     #computePieces() {
         this.pieces = this.allPieces.filter(p =>
-            (!this.standardRules || p.type.standard) &&
-            (
-                this.standardRules ||
-                p.type.linked === null ||
+            (!this.standardRules || p.type.standard) && (
+                this.standardRules || p.type.linked === null || p.inGame ||
                 !this.allPieces.find(l => // if linked piece is in game, can't play
-                    l.inGame &&
-                    l.type.id === PieceType[p.type.linked].id &&
-                    l.number === p.number &&
-                    l.color.id === p.color.id
+                    l.inGame && l.type.id === PieceType[p.type.linked].id && l.number === p.number && l.color.id === p.color.id
                 )
             )
-    );
+        );
     }
     computeLegalMoves(canMove, computeOtherSide = false) {
         this.allPieces.forEach(p => {
@@ -88,10 +83,7 @@ export default class Board {
             colorId = colorId === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
         }
         // cant move if queen is not in game
-        if (!this.pieces.find(p =>
-            p.inGame && p.type.id === PieceType.queen.id &&
-            p.color.id === colorId
-        )) {
+        if (!this.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId)) {
             return 0;
         }
         let total = 0;
@@ -170,26 +162,34 @@ export default class Board {
         });
         return ret;
     }
-    // noinspection JSUnusedLocalSymbols
-    play(from, to, p, moveSteps = [], callbackMove = (piece, extraPieceMoving) => {}) {
+    pass() {
+        this.lastMovedPiecesId = [];
+        this.round++;
+    }
+    passBack() {
+        this.lastMovedPiecesId = [];
+        this.round--;
+    }
+    play(from, to, p, moveSteps = [], callbackMove = (_piece, _extraPieceMoving) => {}) {
         callbackMove(p, false);
         const [fromX, fromY, fromZ] = from;
         const [toX, toY, toZ] = to;
+        let p2 = null;
         if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
             // mantis special move
-            const p2 = this.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
+            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === toX && p2.y === toY && p2.z === 0);
             callbackMove(p2, true);
             p2.play(fromX, fromY, 0);
             p.play(fromX, fromY, 1);
         } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
             // dragonfly special move
-            const p2 = this.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
+            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
             callbackMove(p2, true);
             p2.play(toX, toY, 0);
             p.play(toX, toY, 1);
         } else if (fromX !== null && fromY !== null && p.type.id === PieceType.centipede.id && toZ > 0) {
             // centipede special move
-            const p2 = this.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === 0);
+            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === toX && p2.y === toY && p2.z === 0);
             callbackMove(p2, true);
             p2.play(fromX, fromY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [fromX, fromY, 0]]);
             p.play(toX, toY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [toX, toY, 0]]);
@@ -197,33 +197,40 @@ export default class Board {
             callbackMove(p, false);
             p.play(toX, toY, toZ, moveSteps);
         }
+        this.lastMovedPiecesId = [p.id];
+        if (p2 !== null) {
+            this.lastMovedPiecesId.push(p2.id);
+        }
+        this.round++;
     }
-    // noinspection JSUnusedLocalSymbols
-    playBack(from, to, p, moveSteps = [], callbackMove = (piece, extraPieceMoving) => {}) {
+    playBack(from, to, p, moveSteps = [], callbackMove = (_piece, _extraPieceMoving) => {}) {
         const [fromX, fromY, fromZ] = from;
         const [toX, toY, toZ] = to;
         callbackMove(p, false);
+        let p2 = null;
         if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
             // mantis special move
-            const p2 = this.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
+            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === fromX && p2.y === fromY && p2.z === 0);
             callbackMove(p2, true);
             p2.play(toX, toY, 0);
             p.play(fromX, fromY, 0);
         } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
             // dragonfly special move
-            const p2 = this.inGame.find(p2 => p2.x === toX && p2.y === toY && p2.z === p.z - 1);
+            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === toX && p2.y === toY && p2.z === p.z - 1);
             callbackMove(p2, true);
             p2.play(fromX, fromY, fromZ - 1);
             p.play(fromX, fromY, fromZ);
         } else if (p.type.id === PieceType.centipede.id && toZ > 0) {
             // centipede special move
-            const p2 = this.inGame.find(p2 => p2.x === fromX && p2.y === fromY && p2.z === 0);
+            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === fromX && p2.y === fromY && p2.z === 0);
             callbackMove(p2, true);
             p2.play(toX, toY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [toX, toY, 0]]);
             p.play(fromX, fromY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [fromX, fromY, 0]]);
         } else {
             p.play(fromX, fromY, fromZ, moveSteps.toReversed());
         }
+        this.lastMovedPiecesId = [];
+        this.round--;
     }
     static coordsAround(x, y, includePoint = false) {
         if (includePoint) {

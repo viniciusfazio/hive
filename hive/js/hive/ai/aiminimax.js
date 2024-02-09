@@ -8,6 +8,7 @@ let board = null;
 let initialMoves = null;
 let evaluator = null;
 let state = null;
+
 onmessage = e => {
     state = e.data;
     state.iterations = 0;
@@ -26,11 +27,6 @@ onmessage = e => {
 };
 
 function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
-    if (moves === null) {
-        board.computeLegalMoves(true, true);
-        moves = getMoves(board, evaluator);
-    }
-
     // check terminal state or end depth
     const whiteDead = board.isQueenDead(PieceColor.white.id);
     const blackDead = board.isQueenDead(PieceColor.black.id);
@@ -46,20 +42,26 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     } else if (blackDead) {
         return state.maxEvaluation;
     } else if (depth >= state.maxDepth) {
+        board.computeLegalMoves(true, true);
         return Math.max(-state.maxEvaluation + 1, Math.min(state.maxEvaluation - 1, evaluator.evaluate(board)));
-    } else if (moves.length === 0) {
-        moves.push(null);
     }
 
     // iterate minimax
+    if (depth > 0) {
+        board.computeLegalMoves(true);
+        moves = getMoves(board, evaluator);
+        if (moves.length === 0) {
+            moves.push(null);
+        }
+    }
     let evaluation = null;
     for (const move of moves) {
         if (move !== null) {
             const [from, to, p, ] = move;
-            board.computeLegalMoves(true, true);
             board.play(from, to, p);
+        } else {
+            board.pass();
         }
-        board.round++;
         const childEvaluation = alphaBeta(depth + 1, alpha, beta, !maximizing);
         if (evaluation === null || maximizing && childEvaluation > evaluation || !maximizing && childEvaluation < evaluation) {
             evaluation = childEvaluation;
@@ -72,23 +74,23 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
         }
         if (move !== null) {
             const [from, to, p, ] = move;
-            board.computeLegalMoves(true);
             board.playBack(from, to, p);
+        } else {
+            board.passBack();
         }
-        board.round--;
         if (maximizing) {
-            if (evaluation > alpha) {
-                alpha = evaluation;
-            }
             if (evaluation >= beta) {
                 break;
             }
-        } else {
-            if (evaluation < beta) {
-                beta = evaluation;
+            if (evaluation > alpha) {
+                alpha = evaluation;
             }
+        } else {
             if (evaluation <= alpha) {
                 break;
+            }
+            if (evaluation < beta) {
+                beta = evaluation;
             }
         }
     }

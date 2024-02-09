@@ -1019,42 +1019,15 @@ export default class HiveCanvas {
             this.#forward(callbackMove, round);
         } else if (this.board.round > round) { // undo moves
             this.#backward(callbackMove, round);
-        } else { // no moves to be done
-            return;
-        }
-
-        if (round === 1 || this.board.passRound) {
-            this.board.lastMovedPiecesId = [];
-        } else {
-            const move = moveList.moves[round - 2];
-            if (move.pieceId === null) {
-                this.board.lastMovedPiecesId = [];
-            } else {
-                this.board.lastMovedPiecesId = [move.pieceId];
-                const p1 = this.board.pieces.find(p => p.id === move.pieceId);
-                const [fromX, fromY, fromZ] = move.moveSteps[0];
-                const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
-                if (p1.type.id === PieceType.mantis.id && fromX !== null && fromY !== null && fromZ === 0 && toZ === 1) {
-                    // mantis special move has 2 last move piece
-                    const p2 = this.board.pieces.find(p => p.x === fromX && p.y === fromY && p.z === 0);
-                    this.board.lastMovedPiecesId.push(p2.id);
-                } else if (p1.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
-                    // dragonfly special move has 2 last move piece
-                    const p2 = this.board.pieces.find(p => p.x === toX && p.y === toY && p.z === 0);
-                    this.board.lastMovedPiecesId.push(p2.id);
-                } else if (p1.type.id === PieceType.centipede.id && toZ > 0) {
-                    // centipede special move has 2 last move piece
-                    const p2 = this.board.inGameTopPieces.find(p => p.x === fromX && p.y === fromY);
-                    this.board.lastMovedPiecesId.push(p2.id);
-                }
-            }
         }
     }
     #forward(callbackMove, round) {
         const moveList = this.getMoveList();
-        for (; this.board.round < round; this.board.round++) { // redo moves
+        while (this.board.round < round) { // redo moves
             const move = moveList.moves[this.board.round - 1];
-            if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
+            if (move.pass) {
+                this.board.pass();
+            } else if (!move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
                 const [from, to] = [move.moveSteps[0], move.moveSteps[move.moveSteps.length - 1]];
                 this.board.play(from, to, p, move.moveSteps, callbackMove);
@@ -1063,15 +1036,23 @@ export default class HiveCanvas {
     }
     #backward(callbackMove, round) {
         const moveList = this.getMoveList();
-        for (this.board.round--; this.board.round >= round; this.board.round--) {
-            const move = moveList.moves[this.board.round - 1];
-            if (!move.pass && !move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
+        while (this.board.round >= Math.max(2, round)) {
+            if (this.board.round === round) {
+                callbackMove = (_p, _extraPiece) => {};
+            }
+            const move = moveList.moves[this.board.round - 2];
+            if (move.pass) {
+                this.board.passBack();
+            } else if (!move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
                 const [from, to] = [move.moveSteps[0], move.moveSteps[move.moveSteps.length - 1]];
                 this.board.playBack(from, to, p, move.moveSteps, callbackMove);
             }
         }
-        this.board.round++;
+        // to compute last move
+        if (round > 1) {
+            this.#forward(callbackMove, round);
+        }
     }
     setRound(round, moveListId) {
         this.#goTo(round, (p, ) => p.transition = 1, moveListId);
