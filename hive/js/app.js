@@ -205,7 +205,9 @@ function upload() {
                 // cant parse. Try again with different ruleset
                 if (tryParseFile(fileContent, !standardRules, color) !== null) {
                     // still cant parse
-                    showMessage(tryParseFile(fileContent, standardRules));
+                    const error = tryParseFile(fileContent, standardRules);
+                    hive.newGame(color, canvasPlayer, canvasPlayer, 0, 0, standardRules);
+                    showMessage(error);
                     return;
                 } else {
                     // success with different ruleset

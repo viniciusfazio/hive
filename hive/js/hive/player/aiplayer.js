@@ -39,6 +39,7 @@ export default class AIPlayer extends Player {
             this.hive.play(playable[0].id, playable[0].targets[0]);
             return;
         }
+
         // minimax
         if (window.Worker) {
             this.#running = true;

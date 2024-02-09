@@ -817,7 +817,7 @@ export default class HiveCanvas {
     toggleCoords() {
         this.#coords = !this.#coords;
     }
-    #playRound(dragging = false, confirming = false, forcePlayerPlaying = false) {
+    #playRound(dragging = false, confirming = false, notifyOnlinePlayer = false) {
         const moveList = this.getMoveList();
         this.#goTo(moveList.moves.length + 1, (p, extraPieceMoving) => {
             if (!confirming && (extraPieceMoving || !dragging)) {
@@ -828,7 +828,7 @@ export default class HiveCanvas {
         const moveText = (this.board.round - 1) + ". " + Move.notation(lastMove, this.board, this.#shortOnTime);
         this.#callbacks.move(this.board.round, moveText, this.currentMoveListId);
         this.setGameOver(this.gameOver || lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout);
-        this.#initRound(forcePlayerPlaying);
+        this.#initRound(notifyOnlinePlayer);
     }
     pass(time = null) {
         const moveList = this.getMoveList();
@@ -1031,6 +1031,8 @@ export default class HiveCanvas {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
                 const [from, to] = [move.moveSteps[0], move.moveSteps[move.moveSteps.length - 1]];
                 this.board.play(from, to, p, move.moveSteps, callbackMove);
+            } else {
+                this.board.round++;
             }
         }
     }
@@ -1047,6 +1049,8 @@ export default class HiveCanvas {
                 const p = this.board.pieces.find(p => p.id === move.pieceId);
                 const [from, to] = [move.moveSteps[0], move.moveSteps[move.moveSteps.length - 1]];
                 this.board.playBack(from, to, p, move.moveSteps, callbackMove);
+            } else {
+                this.board.round--;
             }
         }
         // to compute last move
