@@ -104,86 +104,8 @@ export default class Piece {
     }
 }
 
-function coordsAroundWithNeighbor(board, cx, cy, ignoreX = null, ignoreY = null) {
-    let xyz = Board.coordsAround(cx, cy).map(([x, y]) => {
-        // get all pieces around
-        const piece = board.getInGamePiece(x, y);
-        if (!piece) {
-            return [x, y, -1];
-        } else if (x === ignoreX && y === ignoreY) {
-            return [x, y, piece.z - 1];
-        } else {
-            return [x, y, piece.z];
-        }
-    });
-    let ret = [];
-    for (let i = 1; i <= 6; i++) {
-        // return z level of pieces around
-        const [, , z1] = xyz[i - 1];
-        const [x, y, z] = xyz[i % 6];
-        const [, , z2] = xyz[(i + 1) % 6];
-        ret.push([x, y, z, z1, z2]);
-    }
-    return ret;
-}
 
-function stillOneHiveAfterRemoveOnXY(board, x, y, levels = 1) {
-    // if not in game of piece is stacked, it is one hive
-    const pCheck = board.getInGamePiece(x, y);
-    if (!pCheck || pCheck.z >= levels) {
-        return true;
-    }
 
-    // get pieces around and count how many groups of piece there are
-    let fistPosition = null;
-    let lastPosition = null;
-    let groupsAround = 0;
-    let piecesAround = [];
-    Board.coordsAround(x, y).forEach(([ax, ay]) => {
-        const piece = board.getInGamePiece(ax, ay);
-        if (lastPosition === null) {
-            lastPosition = piece;
-            fistPosition = piece;
-        } else if (!lastPosition && piece) {
-            groupsAround++;
-        }
-        if (piece) {
-            piecesAround.push(piece);
-        }
-        lastPosition = piece;
-    });
-    if (!lastPosition && fistPosition) {
-        groupsAround++;
-    }
-    if (groupsAround <= 1) {
-        // if there is only 1 ou 0 group of pieces around, it is one hive
-        return true;
-    }
-    // try "paint the hive" in an edge. If all pieces around get painted, it is one hive
-    let marked = [pCheck, piecesAround[0]];
-    let edges = [piecesAround[0]];
-    while (edges.length > 0) {
-        let newEdges = [];
-        edges.forEach(edge => {
-            Board.coordsAround(edge.x, edge.y).forEach(([ax, ay]) => {
-                const piece = board.getInGamePiece(ax, ay);
-                if (piece && !marked.find(p => p.id === piece.id)) {
-                    marked.push(piece);
-                    newEdges.push(piece);
-                }
-            });
-        });
-        edges = newEdges;
-    }
-    // true if it cant find piece around nor marked
-    return !piecesAround.find(p => !marked.find(p2 => p2.id === p.id));
-}
-
-function onHiveAndNoGate(fromZ, toZ, z1, z2) {
-    const onHive = z1 >= 0 || z2 >= 0 || toZ >= 0 || fromZ > 0;
-    const noGate = Math.max(fromZ - 1, toZ) >= Math.min(z1, z2);
-    return onHive && noGate;
-}
 
 export const PieceType = Object.freeze({
     queen: Object.freeze({
@@ -295,25 +217,25 @@ export const PieceType = Object.freeze({
 export function getPieceMoves(pieceType, board, piece, standard) {
     switch (pieceType) {
         case PieceType.queen.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             move1Around(board, piece);
             break;
         case PieceType.beetle.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             move1(board, piece);
             break;
         case PieceType.grasshopper.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             jumpOver(board, piece);
             break;
         case PieceType.spider.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             moveAround(board, piece, 3);
@@ -322,21 +244,21 @@ export function getPieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case PieceType.ant.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             const otherColorId = piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
             moveAround(board, piece, null, standard ? null : otherColorId);
             break;
         case PieceType.ladybug.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             moveOver(board, piece, 3);
             break;
         case PieceType.mosquito.id:
             if (piece.z > 0) {
-                if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                     return;
                 }
                 move1(board, piece);
@@ -350,20 +272,20 @@ export function getPieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case PieceType.pillBug.id:
-            if (stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 move1Around(board, piece);
             }
             // move preys
             if (standard || piece.type.id !== PieceType.mosquito.id) {
                 let noPieces = [];
                 let preys = [];
-                coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+                board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
                     const noPiece = z < 0;
                     const isPrey = z === 0;
-                    const isMovableTarget = noPiece && onHiveAndNoGate(piece.z + 1, z, z1, z2);
+                    const isMovableTarget = noPiece && Board.onHiveAndNoGate(piece.z + 1, z, z1, z2);
                     if (isMovableTarget) {
                         noPieces.push([x, y]);
-                    } else if (isPrey && onHiveAndNoGate(z, piece.z, z1, z2)) {
+                    } else if (isPrey && Board.onHiveAndNoGate(z, piece.z, z1, z2)) {
                         preys.push([x, y]);
                     }
                 });
@@ -372,7 +294,7 @@ export function getPieceMoves(pieceType, board, piece, standard) {
                     const canMove = standard
                         || ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id);
                     const notLastMove = !board.lastMovedPiecesId.includes(prey.id);
-                    if (canMove && notLastMove && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
+                    if (canMove && notLastMove && board.stillOneHiveAfterRemoveOnXY(prey.x, prey.y)) {
                         noPieces.forEach(([tx, ty]) => {
                             prey.insertTarget(tx, ty, prey.z, [[piece.x, piece.y, piece.z + 1]]);
                         });
@@ -382,23 +304,23 @@ export function getPieceMoves(pieceType, board, piece, standard) {
             break;
         case PieceType.mantis.id:
             if (piece.z > 0) {
-                if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+                if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                     return;
                 }
                 move1(board, piece);
             } else if (piece.type.id !== PieceType.mosquito.id) {
-                coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+                board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
                     const hasSpace = z === 0 && (z1 < 0 || z2 < 0);
                     const prey = board.getInGamePiece(x, y);
                     const canEat = prey && prey.type.id !== PieceType.scorpion.id && !board.lastMovedPiecesId.includes(prey.id);
-                    if (canEat && hasSpace && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
+                    if (canEat && hasSpace && board.stillOneHiveAfterRemoveOnXY(prey.x, prey.y)) {
                         piece.insertTarget(x, y, z + 1);
                     }
                 });
             }
             break;
         case PieceType.fly.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             if (move1Around(board, piece) === 0) {
@@ -406,39 +328,39 @@ export function getPieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case PieceType.scorpion.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             moveAround(board, piece, 3);
             break;
         case PieceType.wasp.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             fly(board, piece, piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id);
             break;
         case PieceType.cockroach.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             moveOver(board, piece, null, piece.color.id);
             break;
         case PieceType.dragonfly.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
-            let around = coordsAroundWithNeighbor(board, piece.x, piece.y);
+            let around = board.coordsAroundWithNeighbor(piece.x, piece.y);
             for (let i = 1; i <= 6; i++) {
                 const [ix, iy, iz, iz1, iz2] = around[i % 6];
                 const pBelow = board.getInGamePiece(ix, iy);
-                if (pBelow && pBelow.type.id === PieceType.scorpion.id || !onHiveAndNoGate(piece.z, iz, iz1, iz2)) {
+                if (pBelow && pBelow.type.id === PieceType.scorpion.id || !Board.onHiveAndNoGate(piece.z, iz, iz1, iz2)) {
                     continue;
                 }
                 const moveSteps = [[ix, iy, iz + 1]];
-                const destiny = coordsAroundWithNeighbor(board, ix, iy);
+                const destiny = board.coordsAroundWithNeighbor(ix, iy);
                 [destiny[i - 1], destiny[(i + 1) % 6]].forEach(([x, y, z, z1, z2]) => {
                     const target = board.getInGamePiece(x, y);
-                    if (target && target.type.id === PieceType.scorpion.id || !onHiveAndNoGate(iz + 1, z, z1, z2)) {
+                    if (target && target.type.id === PieceType.scorpion.id || !Board.onHiveAndNoGate(iz + 1, z, z1, z2)) {
                         return;
                     }
                     const isFromGround = piece.z === 0;
@@ -448,7 +370,7 @@ export function getPieceMoves(pieceType, board, piece, standard) {
                     } else {
                         const prey = board.getInGamePiece(piece.x, piece.y, piece.z - 1);
                         const isPrey = prey && prey.type.id !== PieceType.dragonfly.id;
-                        if (isPrey && stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y, 2)) {
+                        if (isPrey && board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y, 2)) {
                             piece.insertTarget(x, y, 0, moveSteps);
                         }
                     }
@@ -456,14 +378,14 @@ export function getPieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case PieceType.centipede.id:
-            if (!stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             move1Around(board, piece);
             if (piece.type.id === PieceType.mosquito.id) {
                 return;
             }
-            coordsAroundWithNeighbor(board, piece.x, piece.y).filter(([, , z, z1, z2]) => z === 0 && (z1 < 0 || z2 < 0))
+            board.coordsAroundWithNeighbor(piece.x, piece.y).filter(([, , z, z1, z2]) => z === 0 && (z1 < 0 || z2 < 0))
                 .forEach(([x, y, , , ]) => {
                     const prey = board.getInGamePiece(x, y);
                     const lastMove = prey && !board.lastMovedPiecesId.includes(prey.id);
@@ -479,9 +401,9 @@ export function getPieceMoves(pieceType, board, piece, standard) {
 }
 function move1Around(board, piece) {
     let qty = 0;
-    coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+    board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
         const noPiece = z < 0;
-        if (noPiece && onHiveAndNoGate(piece.z, z, z1, z2)) {
+        if (noPiece && Board.onHiveAndNoGate(piece.z, z, z1, z2)) {
             piece.insertTarget(x, y, piece.z);
             qty++;
         }
@@ -489,10 +411,10 @@ function move1Around(board, piece) {
     return qty;
 }
 function move1(board, piece) {
-    coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+    board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
         const p = board.getInGamePiece(x, y);
         const canMoveOver = !p || p.type.id !== PieceType.scorpion.id;
-        if (canMoveOver && onHiveAndNoGate(piece.z, z, z1, z2)) {
+        if (canMoveOver && Board.onHiveAndNoGate(piece.z, z, z1, z2)) {
             piece.insertTarget(x, y, z + 1);
         }
     });
@@ -505,14 +427,14 @@ function moveAround(board, piece, n = null, colorId = null) {
         const visitedInThisStep = [];
         for (const path of paths) {
             const [fromX, fromY, fromZ] = path[path.length - 1];
-            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, fromX, fromY, piece.x, piece.y)) {
+            for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(fromX, fromY, piece.x, piece.y)) {
                 // if path repeats, continue
                 if (path.find(([cx, cy,]) => cx === x && cy === y) || visitedInThisStep.find(([cx, cy]) => cx === x && cy === y)) {
                     continue;
                 }
                 visitedInThisStep.push([x, y]);
                 const noPiece = z < 0;
-                if (noPiece && onHiveAndNoGate(fromZ, z, z1, z2)) {
+                if (noPiece && Board.onHiveAndNoGate(fromZ, z, z1, z2)) {
                     // new step with no repetition
                     if (n === null || path.length < n) {
                         let newPath = [...path];
@@ -550,7 +472,7 @@ function moveOver(board, piece, n = null, colorId = null) {
         const visitedInThisStep = [];
         for (const path of paths) {
             const [fromX, fromY, fromZ] = path[path.length - 1];
-            for (const [x, y, z, z1, z2] of coordsAroundWithNeighbor(board, fromX, fromY, piece.x, piece.y)) {
+            for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(fromX, fromY, piece.x, piece.y)) {
                 // if path repeats, continue
                 if (visitedEver.find(([cx, cy]) => cx === x && cy === y)) {
                     continue;
@@ -567,7 +489,7 @@ function moveOver(board, piece, n = null, colorId = null) {
                 const canGoUp = z >= 0 && pBelow && pBelow.type.id !== PieceType.scorpion.id &&
                     (colorId === null || pBelow.color.id === colorId);
                 const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
-                if ((canGoUp || canGoDown) && onHiveAndNoGate(fromZ, z, z1, z2)) {
+                if ((canGoUp || canGoDown) && Board.onHiveAndNoGate(fromZ, z, z1, z2)) {
                     // new step with no repetition
                     if (canGoUp) {
                         let newPath = path.map(xyz => [...xyz]);

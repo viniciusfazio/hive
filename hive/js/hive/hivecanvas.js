@@ -99,6 +99,12 @@ export default class HiveCanvas {
         setTimeout(() => this.#update(), Math.max(1, waitTime));
     }
     newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment, standardRules) {
+        if (this.whitePlayer && !(this.whitePlayer instanceof OnlinePlayer)) {
+            this.whitePlayer.reset();
+        }
+        if (this.blackPlayer && !(this.blackPlayer instanceof OnlinePlayer)) {
+            this.blackPlayer.reset();
+        }
         [this.bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.moveLists, this.currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
         this.whitePlayer.reset();
@@ -330,6 +336,7 @@ export default class HiveCanvas {
                 "Round: " + this.board.round + " / " + moveList.moves.length,
                 "Moves available: " + totalMoves,
                 "FPS: " + this.#framesPerSecond,
+                "board: " + this.board.stringfy(),
             ];
             if (onlinePlayer !== null) {
                 text.push("Ping: " + onlinePlayer.ping);
@@ -644,10 +651,16 @@ export default class HiveCanvas {
         const pos = position.find(([id, ]) => id === piece.id);
         if (pos) {
             // draw selected piece in specific position
-            this.#drawPieceWithStyle(piece, path, "selected", pos[1]);
+            if (piece.id !== selectedPieceId) {
+                this.#drawPieceWithStyle(piece, path, "selected", pos[1]);
+            } else {
+                this.#drawPieceWithStyle(piece, path, "selected-from");
+                if (selectedTargetId === null && !piece.targets.find(p => p.id === hoverPieceId)) {
+                    this.#drawPieceWithStyle(piece, path, "selected", pos[1]);
+                }
+            }
         } else if (piece.id === selectedPieceId) {
-            if (selectedTargetId === null &&
-                !piece.targets.find(p => p.id === hoverPieceId)) {
+            if (selectedTargetId === null && !piece.targets.find(p => p.id === hoverPieceId)) {
                 // drawing selected piece not hovering target or confirming
                 this.#drawPieceWithStyle(piece, path, "selected");
             } else {
@@ -664,7 +677,7 @@ export default class HiveCanvas {
                     this.#drawPieceWithStyle(piece, path, "hover");
                 } else {
                     // drawing target being hovered
-                    this.#drawPieceWithStyle(piece, path, "selected");
+                    this.#drawPieceWithStyle(piece, path, "selected-to");
                 }
             } else {
                 // drawing piece being hovered while no piece has been selected
@@ -698,14 +711,21 @@ export default class HiveCanvas {
         const [rx, ry, offset] = this.getSize();
 
         this.ctx.setTransform(1, 0, 0, 1, x, y);
-        if (style === "target" || style === "selected-from") {
-            this.ctx.globalAlpha = .25;
+        if (style === "selected-from") {
+            this.ctx.globalAlpha = .5;
+        } else if (style === "selected-to") {
+            this.ctx.globalAlpha = .75;
+        } else if (style === "target") {
+            this.ctx.globalAlpha = piece.z > 0 ? .75 : .5;
         }
 
         // fill color
-        this.ctx.fillStyle = piece.color.id === "w" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
         if (style === "selected-from") {
             this.ctx.fillStyle = "rgb(255, 255, 0)";
+        } else if (style === "selected-to") {
+            this.ctx.fillStyle = "rgb(0, 255, 255)";
+        } else {
+            this.ctx.fillStyle = piece.color.id === "w" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
         }
         this.ctx.fill(path);
 
@@ -722,15 +742,21 @@ export default class HiveCanvas {
             borderColor = "rgb(255, 0, 0)";
             border = offset / 2;
         } else if (style === "hover") {
-            borderColor = "rgb(128, 0, 0)";
+            borderColor = "rgb(255, 0, 0)";
             dash = true;
         } else if (style === "movable") {
             dash = true;
-        } else if (style === "selected" || style === "target") {
-            borderColor = "rgb(255, 0, 0)";
+        } else if (style === "selected") {
+            borderColor = "rgb(255, 255, 0)";
+            dash = true;
+        } else if (style === "target") {
+            borderColor = "rgb(0, 255, 255)";
             dash = true;
         } else if (style === "selected-from") {
             borderColor = "rgb(255, 255, 0)";
+            dash = true;
+        } else if (style === "selected-to") {
+            borderColor = "rgb(0, 255, 255)";
             dash = true;
         }
         if (dash) {

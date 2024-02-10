@@ -63,13 +63,93 @@ export default class Board {
         this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type.id === p.type.id && p2.color.id === p.color.id));
 
     }
+    coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
+        let xyz = Board.coordsAround(cx, cy).map(([x, y]) => {
+            // get all pieces around
+            const piece = this.getInGamePiece(x, y);
+            if (!piece) {
+                return [x, y, -1];
+            } else if (x === ignoreX && y === ignoreY) {
+                return [x, y, piece.z - 1];
+            } else {
+                return [x, y, piece.z];
+            }
+        });
+        let ret = [];
+        for (let i = 1; i <= 6; i++) {
+            // return z level of pieces around
+            const [, , z1] = xyz[i - 1];
+            const [x, y, z] = xyz[i % 6];
+            const [, , z2] = xyz[(i + 1) % 6];
+            ret.push([x, y, z, z1, z2]);
+        }
+        return ret;
+    }
+    static onHiveAndNoGate(fromZ, toZ, z1, z2) {
+        const onHive = z1 >= 0 || z2 >= 0 || toZ >= 0 || fromZ > 0;
+        const noGate = Math.max(fromZ - 1, toZ) >= Math.min(z1, z2);
+        return onHive && noGate;
+    }
 
-    stringfy() {
+    stillOneHiveAfterRemoveOnXY(x, y, levels = 1) {
+        // if not in game of piece is stacked, it is one hive
+        const pCheck = this.getInGamePiece(x, y);
+        if (!pCheck || pCheck.z >= levels) {
+            return true;
+        }
+
+        // get pieces around and count how many groups of piece there are
+        let fistPosition = null;
+        let lastPosition = null;
+        let groupsAround = 0;
+        let piecesAround = [];
+        Board.coordsAround(x, y).forEach(([ax, ay]) => {
+            const piece = this.getInGamePiece(ax, ay);
+            if (lastPosition === null) {
+                lastPosition = piece;
+                fistPosition = piece;
+            } else if (!lastPosition && piece) {
+                groupsAround++;
+            }
+            if (piece) {
+                piecesAround.push(piece);
+            }
+            lastPosition = piece;
+        });
+        if (!lastPosition && fistPosition) {
+            groupsAround++;
+        }
+        if (groupsAround <= 1) {
+            // if there is only 1 ou 0 group of pieces around, it is one hive
+            return true;
+        }
+        // try "paint the hive" in an edge. If all pieces around get painted, it is one hive
+        let marked = [pCheck, piecesAround[0]];
+        let edges = [piecesAround[0]];
+        while (edges.length > 0) {
+            let newEdges = [];
+            edges.forEach(edge => {
+                Board.coordsAround(edge.x, edge.y).forEach(([ax, ay]) => {
+                    const piece = this.getInGamePiece(ax, ay);
+                    if (piece && !marked.find(p => p.id === piece.id)) {
+                        marked.push(piece);
+                        newEdges.push(piece);
+                    }
+                });
+            });
+            edges = newEdges;
+        }
+        // true if it cant find piece around nor marked
+        return !piecesAround.find(p => !marked.find(p2 => p2.id === p.id));
+    }
+
+    stringfy(onlyLastMovesThatMatter = true) {
         this.inGame.sort((a, b) =>
             a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
 
         let lastP = null;
-        let ret = this.getColorPlaying().id === "b" ? "!" : "";
+        const colorPlayingId = this.getColorPlaying().id;
+        let ret = colorPlayingId === "b" ? "!" : "";
         this.inGame.forEach(p => {
             if (lastP !== null) {
                 const diff = p.x - lastP.x;
@@ -80,7 +160,55 @@ export default class Board {
                 }
             }
             if (this.lastMovedPiecesId.includes(p.id)) {
-                ret += "_";
+                let addMarker = !onlyLastMovesThatMatter;
+                // only not stacked pieces can be moved
+                const checkIfLastMoveMatter =
+                    onlyLastMovesThatMatter &&
+                    p.z === 0 && this.getInGamePiece(p.x, p.y).id === p.id && // only ground pieces matter for last move
+                    p.type.id !== PieceType.scorpion.id &&  // scorpion is never affected
+                    this.queens.find(q => q.inGame && q.color.id === colorPlayingId); // only with queen in game to make moves
+                if (checkIfLastMoveMatter) {
+                    Board.coordsAround(p.x, p.y).find(([x, y]) => {
+                        const p2 = this.getInGamePiece(x, y);
+                        if (!p2 || p2.z > 0 || p2.color.id !== colorPlayingId) {
+                            return false;
+                        }
+                        const isPillBug = p2.type.id === PieceType.pillBug.id && (this.standardRules || p.id.type !== p2.type.id) ||
+                            this.standardRules && p2.type.id === PieceType.mosquito.id && Board.coordsAround(p2.x, p2.y).find(([x, y]) => {
+                                const p3 = this.getInGamePiece(x, y);
+                                return p3 && p3.type.id === PieceType.pillBug.id;
+                            });
+                        if (isPillBug) {
+                            let hasDestiny = false;
+                            let validPrey = false;
+                            this.coordsAroundWithNeighbor(p2.x, p2.y).forEach(([x, y, z, z1, z2]) => {
+                                const noPiece = z < 0;
+                                const isPrey = x === p.x && y === p.y;
+                                const isMovableTarget = noPiece && Board.onHiveAndNoGate(p2.z + 1, z, z1, z2);
+                                if (isMovableTarget) {
+                                    hasDestiny = true;
+                                } else if (isPrey && Board.onHiveAndNoGate(z, p2.z, z1, z2)) {
+                                    validPrey = true;
+                                }
+                            });
+                            addMarker = hasDestiny && validPrey && this.stillOneHiveAfterRemoveOnXY(p.x, p.y);
+                        }
+                        if (p2.id.type === PieceType.mantis.id || p2.id.type === PieceType.centipede.id) {
+                            const hasEmptySpace = this.coordsAroundWithNeighbor(p2.x, p2.y).find(([x, y, , z1, z2]) => {
+                                return p.x === x && p.y === y && (z1 < 0 || z2 < 0);
+                            });
+                            if (hasEmptySpace) {
+                                addMarker = p2.id.type === PieceType.mantis.id ?
+                                    this.stillOneHiveAfterRemoveOnXY(p.x, p.y) :
+                                    this.stillOneHiveAfterRemoveOnXY(p2.x, p2.y);
+                            }
+                        }
+                        return addMarker;
+                    });
+                }
+                if (addMarker) {
+                    ret += "_";
+                }
             }
             ret += p.color.id === "w" ? p.type.id : p.type.id2;
             lastP = p;
