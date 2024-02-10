@@ -1,31 +1,14 @@
 import Board from "../core/board.js";
 import {PieceColor, PieceType} from "../core/piece.js";
 
-const PRIORITY = [
-    PieceType.queen.id,
-    PieceType.pillBug.id,
-    PieceType.ant.id,
-    PieceType.beetle.id,
-    PieceType.mosquito.id,
-    PieceType.ladybug.id,
-    PieceType.cockroach.id,
-    PieceType.dragonfly.id,
-    PieceType.scorpion.id,
-    PieceType.fly.id,
-    PieceType.wasp.id,
-    PieceType.grasshopper.id,
-    PieceType.centipede.id,
-    PieceType.mantis.id,
-    PieceType.spider.id,
-];
 
 export default class QueenEvaluator {
     evaluate(board) {
         return queenEval(board, PieceColor.white.id) - queenEval(board, PieceColor.black.id);
     }
-    sortMoves(board, moves) {
+    sortMoves(board) {
         const colorId = board.getColorPlaying().id;
-        const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id !== colorId);
+        const queen = board.queens.find(p => p.inGame && p.color.id !== colorId);
         const queenZone = queen ? Board.coordsAround(queen.x, queen.y, true) : [];
         const enemyZone = [];
         board.inGameTopPieces.forEach(p => {
@@ -37,7 +20,7 @@ export default class QueenEvaluator {
                 });
             }
         });
-        return moves.sort((a, b) => {
+        return board.getMoves().sort((a, b) => {
             const [, to1, p1, ] = a;
             const [, to2, p2, ] = b;
             const [x1, y1, ] = to1;
@@ -64,15 +47,18 @@ export default class QueenEvaluator {
 }
 
 function queenEval(board, colorId) {
-    const queen = board.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id !== colorId);
+    const queen = board.queens.find(p => p.inGame && p.color.id !== colorId);
     if (!queen) {
         return 0;
     }
-    const aboveQueen = board.inGameTopPieces.find(p => p.x === queen.x && p.y === queen.y && p.color.id === colorId);
+    let aboveQueen = board.getInGamePiece(queen.x, queen.y);
+    if (aboveQueen.color.id !== colorId) {
+        aboveQueen = false;
+    }
     const occupy = [];
     const freeCoords = [];
     Board.coordsAround(queen.x, queen.y).forEach(([x, y]) => {
-        const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+        const p = board.getInGamePiece(x, y);
         if (p) {
             occupy.push(p);
         } else {
@@ -92,8 +78,10 @@ function queenEval(board, colorId) {
     let mosquitoPillBugDefense = false;
     if (board.standardRules) {
         const mosquito = enemyOccupy.find(p => p.type.id === PieceType.mosquito.id && p.z === 0);
-        mosquitoPillBugDefense = mosquito && Board.coordsAround(mosquito.x, mosquito.y).find(([x, y]) =>
-            board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id === PieceType.pillBug.id));
+        mosquitoPillBugDefense = mosquito && Board.coordsAround(mosquito.x, mosquito.y).find(([x, y]) => {
+            const p = board.getInGamePiece(x, y);
+            return p && p.type.id === PieceType.pillBug.id;
+        });
     }
 
 
@@ -129,3 +117,21 @@ function queenEval(board, colorId) {
         Math.min(qtyAttacked, qtyAttacking) +
         (colorIsPlaying ? 1 : 0);
 }
+
+const PRIORITY = [
+    PieceType.queen.id,
+    PieceType.pillBug.id,
+    PieceType.ant.id,
+    PieceType.dragonfly.id,
+    PieceType.beetle.id,
+    PieceType.mosquito.id,
+    PieceType.cockroach.id,
+    PieceType.ladybug.id,
+    PieceType.scorpion.id,
+    PieceType.fly.id,
+    PieceType.wasp.id,
+    PieceType.grasshopper.id,
+    PieceType.centipede.id,
+    PieceType.mantis.id,
+    PieceType.spider.id,
+];

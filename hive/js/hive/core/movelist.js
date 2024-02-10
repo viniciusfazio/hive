@@ -198,19 +198,19 @@ export class Move {
             let p2 = null;
             if (p1.type.id === PieceType.mantis.id && fromX !== null && fromY !== null && fromZ === 0 && toZ === 1) {
                 // mantis special move
-                p2 = board.pieces.find(p => p.inGame && p.x === fromX && p.y === fromY && p.z === fromZ);
+                p2 = board.getInGamePiece(fromX, fromY, fromZ);
             } else if (p1.type.id === PieceType.centipede.id && toZ > 0) {
                 // centipede special move
-                p2 = board.pieces.find(p => p.inGame && p.x === fromX && p.y === fromY && p.z === fromZ);
+                p2 = board.getInGamePiece(fromX, fromY, fromZ);
             } else if (toZ > 0) {
                 // move over a piece
-                p2 = board.pieces.find(p => p.inGame && p.x === toX && p.y === toY && p.z === toZ - 1);
+                p2 = board.getInGamePiece(toX, toY, toZ - 1);
             } else {
                 // move to the ground
                 let p2Pref = 0;
                 Board.coordsAround(toX, toY).forEach(([x, y]) => {
                     // prefer unique pieces as reference, and to the queen, and pieces not on pile
-                    const p = board.pieces.find(p => p.inGame && p.x === x && p.y === y);
+                    const p = board.getInGamePiece(x, y);
                     if (!p) {
                         return;
                     }

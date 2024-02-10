@@ -8,7 +8,10 @@ export default class Board {
     pieces;
     inGame;
     inGameTopPieces;
+    hudTopPieces;
     passRound;
+
+    queens;
 
     constructor(board = null) {
         if (board === null) {
@@ -27,6 +30,7 @@ export default class Board {
             this.lastMovedPiecesId = board.lastMovedPiecesId;
             this.standardRules = board.standardRules;
             this.allPieces = board.allPieces.map(p => Piece.clone(p));
+            this.#computePieces();
         }
     }
     reset(standardRules) {
@@ -38,29 +42,62 @@ export default class Board {
         this.#computePieces();
     }
     isQueenDead(colorId) {
-        const queen = this.allPieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId);
+        const queen = this.queens.find(p => p.inGame && p.color.id === colorId);
         return queen &&
-            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.allPieces.find(p => p.inGame && p.x === x && p.y === y));
+            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.getInGamePiece(x, y));
     }
 
     #computePieces() {
+        this.inGame = this.allPieces.filter(p => p.inGame);
+        this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
         this.pieces = this.allPieces.filter(p =>
             (!this.standardRules || p.type.standard) && (
                 this.standardRules || p.type.linked === null || p.inGame ||
-                !this.allPieces.find(l => // if linked piece is in game, can't play
-                    l.inGame && l.type.id === PieceType[p.type.linked].id && l.number === p.number && l.color.id === p.color.id
+                !this.inGame.find(l => // if linked piece is in game, can't play
+                    l.type.id === PieceType[p.type.linked].id && l.number === p.number && l.color.id === p.color.id
                 )
             )
         );
+        this.queens = this.pieces.filter(p => p.type.id === PieceType.queen.id);
+        const notInGame = this.pieces.filter(p => !p.inGame);
+        this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type.id === p.type.id && p2.color.id === p.color.id));
+
+    }
+
+    stringfy() {
+        this.inGame.sort((a, b) =>
+            a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
+
+        let lastP = null;
+        let ret = this.getColorPlaying().id === "b" ? "!" : "";
+        this.inGame.forEach(p => {
+            if (lastP !== null) {
+                const diff = p.x - lastP.x;
+                if (diff === 0) {
+                    ret += "+";
+                } else if (diff !== 2) {
+                    ret += diff;
+                }
+            }
+            if (this.lastMovedPiecesId.includes(p.id)) {
+                ret += "_";
+            }
+            ret += p.color.id === "w" ? p.type.id : p.type.id2;
+            lastP = p;
+        });
+        return ret;
+    }
+
+
+    getInGamePiece(x, y, z = null) {
+        return z === null ? this.inGameTopPieces.find(p => p.x === x && p.y === y) :
+            this.inGame.find(p => p.x === x && p.y === y && p.z === z);
     }
     computeLegalMoves(canMove, computeOtherSide = false) {
-        this.allPieces.forEach(p => {
+        this.pieces.forEach(p => {
             p.targetsB = [];
             p.targets = [];
         });
-        this.#computePieces();
-        this.inGame = this.pieces.filter(p => p.inGame);
-        this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
         this.passRound = false;
         if (this.isQueenDead(PieceColor.white.id) || this.isQueenDead(PieceColor.black.id)) {
             return;
@@ -83,7 +120,7 @@ export default class Board {
             colorId = colorId === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
         }
         // cant move if queen is not in game
-        if (!this.pieces.find(p => p.inGame && p.type.id === PieceType.queen.id && p.color.id === colorId)) {
+        if (!this.queens.find(p => p.inGame && p.color.id === colorId)) {
             return 0;
         }
         let total = 0;
@@ -95,37 +132,42 @@ export default class Board {
         });
         return total;
     }
+    getMoves() {
+        const moves = [];
+        this.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
+        return moves;
+    }
+
     #computePiecePlacements(otherSide = false) {
         let colorPlayingId = this.getColorPlaying().id;
         if (otherSide) {
             colorPlayingId = colorPlayingId === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
         }
-        let hudTopPieces = this.pieces.filter(p => p.color.id === colorPlayingId && !p.inGame);
-        hudTopPieces = hudTopPieces.filter(p => !hudTopPieces.find(p2 => p2.z > p.z && p2.type.id === p.type.id));
+        let myHudTopPieces = this.hudTopPieces.filter(p => p.color.id === colorPlayingId);
 
         // first and second moves are special cases
         if (this.round === 1) {
-            hudTopPieces.forEach(p => p.insertTarget(0, 0, 0));
-            return hudTopPieces.length;
+            myHudTopPieces.forEach(p => p.insertTarget(0, 0, 0));
+            return myHudTopPieces.length;
         }
         if (this.round === 2) {
-            Board.coordsAround(0, 0).forEach(([x, y]) => hudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
-            return 6 * hudTopPieces.length;
+            Board.coordsAround(0, 0).forEach(([x, y]) => myHudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
+            return 6 * myHudTopPieces.length;
         }
 
-        if (hudTopPieces.length === 0) {
+        if (myHudTopPieces.length === 0) {
             return 0;
         }
 
         // must place queen in 4th move
         if (this.round === 7 || this.round === 8) {
-            const queen = hudTopPieces.find(p => p.type.id === PieceType.queen.id);
+            const queen = myHudTopPieces.find(p => p.type.id === PieceType.queen.id);
             if (queen) {
-                hudTopPieces = [queen];
+                myHudTopPieces = [queen];
             }
         }
         let total = 0;
-        this.piecePlacement(colorPlayingId).forEach(([x, y]) => hudTopPieces.forEach(p => {
+        this.piecePlacement(colorPlayingId).forEach(([x, y]) => myHudTopPieces.forEach(p => {
             p.insertTarget(x, y, 0);
             total++;
         }));
@@ -146,15 +188,18 @@ export default class Board {
                 visited.push([x, y]);
 
                 // skip if not empty
-                if (this.inGameTopPieces.find(p => p.x === x && p.y === y)) {
+                if (this.getInGamePiece(x, y)) {
                     return;
                 }
 
                 // check if empty space has only same color piece around
-                const differentColorPieceAround = colorId !== null && Board.coordsAround(x, y).find(([x2, y2]) =>
-                    (ignore_x !== x2 || ignore_y !== y2) &&
-                    this.inGameTopPieces.find(p => p.x === x2 && p.y === y2 && p.color.id !== colorId)
-                );
+                const differentColorPieceAround = colorId !== null && Board.coordsAround(x, y).find(([x2, y2]) => {
+                    if (ignore_x === x2 && ignore_y === y2) {
+                        return false;
+                    }
+                    const p = this.getInGamePiece(x2, y2);
+                    return p && p.color.id !== colorId;
+                });
                 if (!differentColorPieceAround) {
                     ret.push([x, y]);
                 }
@@ -177,19 +222,19 @@ export default class Board {
         let p2 = null;
         if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
             // mantis special move
-            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === toX && p2.y === toY && p2.z === 0);
+            p2 = this.getInGamePiece(toX, toY, 0);
             callbackMove(p2, true);
             p2.play(fromX, fromY, 0);
             p.play(fromX, fromY, 1);
         } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
             // dragonfly special move
-            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === fromX && p2.y === fromY && p2.z === p.z - 1);
+            p2 = this.getInGamePiece(fromX, fromY, p.z - 1);
             callbackMove(p2, true);
             p2.play(toX, toY, 0);
             p.play(toX, toY, 1);
         } else if (fromX !== null && fromY !== null && p.type.id === PieceType.centipede.id && toZ > 0) {
             // centipede special move
-            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === toX && p2.y === toY && p2.z === 0);
+            p2 = this.getInGamePiece(toX, toY, 0);
             callbackMove(p2, true);
             p2.play(fromX, fromY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [fromX, fromY, 0]]);
             p.play(toX, toY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [toX, toY, 0]]);
@@ -202,6 +247,7 @@ export default class Board {
             this.lastMovedPiecesId.push(p2.id);
         }
         this.round++;
+        this.#computePieces();
     }
     playBack(from, to, p, moveSteps = [], callbackMove = (_piece, _extraPieceMoving) => {}) {
         const [fromX, fromY, fromZ] = from;
@@ -210,19 +256,19 @@ export default class Board {
         let p2 = null;
         if (p.type.id === PieceType.mantis.id && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
             // mantis special move
-            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === fromX && p2.y === fromY && p2.z === 0);
+            p2 = this.getInGamePiece(fromX, fromY, 0);
             callbackMove(p2, true);
             p2.play(toX, toY, 0);
             p.play(fromX, fromY, 0);
         } else if (p.type.id === PieceType.dragonfly.id && fromX !== null && fromY !== null && fromZ > 0 && toZ === 0) {
             // dragonfly special move
-            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === toX && p2.y === toY && p2.z === p.z - 1);
+            p2 = this.getInGamePiece(toX, toY, p.z - 1);
             callbackMove(p2, true);
             p2.play(fromX, fromY, fromZ - 1);
             p.play(fromX, fromY, fromZ);
         } else if (p.type.id === PieceType.centipede.id && toZ > 0) {
             // centipede special move
-            p2 = this.allPieces.find(p2 => p2.inGame && p2.x === fromX && p2.y === fromY && p2.z === 0);
+            p2 = this.getInGamePiece(fromX, fromY, 0);
             callbackMove(p2, true);
             p2.play(toX, toY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [toX, toY, 0]]);
             p.play(fromX, fromY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [fromX, fromY, 0]]);
@@ -252,9 +298,6 @@ export default class Board {
             [x - 1, y - 1],
             [x + 1, y - 1],
         ];
-    }
-    flyZ() {
-        return Math.max.apply(0, this.inGameTopPieces.map(p => p.z)) + 1;
     }
 
     getColorPlaying() {

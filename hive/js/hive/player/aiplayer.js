@@ -1,6 +1,5 @@
 import Player from "./player.js";
 import {PieceColor} from "../core/piece.js";
-import QueenEvaluator from "../ai/queenevaluator.js";
 import Board from "../core/board.js";
 
 const QTY_WORKERS = 7;
@@ -14,13 +13,15 @@ export default class AIPlayer extends Player {
     state = new EvaluationState();
     evaluatorId = "queenai";
 
-    qtyMoves = null;
-    moveId = null;
-    idle = null;
-    qtyWorkers = QTY_WORKERS;
+    #moveIndex = null;
+    #idle = null;
+    #qtyMoves;
+    #depth = null;
     #maximizing;
     #ended;
     #board;
+    #movesScore;
+
 
     initPlayerTurn() {
         if (this.#running) {
@@ -40,125 +41,162 @@ export default class AIPlayer extends Player {
             return;
         }
 
-        // minimax
-        if (window.Worker) {
-            this.#running = true;
-            this.#initTurnTime = Date.now();
-            this.#board = new Board(this.hive.board);
-            this.#board.computeLegalMoves(true);
-            this.qtyMoves = getMoves(this.#board, getEvaluator(this.evaluatorId)).length;
-            this.moveId = Math.min(this.qtyMoves, QTY_WORKERS);
-            this.#maximizing = this.#board.getColorPlaying().id === PieceColor.white.id;
-            this.idle = QTY_WORKERS - this.moveId;
-            this.#ended = false;
-            if (this.#workers.length === 0) {
-                for (let i = 0; i < QTY_WORKERS; i++) {
-                    const worker = new Worker("js/hive/ai/aiminimax.js", {type: 'module'});
-                    worker.onmessage = e => {
-                        const wState = e.data;
-                        this.state.iterations += wState.iterations;
-                        if (!wState.done) {
-                            return;
-                        }
-                        if (this.state.evaluation === null ||
-                            this.#maximizing && wState.evaluation > this.state.evaluation ||
-                            !this.#maximizing && wState.evaluation < this.state.evaluation) {
-                            this.state.evaluation = wState.evaluation;
-                            this.state.pieceId = wState.pieceId;
-                            const piece = this.#board.pieces.find(p => p.id === wState.pieceId);
-                            this.state.target = piece.targets.find(t => t.id === wState.target.id);
-                            if (this.#maximizing) {
-                                if (wState.evaluation >= this.state.beta) {
-                                    this.moveId = this.qtyMoves;
-                                    this.#ended = true;
-                                } else if (wState.evaluation > this.state.alpha) {
-                                    this.state.alpha = wState.evaluation;
-                                }
-                            } else {
-                                if (wState.evaluation <= this.state.alpha) {
-                                    this.moveId = this.qtyMoves;
-                                    this.#ended = true;
-                                } else if (wState.evaluation < this.state.beta) {
-                                    this.state.beta = wState.evaluation;
-                                }
-                            }
-                        }
-                        if (this.moveId >= this.qtyMoves) {
-                            if (this.#ended) {
-                                this.reset(false);
-                                this.hive.play(this.state.pieceId, this.state.target);
-                            } else if (++this.idle === QTY_WORKERS) {
-                                this.#running = false;
-                                this.hive.play(this.state.pieceId, this.state.target);
-                            }
-                        } else {
-                            this.state.moveId = this.moveId++;
-                            worker.postMessage(this.state);
-                        }
-                    };
-                    this.#workers.push(worker);
-                }
-            }
-            const state = new EvaluationState();
-            state.board = this.#board;
-            state.evaluatorId = this.evaluatorId;
-            for (let i = 0; i < this.moveId; i++) {
-                state.moveId = i;
-                this.#workers[i].postMessage(state);
-            }
-            state.board = null;
-            state.evaluatorId = null;
-            this.state = state;
-
-        } else {
+        if (!window.Worker) {
             throw Error("Can't create thread for AI player");
         }
+        this.#running = true;
+        this.#initTurnTime = Date.now();
+        this.#board = new Board(this.hive.board);
+        this.#board.computeLegalMoves(true);
+        this.#maximizing = this.#board.getColorPlaying().id === PieceColor.white.id;
+        this.#qtyMoves = this.#board.getMoves().length;
+        this.#movesScore = [];
+        for (let i = 0; i < this.#qtyMoves; i++) {
+            this.#movesScore.push({
+                moveId: i,
+                score: -MAX_EVALUATION,
+            });
+        }
+        this.#depth = 1;
+        this.#minimax();
     }
+    #minimax() {
+        this.#moveIndex = Math.min(this.#movesScore.length, QTY_WORKERS);
+        this.#idle = QTY_WORKERS - this.#moveIndex;
+        this.#ended = false;
+        if (this.#workers.length === 0) {
+            for (let i = 0; i < QTY_WORKERS; i++) {
+                const worker = new Worker("js/hive/ai/aiminimax.js", {type: 'module'});
+                worker.onmessage = e => {
+                    const wState = e.data;
+                    this.state.iterations += wState.iterations;
+                    if (!wState.done) {
+                        return;
+                    }
+                    this.#movesScore.find(s => s.moveId === wState.moveId).score = this.#maximizing ? wState.evaluation : -wState.evaluation;
+                    const breakthrough = this.state.evaluation === null ||
+                        this.#maximizing && wState.evaluation > this.state.evaluation ||
+                        !this.#maximizing && wState.evaluation < this.state.evaluation;
+                    if (breakthrough) {
+                        this.state.evaluation = wState.evaluation;
+                        this.state.pieceId = wState.pieceId;
+                        const piece = this.#board.pieces.find(p => p.id === wState.pieceId);
+                        this.state.target = piece.targets.find(t => t.id === wState.target.id);
+                        if (this.#maximizing) {
+                            if (wState.evaluation >= this.state.beta) {
+                                this.#ended = true;
+                            } else if (wState.evaluation > this.state.alpha) {
+                                this.state.alpha = wState.evaluation;
+                            }
+                        } else {
+                            if (wState.evaluation <= this.state.alpha) {
+                                this.#ended = true;
+                            } else if (wState.evaluation < this.state.beta) {
+                                this.state.beta = wState.evaluation;
+                            }
+                        }
+                    }
+                    if (this.#ended || this.#moveIndex >= this.#movesScore.length) {
+                        if (this.#ended && this.#depth === MAX_DEPTH) {
+                            this.#moveIndex = this.#movesScore.length;
+                            this.reset(false);
+                        }
+                        if (++this.#idle === QTY_WORKERS) {
+                            if (this.#depth === MAX_DEPTH) {
+                                this.#running = false;
+                                this.hive.play(this.state.pieceId, this.state.target);
+                            } else {
+                                this.#running = true;
+                                for (;this.#moveIndex < this.#movesScore.length; this.#moveIndex++) {
+                                    this.#movesScore[this.#moveIndex].score = -MAX_EVALUATION;
+                                }
+                                this.#movesScore.sort((a, b) => b.score - a.score);
+                                this.#depth++;
+                                this.#minimax();
+                            }
+                        }
+                    } else {
+                        this.state.moveId = this.#movesScore[this.#moveIndex++].moveId;
+                        worker.postMessage(this.state);
+                    }
+                };
+                this.#workers.push(worker);
+            }
+        }
+        if (this.#depth === 1) {
+            this.state = new EvaluationState();
+            this.state.board = this.#board;
+            this.state.evaluatorId = this.evaluatorId;
+        }
+        this.state.evaluation = null;
+        this.state.pieceId = null;
+        this.state.target = null;
+        this.state.alpha = -MAX_EVALUATION;
+        this.state.beta = MAX_EVALUATION;
+        this.state.maxDepth = this.#depth;
+        for (let i = 0; i < this.#moveIndex; i++) {
+            this.state.moveId = this.#movesScore[i].moveId;
+            this.#workers[i].postMessage(this.state);
+        }
+        this.state.board = null;
+        this.state.evaluatorId = null;
+
+    }
+    getProgress() {
+        const texts = [];
+        if (this.#depth >= 1) {
+            texts.push("Depth: " + this.#depth + " / " + MAX_DEPTH);
+            texts.push("Iterations: " + this.#getIterationsPerSecond());
+        }
+        if (this.#depth === MAX_DEPTH) {
+            texts.push("Moves: " + (this.#moveIndex - QTY_WORKERS + this.#idle) + " / " + this.#qtyMoves);
+            texts.push("Evaluation: " + this.#getEvaluation());
+        }
+        return texts;
+    }
+    #getEvaluation() {
+        if (this.state.evaluation === MAX_EVALUATION) {
+            return "+∞";
+        } else if (this.state.evaluation === -MAX_EVALUATION) {
+            return "-∞";
+        } else if (this.state.evaluation > 0) {
+            return "+" + this.state.evaluation;
+        }
+        return this.state.evaluation ?? "?";
+    }
+
     reset(resetState = true) {
         this.#workers.forEach(w => w.terminate());
         this.#workers = [];
         this.#running = false;
-        this.idle = QTY_WORKERS;
+        this.#idle = QTY_WORKERS;
         if (resetState) {
             this.state = new EvaluationState();
-            this.moveId = null;
+            this.#moveIndex = null;
         }
     }
-    getIterationsPerSecond() {
+    #getIterationsPerSecond() {
         if (!this.#running) {
             return "-";
         }
-        return Math.round(1000 * this.state.iterations / (Date.now() - this.#initTurnTime)) + "/s";
-    }
-}
-export function getMoves(board, evaluator) {
-    const moves = [];
-    board.allPieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
-    return evaluator.sortMoves(board, moves);
-}
-export function getEvaluator(id) {
-    switch (id) {
-        case "queenai":
-            return new QueenEvaluator();
-        default:
-            throw new Error('Invalid evaluator');
+        return Math.round(Math.round(this.state.iterations / (Date.now() - this.#initTurnTime))) + "k/s";
     }
 }
 class EvaluationState {
     maxEvaluation = MAX_EVALUATION;
-    maxDepth = MAX_DEPTH;
 
     iterations = 0;
+    alpha;
+    beta;
+    maxDepth;
 
-    pieceId = null;
-    target = null;
-    evaluation = null;
-    alpha = -MAX_EVALUATION;
-    beta = MAX_EVALUATION;
+    pieceId;
+    target;
+    evaluation;
 
-    board = null;
-    evaluatorId = null;
-    moveId = null;
+    board;
+    evaluatorId;
+    moveId;
     done = false;
 }
 

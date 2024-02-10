@@ -107,7 +107,7 @@ export default class Piece {
 function coordsAroundWithNeighbor(board, cx, cy, ignoreX = null, ignoreY = null) {
     let xyz = Board.coordsAround(cx, cy).map(([x, y]) => {
         // get all pieces around
-        const piece = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+        const piece = board.getInGamePiece(x, y);
         if (!piece) {
             return [x, y, -1];
         } else if (x === ignoreX && y === ignoreY) {
@@ -129,7 +129,7 @@ function coordsAroundWithNeighbor(board, cx, cy, ignoreX = null, ignoreY = null)
 
 function stillOneHiveAfterRemoveOnXY(board, x, y, levels = 1) {
     // if not in game of piece is stacked, it is one hive
-    const pCheck = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+    const pCheck = board.getInGamePiece(x, y);
     if (!pCheck || pCheck.z >= levels) {
         return true;
     }
@@ -140,7 +140,7 @@ function stillOneHiveAfterRemoveOnXY(board, x, y, levels = 1) {
     let groupsAround = 0;
     let piecesAround = [];
     Board.coordsAround(x, y).forEach(([ax, ay]) => {
-        const piece = board.inGameTopPieces.find(p => p.x === ax && p.y === ay);
+        const piece = board.getInGamePiece(ax, ay);
         if (lastPosition === null) {
             lastPosition = piece;
             fistPosition = piece;
@@ -166,7 +166,7 @@ function stillOneHiveAfterRemoveOnXY(board, x, y, levels = 1) {
         let newEdges = [];
         edges.forEach(edge => {
             Board.coordsAround(edge.x, edge.y).forEach(([ax, ay]) => {
-                const piece = board.inGameTopPieces.find(p => p.x === ax && p.y === ay);
+                const piece = board.getInGamePiece(ax, ay);
                 if (piece && !marked.find(p => p.id === piece.id)) {
                     marked.push(piece);
                     newEdges.push(piece);
@@ -188,90 +188,105 @@ function onHiveAndNoGate(fromZ, toZ, z1, z2) {
 export const PieceType = Object.freeze({
     queen: Object.freeze({
         id: "Q",
+        id2: "q",
         qty: 1,
         linked: null,
         standard: true,
     }),
     beetle: Object.freeze({
         id: "B",
+        id2: "b",
         qty: 2,
         linked: "mantis",
         standard: true,
     }),
     grasshopper: Object.freeze({
         id: "G",
+        id2: "g",
         qty: 3,
         linked: "fly",
         standard: true,
     }),
     spider: Object.freeze({
         id: "S",
+        id2: "s",
         qty: 2,
         linked: "scorpion",
         standard: true,
     }),
     ant: Object.freeze({
         id: "A",
+        id2: "a",
         qty: 3,
         linked: "wasp",
         standard: true,
     }),
     ladybug: Object.freeze({
         id: "L",
+        id2: "l",
         qty: 1,
         linked: "cockroach",
         standard: true,
     }),
     mosquito: Object.freeze({
         id: "M",
+        id2: "m",
         qty: 1,
         linked: "dragonfly",
         standard: true,
     }),
     pillBug: Object.freeze({
         id: "P",
+        id2: "p",
         qty: 1,
         linked: "centipede",
         standard: true,
     }),
     mantis: Object.freeze({
         id: "T",
+        id2: "t",
         qty: 2,
         linked: "beetle",
         standard: false,
     }),
     fly: Object.freeze({
         id: "F",
+        id2: "f",
         qty: 3,
         linked: "grasshopper",
         standard: false,
     }),
     scorpion: Object.freeze({
         id: "N",
+        id2: "n",
         qty: 2,
         linked: "spider",
         standard: false,
     }),
     wasp: Object.freeze({
         id: "W",
+        id2: "w",
         qty: 3,
         linked: "ant",
         standard: false,
     }),
     cockroach: Object.freeze({
         id: "R",
+        id2: "r",
         qty: 1,
         linked: "ladybug",
         standard: false,
     }),
     dragonfly: Object.freeze({
         id: "D",
+        id2: "d",
         qty: 1,
         linked: "mosquito",
         standard: false,
     }),
     centipede: Object.freeze({
         id: "C",
+        id2: "c",
         qty: 1,
         linked: "pillBug",
         standard: false,
@@ -327,7 +342,7 @@ export function getPieceMoves(pieceType, board, piece, standard) {
                 move1(board, piece);
             } else {
                 Board.coordsAround(piece.x, piece.y).forEach(([x, y]) => {
-                    const p = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    const p = board.getInGamePiece(x, y);
                     if (p && p.type.id !== PieceType.mosquito.id) {
                         getPieceMoves(p.type.id, board, piece, standard);
                     }
@@ -353,7 +368,7 @@ export function getPieceMoves(pieceType, board, piece, standard) {
                     }
                 });
                 preys.forEach(([x, y]) => {
-                    const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    const prey = board.getInGamePiece(x, y);
                     const canMove = standard
                         || ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id);
                     const notLastMove = !board.lastMovedPiecesId.includes(prey.id);
@@ -374,7 +389,7 @@ export function getPieceMoves(pieceType, board, piece, standard) {
             } else if (piece.type.id !== PieceType.mosquito.id) {
                 coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
                     const hasSpace = z === 0 && (z1 < 0 || z2 < 0);
-                    const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    const prey = board.getInGamePiece(x, y);
                     const canEat = prey && prey.type.id !== PieceType.scorpion.id && !board.lastMovedPiecesId.includes(prey.id);
                     if (canEat && hasSpace && stillOneHiveAfterRemoveOnXY(board, prey.x, prey.y)) {
                         piece.insertTarget(x, y, z + 1);
@@ -415,14 +430,14 @@ export function getPieceMoves(pieceType, board, piece, standard) {
             let around = coordsAroundWithNeighbor(board, piece.x, piece.y);
             for (let i = 1; i <= 6; i++) {
                 const [ix, iy, iz, iz1, iz2] = around[i % 6];
-                const pBelow = board.inGameTopPieces.find(p => p.x === ix && p.y === iy);
+                const pBelow = board.getInGamePiece(ix, iy);
                 if (pBelow && pBelow.type.id === PieceType.scorpion.id || !onHiveAndNoGate(piece.z, iz, iz1, iz2)) {
                     continue;
                 }
                 const moveSteps = [[ix, iy, iz + 1]];
                 const destiny = coordsAroundWithNeighbor(board, ix, iy);
                 [destiny[i - 1], destiny[(i + 1) % 6]].forEach(([x, y, z, z1, z2]) => {
-                    const target = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    const target = board.getInGamePiece(x, y);
                     if (target && target.type.id === PieceType.scorpion.id || !onHiveAndNoGate(iz + 1, z, z1, z2)) {
                         return;
                     }
@@ -431,10 +446,9 @@ export function getPieceMoves(pieceType, board, piece, standard) {
                     if (isFromGround || !isToGround) {
                         piece.insertTarget(x, y, z + 1, moveSteps);
                     } else {
-                        const prey = board.pieces.find(p =>
-                            p.x === piece.x && p.y === piece.y && p.z === piece.z - 1 && p.type.id !== PieceType.dragonfly.id
-                        );
-                        if (prey && stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y, 2)) {
+                        const prey = board.getInGamePiece(piece.x, piece.y, piece.z - 1);
+                        const isPrey = prey && prey.type.id !== PieceType.dragonfly.id;
+                        if (isPrey && stillOneHiveAfterRemoveOnXY(board, piece.x, piece.y, 2)) {
                             piece.insertTarget(x, y, 0, moveSteps);
                         }
                     }
@@ -451,7 +465,7 @@ export function getPieceMoves(pieceType, board, piece, standard) {
             }
             coordsAroundWithNeighbor(board, piece.x, piece.y).filter(([, , z, z1, z2]) => z === 0 && (z1 < 0 || z2 < 0))
                 .forEach(([x, y, , , ]) => {
-                    const prey = board.inGameTopPieces.find(p => p.x === x && p.y === y);
+                    const prey = board.getInGamePiece(x, y);
                     const lastMove = prey && !board.lastMovedPiecesId.includes(prey.id);
                     if (lastMove && ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
                         if (![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
@@ -476,7 +490,8 @@ function move1Around(board, piece) {
 }
 function move1(board, piece) {
     coordsAroundWithNeighbor(board, piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
-        const canMoveOver = !board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id === PieceType.scorpion.id);
+        const p = board.getInGamePiece(x, y);
+        const canMoveOver = !p || p.type.id !== PieceType.scorpion.id;
         if (canMoveOver && onHiveAndNoGate(piece.z, z, z1, z2)) {
             piece.insertTarget(x, y, z + 1);
         }
@@ -504,8 +519,10 @@ function moveAround(board, piece, n = null, colorId = null) {
                         newPath.push([x, y, 0]);
                         newPaths.push(newPath);
                     }
-                    const validColor = colorId === null || Board.coordsAround(x, y).find(([ax, ay]) =>
-                        board.inGameTopPieces.find(p => p.x === ax && p.y === ay && p.color.id === colorId));
+                    const validColor = colorId === null || Board.coordsAround(x, y).find(([ax, ay]) => {
+                        const p = board.getInGamePiece(ax, ay);
+                        return p && p.color.id === colorId;
+                    });
                     const validMoveCount = n === null || path.length === n;
                     if (validColor && validMoveCount) {
                         let moveSteps = path.map(xyz => [...xyz]);
@@ -519,8 +536,10 @@ function moveAround(board, piece, n = null, colorId = null) {
     }
 }
 function fly(board, piece, colorId = null) {
+    let maxZ = 0;
+    board.inGameTopPieces.forEach(p => maxZ = Math.max(maxZ, p.z));
     board.piecePlacement(colorId, piece.x, piece.y).forEach(([x, y]) => {
-        piece.insertTarget(x, y, 0, [[piece.x, piece.y, board.flyZ()]]);
+        piece.insertTarget(x, y, 0, [[piece.x, piece.y, maxZ + 1]]);
     });
 }
 function moveOver(board, piece, n = null, colorId = null) {
@@ -544,8 +563,9 @@ function moveOver(board, piece, n = null, colorId = null) {
                 }  else if (path.length > 1) {
                     visitedEver.push([x, y]);
                 }
-                const pBelow = board.inGameTopPieces.find(p => p.x === x && p.y === y && p.type.id !== PieceType.scorpion.id);
-                const canGoUp = z >= 0 && pBelow && (colorId === null || pBelow.color.id === colorId);
+                const pBelow = board.getInGamePiece(x, y);
+                const canGoUp = z >= 0 && pBelow && pBelow.type.id !== PieceType.scorpion.id &&
+                    (colorId === null || pBelow.color.id === colorId);
                 const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
                 if ((canGoUp || canGoDown) && onHiveAndNoGate(fromZ, z, z1, z2)) {
                     // new step with no repetition
@@ -567,12 +587,12 @@ function moveOver(board, piece, n = null, colorId = null) {
 function jumpOver(board, piece, n = null) {
     // look around
     Board.coordsAround(0, 0).forEach(([dx, dy]) => {
-        let pBelow = board.inGameTopPieces.find(p => p.x === piece.x + dx && p.y === piece.y + dy);
+        let pBelow = board.getInGamePiece(piece.x + dx, piece.y + dy);
         let moveSteps = [];
         while (pBelow && pBelow.type.id !== PieceType.scorpion.id) {
             moveSteps.push([pBelow.x, pBelow.y, pBelow.z + 1]);
             const [tx, ty] = [pBelow.x + dx, pBelow.y + dy];
-            pBelow = board.inGameTopPieces.find(p => p.x === tx && p.y === ty);
+            pBelow = board.getInGamePiece(tx, ty);
             if (!pBelow) { // found a hole
                 piece.insertTarget(tx, ty, 0, moveSteps);
                 break;

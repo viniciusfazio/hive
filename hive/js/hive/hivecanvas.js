@@ -228,7 +228,7 @@ export default class HiveCanvas {
         const emptyDrawn = [];
         for (const p of this.board.inGameTopPieces) {
             for (const [x, y] of Board.coordsAround(p.x, p.y)) {
-                if (!this.board.inGameTopPieces.find(p => p.x === x && p.y === y) &&
+                if (!this.board.getInGamePiece(x, y) &&
                     !emptyDrawn.find(([ex, ey]) => ex === x && ey === y)) {
                     emptyDrawn.push([x, y]);
                     yield [x, y];
@@ -272,11 +272,7 @@ export default class HiveCanvas {
             aiPlayer = this.blackPlayer;
         }
         if (aiPlayer !== null) {
-            const aiState = aiPlayer.state;
-            if (aiPlayer.moveId !== null) {
-                texts.push("Moves: " + (aiPlayer.moveId - aiPlayer.qtyWorkers + aiPlayer.idle) + " / " + aiPlayer.qtyMoves);
-                texts.push("Evaluation: " + getEvaluation(aiState.evaluation, aiState.maxEvaluation));
-            }
+            aiPlayer.getProgress().forEach(t => texts.push(t));
         }
         if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
             texts.push(this.#framesPerSecond + " FPS");
@@ -322,12 +318,6 @@ export default class HiveCanvas {
             } else if (this.blackPlayer instanceof OnlinePlayer) {
                 onlinePlayer = this.blackPlayer;
             }
-            let aiPlayer = null;
-            if (this.whitePlayer instanceof AIPlayer) {
-                aiPlayer = this.whitePlayer;
-            } else if (this.blackPlayer instanceof AIPlayer) {
-                aiPlayer = this.blackPlayer;
-            }
             let text = [
                 "Canvas: " + this.canvas.width + " x " + this.canvas.height + " : " + Math.round(window.devicePixelRatio * 100) / 100,
                 "White player: " + this.whitePlayer.constructor.name,
@@ -344,11 +334,6 @@ export default class HiveCanvas {
             if (onlinePlayer !== null) {
                 text.push("Ping: " + onlinePlayer.ping);
             }
-            if (aiPlayer !== null) {
-                const aiState = aiPlayer.state;
-                text.push("AI iterations: " + aiState.iterations);
-                text.push("AI speed: " + aiPlayer.getIterationsPerSecond());
-            }
             const fh = Math.ceil(26 * this.canvas.width / 1000);
             this.#drawText(text, 0, this.canvas.height / 2, "middle", "left", fh);
         }
@@ -363,9 +348,8 @@ export default class HiveCanvas {
         }
         const [rx, ry, ] = this.getSize();
         const r = (rx + ry) / 2;
-        this.board.pieces.filter(p => p.inGame && p.type.id === PieceType.queen.id && this.board.isQueenDead(p.color.id)).forEach(p => {
-            const pieceOnTop = this.board.inGameTopPieces.find(tp => tp.x === p.x && tp.y === p.y);
-            const [x, y] = this.getPiecePixelPosition(pieceOnTop);
+        this.board.queens.filter(p => p.inGame && this.board.isQueenDead(p.color.id)).forEach(p => {
+            const [x, y] = this.getPiecePixelPosition(this.board.getInGamePiece(p.x, p.y));
             let path = new Path2D();
             path.moveTo(x - r, y - r);
             path.lineTo(x + r, y + r);
@@ -540,21 +524,21 @@ export default class HiveCanvas {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z === 0) {
                     position.push([targetPiece.id, this.positionToPixel(x, y, 1)]);
-                    const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
+                    const prey = this.board.getInGamePiece(targetPiece.x, targetPiece.y);
                     position.push([prey.id, this.positionToPixel(x, y, 0)]);
                 }
             } else if (targetPiece.type.id === PieceType.dragonfly.id) {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z > 0 && targetPiece.z === 0) {
                     position.push([targetPiece.id, this.positionToPixel(targetPiece.x, targetPiece.y, 1)]);
-                    const prey = this.board.pieces.find(p => p.inGame && p.x === x && p.y === y && p.z === z - 1);
+                    const prey = this.board.getInGamePiece(x, y, z - 1);
                     position.push([prey.id, this.positionToPixel(targetPiece.x, targetPiece.y, 0)]);
                 }
             } else if (targetPiece.type.id === PieceType.centipede.id) {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z > 0) {
                     position.push([targetPiece.id, this.positionToPixel(targetPiece.x, targetPiece.y, 0)]);
-                    const prey = this.board.inGameTopPieces.find(p => p.x === targetPiece.x && p.y === targetPiece.y);
+                    const prey = this.board.getInGamePiece(targetPiece.x, targetPiece.y);
                     position.push([prey.id, this.positionToPixel(x, y, 0)]);
                 }
             }
@@ -620,7 +604,12 @@ export default class HiveCanvas {
         });
     }
     #linkedPieceInAnimation(p) {
-        return this.board.pieces.find(l => l.type.id === PieceType[p.type.linked].id && l.color.id === p.color.id && l.number === p.number && l.transition > 0);
+        return this.board.pieces.find(l =>
+            l.type.id === PieceType[p.type.linked].id &&
+            l.color.id === p.color.id &&
+            l.number === p.number &&
+            l.transition > 0
+        );
     }
     getPiecePath2D() {
         let path = new Path2D();
@@ -775,7 +764,7 @@ export default class HiveCanvas {
         }
         from0to1to0 /= 100;
         this.ctx.globalAlpha = from0to1to0 * from0to1to0;
-        this.board.inGame.filter(q => q.type.id === PieceType.queen.id && !this.board.inGameTopPieces.find(p => p.id === q.id)).forEach(p => {
+        this.board.queens.filter(q => q.inGame && this.board.getInGamePiece(q.x, q.y).id !== q.id).forEach(p => {
             const [x, y] = this.getPiecePixelPosition(p);
             const [, , offset] = this.getSize();
             this.ctx.setTransform(1, 0, 0, 1, x, y);
@@ -1046,7 +1035,7 @@ export default class HiveCanvas {
             if (move.pass) {
                 this.board.passBack();
             } else if (!move.timeout && !move.resign && !move.draw && !move.whiteLoses && !move.blackLoses) {
-                const p = this.board.pieces.find(p => p.id === move.pieceId);
+                const p = this.board.inGameTopPieces.find(p => p.id === move.pieceId);
                 const [from, to] = [move.moveSteps[0], move.moveSteps[move.moveSteps.length - 1]];
                 this.board.playBack(from, to, p, move.moveSteps, callbackMove);
             } else {
@@ -1097,10 +1086,10 @@ class Camera {
         let minY = null;
         let maxY = null;
         hive.board.inGameTopPieces.forEach(p => {
-            minX = Math.min(p.x, minX);
-            maxX = Math.max(p.x, maxX);
-            minY = Math.min(p.y, minY);
-            maxY = Math.max(p.y, maxY);
+            minX = Math.min(p.x, minX ?? p.x);
+            maxX = Math.max(p.x, maxX ?? p.x);
+            minY = Math.min(p.y, minY ?? p.y);
+            maxY = Math.max(p.y, maxY ?? p.y);
         });
         const [rx, ry, ] = hive.getSize(1);
         const qtyX = 7 + maxX - minX; // number of pieces on x, adding extra piece space
@@ -1121,16 +1110,6 @@ class Camera {
             this.scale += diffScale;
         }
     }
-}
-function getEvaluation(evaluation, maxEvaluation) {
-    if (evaluation === maxEvaluation) {
-        return "+∞";
-    } else if (evaluation === -maxEvaluation) {
-        return "-∞";
-    } else if (evaluation > 0) {
-        return "+" + evaluation;
-    }
-    return evaluation ?? "?";
 }
 function scaleTimeFontHeight(txt, fh) {
     const qtyDigits = txt.replace(/[^0-9]/, "").length;
