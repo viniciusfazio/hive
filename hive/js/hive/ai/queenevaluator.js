@@ -4,9 +4,11 @@ import {PieceColor, PieceType} from "../core/piece.js";
 
 export default class QueenEvaluator {
     evaluate(board) {
+        board.computeLegalMoves(true, true);
         return queenEval(board, PieceColor.white.id) - queenEval(board, PieceColor.black.id);
     }
     getSortedMoves(board) {
+        const moves = board.getMoves();
         const colorId = board.getColorPlaying().id;
         const queen = board.queens.find(p => p.inGame && p.color.id !== colorId);
         const queenZone = queen ? Board.coordsAround(queen.x, queen.y, true) : [];
@@ -20,29 +22,42 @@ export default class QueenEvaluator {
                 });
             }
         });
-        return board.getMoves().sort((a, b) => {
-            const [, to1, p1, ] = a;
-            const [, to2, p2, ] = b;
-            const [x1, y1, ] = to1;
-            const [x2, y2, ] = to2;
-            const p1Queen = queenZone.find(([x, y]) => x === x1 && y === y1);
-            const p2Queen = queenZone.find(([x, y]) => x === x2 && y === y2);
-            if (p1Queen && !p2Queen) {
-                return -1;
+        return moves.map(move => {
+            let score = 0;
+            const [from, to, p, ] = move;
+            const [tx, ty, tz] = to;
+            const [fx, fy, ] = from;
+            const enteringQueen = queenZone.find(([qx, qy]) => tx === qx && ty === qy);
+            const leavingQueen = p.inGame && queenZone.find(([qx, qy]) => fx === qx && fy === qy);
+            if (enteringQueen && !leavingQueen) {
+                score |= 2;
+            } else if (enteringQueen || !leavingQueen) {
+                score |= 1;
             }
-            if (p2Queen && !p1Queen) {
-                return 1;
+
+            score <<= 1;
+            score |= !p.inGame ? 1 : 0;
+
+            score <<= 2;
+            const enteringEnemy = enemyZone.find(([ex, ey]) => tx === ex && ty === ey);
+            const leavingEnemy = p.inGame && enemyZone.find(([ex, ey]) => fx === ex && fy === ey);
+            if (enteringEnemy && !leavingEnemy) {
+                score |= 2;
+            } else if (enteringEnemy || !leavingEnemy) {
+                score |= 1;
             }
-            const touchEnemy1 = p1.inGame && enemyZone.find(([x, y]) => x === x1 && y === y1);
-            const touchEnemy2 = p2.inGame && enemyZone.find(([x, y]) => x === x2 && y === y2);
-            if (touchEnemy1 && !touchEnemy2) {
-                return -1;
-            }
-            if (touchEnemy2 && !touchEnemy1) {
-                return 1;
-            }
-            return PRIORITY.indexOf(p1.type.id) - PRIORITY.indexOf(p2.type.id);
-        });
+
+            score <<= 1;
+            score |= tz > 0 ? 1 : 0;
+
+            score <<= 6;
+            score |= PRIORITY.indexOf(p.type.id);
+
+            return {
+                move: move,
+                score: score,
+            };
+        }).sort((a, b) => b.score - a.score).map(m => m.move);
     }
 }
 
