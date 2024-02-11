@@ -1,4 +1,4 @@
-import Piece, {getPieceMoves, PieceColor, PieceType} from "./piece.js"
+import Piece, {computePieceMoves, PieceColor, PieceType} from "./piece.js"
 export default class Board {
     round;
     lastMovedPiecesId;
@@ -12,6 +12,7 @@ export default class Board {
     passRound;
 
     queens;
+    qtyMoves;
 
     constructor(board = null) {
         if (board === null) {
@@ -61,7 +62,6 @@ export default class Board {
         this.queens = this.pieces.filter(p => p.type.id === PieceType.queen.id);
         const notInGame = this.pieces.filter(p => !p.inGame);
         this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type.id === p.type.id && p2.color.id === p.color.id));
-
     }
     coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
         let xyz = Board.coordsAround(cx, cy).map(([x, y]) => {
@@ -227,6 +227,7 @@ export default class Board {
             p.targets = [];
         });
         this.passRound = false;
+        this.qtyMoves = 0;
         if (this.isQueenDead(PieceColor.white.id) || this.isQueenDead(PieceColor.black.id)) {
             return;
         }
@@ -239,7 +240,8 @@ export default class Board {
                     p.targets = [];
                 });
             }
-            this.passRound = this.#computePiecePlacements() + this.#computeMoves() === 0;
+            this.qtyMoves = this.#computePiecePlacements() + this.#computeMoves();
+            this.passRound = this.qtyMoves === 0;
         }
     }
     #computeMoves(otherSide = false) {
@@ -251,19 +253,12 @@ export default class Board {
         if (!this.queens.find(p => p.inGame && p.color.id === colorId)) {
             return 0;
         }
-        let total = 0;
         this.inGameTopPieces.forEach(p => {
             if (p.color.id === colorId && (otherSide || !this.lastMovedPiecesId.includes(p.id))) {
-                getPieceMoves(p.type.id, this, p, this.standardRules);
-                total += p.targets.length;
+                computePieceMoves(p.type.id, this, p, this.standardRules);
             }
         });
-        return total;
-    }
-    getMoves() {
-        const moves = [];
-        this.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
-        return moves;
+        return otherSide ? 0 : this.inGameTopPieces.reduce((qty, p) => qty + p.targets.length, 0);
     }
 
     #computePiecePlacements(otherSide = false) {
@@ -294,12 +289,9 @@ export default class Board {
                 myHudTopPieces = [queen];
             }
         }
-        let total = 0;
-        this.piecePlacement(colorPlayingId).forEach(([x, y]) => myHudTopPieces.forEach(p => {
-            p.insertTarget(x, y, 0);
-            total++;
-        }));
-        return total;
+        const positions = this.piecePlacement(colorPlayingId);
+        positions.forEach(([x, y]) => myHudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
+        return positions.length * myHudTopPieces.length;
     }
     piecePlacement(colorId, ignore_x = null, ignore_y = null) {
         let visited = [];
@@ -405,6 +397,7 @@ export default class Board {
         }
         this.lastMovedPiecesId = [];
         this.round--;
+        this.#computePieces();
     }
     static coordsAround(x, y, includePoint = false) {
         if (includePoint) {
@@ -431,5 +424,10 @@ export default class Board {
     getColorPlaying() {
         return this.round % 2 === 1 ? PieceColor.white : PieceColor.black;
     }
-
+    getMoves() {
+        this.computeLegalMoves(true);
+        const moves = [];
+        this.pieces.forEach(p => p.targets.forEach(t => moves.push([[p.x, p.y, p.z], [t.x, t.y, t.z], p, t])));
+        return moves;
+    }
 }

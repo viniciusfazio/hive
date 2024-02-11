@@ -6,16 +6,19 @@ const ITERATION_STEP = 1000;
 
 let board = null;
 let lastMovedPiecesId = null;
-let initialMoves = null;
 let evaluator = null;
 let state = null;
+let initialMoves = null;
 let visited = null
+let initialMaximizing = null;
 onmessage = e => {
     state = e.data;
     state.iterations = 0;
     if (state.board !== null) {
         board = new Board(state.board);
         lastMovedPiecesId = [...board.lastMovedPiecesId];
+        initialMoves = board.getMoves();
+        initialMaximizing = board.getColorPlaying().id === PieceColor.white.id;
         state.board = null;
         switch (state.evaluatorId) {
             case "queenai":
@@ -25,25 +28,40 @@ onmessage = e => {
                 throw new Error('Invalid evaluator');
         }
         state.evaluatorId = null;
-        board.computeLegalMoves(true);
-        initialMoves = board.getMoves();
     } else {
         board.lastMovedPiecesId = [...lastMovedPiecesId];
     }
-
     visited = new Map();
-    const maximizing = board.getColorPlaying().id === PieceColor.white.id;
-    alphaBeta(0, state.alpha, state.beta, maximizing, [initialMoves[state.moveId]]);
+    alphaBeta(0, state.alpha, state.beta, initialMaximizing, [initialMoves[state.moveId]]);
     state.done = true;
     postMessage(state);
 };
 
+function getMovesSorted(board, maximizing) {
+    // too slow
+    const max = state.maxEvaluation - 1;
+    const min = -state.maxEvaluation + 1
+    const movesWithScore = [];
+    board.getMoves().forEach(move => {
+        const [from, to, p, ] = move;
+        board.play(from, to, p);
+        board.computeLegalMoves(true, true);
+        const evaluation = Math.max(min, Math.min(max, evaluator.evaluate(board)));
+        board.playBack(from, to, p);
+        movesWithScore.push({
+            move: move,
+            evaluation: evaluation,
+        });
+    });
+    return maximizing ?
+        movesWithScore.sort((a, b) => b.evaluation - a.evaluation).map(m => m.move) :
+        movesWithScore.sort((a, b) => a.evaluation - b.evaluation).map(m => m.move);
+}
 function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     // check terminal state or end depth
     const whiteDead = board.isQueenDead(PieceColor.white.id);
     const blackDead = board.isQueenDead(PieceColor.black.id);
-    state.iterations++;
-    if (state.iterations % ITERATION_STEP === 0) {
+    if (++state.iterations % ITERATION_STEP === 0) {
         postMessage(state);
         state.iterations = 0;
     }
@@ -60,8 +78,8 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
 
     // iterate minimax
     if (moves === null) {
-        board.computeLegalMoves(true);
-        moves = evaluator.sortMoves(board);
+        moves = evaluator.getSortedMoves(board);
+        //moves = getMovesSorted(board, maximizing);
         if (moves.length === 0) {
             moves.push(null);
         }
@@ -74,19 +92,16 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
         } else {
             board.pass();
         }
-        const str = board.stringfy();
-        const depthVisited = visited.get(str);
-        if (!depthVisited || depthVisited > depth) {
-            visited.set(str, depth);
-            const childEvaluation = alphaBeta(depth + 1, alpha, beta, !maximizing);
-            if (evaluation === null || maximizing && childEvaluation > evaluation || !maximizing && childEvaluation < evaluation) {
-                evaluation = childEvaluation;
-                if (depth === 0) {
-                    const [, , p, t] = move;
-                    state.pieceId = p.id;
-                    state.target = t;
-                    state.evaluation = evaluation;
-                }
+        const str = depth + board.stringfy();
+        let childEvaluation = visited.get(str);
+        if (typeof childEvaluation === "undefined") {
+            childEvaluation = alphaBeta(depth + 1, alpha, beta, !maximizing);
+            visited.set(str, childEvaluation);
+        }
+        if (evaluation === null || maximizing && childEvaluation > evaluation || !maximizing && childEvaluation < evaluation) {
+            evaluation = childEvaluation;
+            if (depth === 0) {
+                state.evaluation = evaluation;
             }
         }
         if (move !== null) {

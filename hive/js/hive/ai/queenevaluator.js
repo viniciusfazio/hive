@@ -6,7 +6,7 @@ export default class QueenEvaluator {
     evaluate(board) {
         return queenEval(board, PieceColor.white.id) - queenEval(board, PieceColor.black.id);
     }
-    sortMoves(board) {
+    getSortedMoves(board) {
         const colorId = board.getColorPlaying().id;
         const queen = board.queens.find(p => p.inGame && p.color.id !== colorId);
         const queenZone = queen ? Board.coordsAround(queen.x, queen.y, true) : [];

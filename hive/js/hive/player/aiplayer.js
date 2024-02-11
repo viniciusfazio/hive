@@ -7,24 +7,27 @@ const MAX_EVALUATION = 999999;
 const MAX_DEPTH = 5;
 
 export default class AIPlayer extends Player {
-    #initTurnTime;
-    #running = false;
-    #workers = [];
-    state = new EvaluationState();
     evaluatorId = "queenai";
 
-    #moveIndex = null;
-    #idle = null;
-    #qtyMoves;
-    #depth = null;
+    #initTurnTime = null;
+    #totalTime = null;
+    #workers = [];
+
+    pieceId;
+    target;
+
+    #state = null;
+
+    #moveIndex;
+    #idle;
     #maximizing;
     #ended;
     #board;
-    #movesScore;
-
+    #moves;
+    #movesSorted;
 
     initPlayerTurn() {
-        if (this.#running) {
+        if (this.#initTurnTime !== null) {
             return;
         }
 
@@ -44,24 +47,22 @@ export default class AIPlayer extends Player {
         if (!window.Worker) {
             throw Error("Can't create thread for AI player");
         }
-        this.#running = true;
         this.#initTurnTime = Date.now();
         this.#board = new Board(this.hive.board);
-        this.#board.computeLegalMoves(true);
+        this.#moves = this.#board.getMoves();
         this.#maximizing = this.#board.getColorPlaying().id === PieceColor.white.id;
-        this.#qtyMoves = this.#board.getMoves().length;
-        this.#movesScore = [];
-        for (let i = 0; i < this.#qtyMoves; i++) {
-            this.#movesScore.push({
+        this.#movesSorted = [];
+        for (let i = 0; i < this.#moves.length; i++) {
+            this.#movesSorted.push({
                 moveId: i,
-                score: -MAX_EVALUATION,
+                evaluation: this.#maximizing ? -MAX_EVALUATION : MAX_EVALUATION,
             });
         }
-        this.#depth = 1;
+        this.#state = null;
         this.#minimax();
     }
     #minimax() {
-        this.#moveIndex = Math.min(this.#movesScore.length, QTY_WORKERS);
+        this.#moveIndex = Math.min(this.#movesSorted.length, QTY_WORKERS);
         this.#idle = QTY_WORKERS - this.#moveIndex;
         this.#ended = false;
         if (this.#workers.length === 0) {
@@ -69,134 +70,157 @@ export default class AIPlayer extends Player {
                 const worker = new Worker("js/hive/ai/aiminimax.js", {type: 'module'});
                 worker.onmessage = e => {
                     const wState = e.data;
-                    this.state.iterations += wState.iterations;
+                    this.#state.iterations += wState.iterations;
                     if (!wState.done) {
                         return;
                     }
-                    this.#movesScore.find(s => s.moveId === wState.moveId).score = this.#maximizing ? wState.evaluation : -wState.evaluation;
-                    const breakthrough = this.state.evaluation === null ||
-                        this.#maximizing && wState.evaluation > this.state.evaluation ||
-                        !this.#maximizing && wState.evaluation < this.state.evaluation;
+                    this.#movesSorted.find(m => m.moveId === wState.moveId).evaluation = wState.evaluation;
+
+                    const breakthrough = this.#state.evaluation === null || this.#state.depth < wState.maxDepth ||
+                        this.#maximizing && wState.evaluation > this.#state.evaluation ||
+                        !this.#maximizing && wState.evaluation < this.#state.evaluation;
+
                     if (breakthrough) {
-                        this.state.evaluation = wState.evaluation;
-                        this.state.pieceId = wState.pieceId;
-                        const piece = this.#board.pieces.find(p => p.id === wState.pieceId);
-                        this.state.target = piece.targets.find(t => t.id === wState.target.id);
+                        const [, , p, t] = this.#moves[wState.moveId];
+                        this.#state.evaluation = wState.evaluation;
+                        this.pieceId = p.id;
+                        this.target = t;
+                        this.#state.depth = wState.maxDepth;
                         if (this.#maximizing) {
-                            if (wState.evaluation >= this.state.beta) {
+                            if (wState.evaluation >= this.#state.beta) {
                                 this.#ended = true;
-                            } else if (wState.evaluation > this.state.alpha) {
-                                this.state.alpha = wState.evaluation;
+                            } else if (wState.evaluation > this.#state.alpha) {
+                                this.#state.alpha = wState.evaluation;
                             }
                         } else {
-                            if (wState.evaluation <= this.state.alpha) {
+                            if (wState.evaluation <= this.#state.alpha) {
                                 this.#ended = true;
-                            } else if (wState.evaluation < this.state.beta) {
-                                this.state.beta = wState.evaluation;
+                            } else if (wState.evaluation < this.#state.beta) {
+                                this.#state.beta = wState.evaluation;
                             }
                         }
                     }
-                    if (this.#ended || this.#moveIndex >= this.#movesScore.length) {
-                        if (this.#ended && this.#depth === MAX_DEPTH) {
-                            this.#moveIndex = this.#movesScore.length;
+                    if (this.#ended || this.#moveIndex >= this.#movesSorted.length) {
+                        if (this.#ended && this.#state.maxDepth === MAX_DEPTH) {
+                            this.#moveIndex = this.#movesSorted.length;
                             this.reset(false);
                         }
                         if (++this.#idle === QTY_WORKERS) {
-                            if (this.#depth === MAX_DEPTH) {
-                                this.#running = false;
-                                this.hive.play(this.state.pieceId, this.state.target);
+                            if (this.#state.maxDepth === MAX_DEPTH) {
+                                this.#totalTime = Date.now() - this.#initTurnTime;
+                                this.#initTurnTime = null;
+                                this.hive.play(this.pieceId, this.target);
+                                this.pieceId = null;
+                                this.target = null;
                             } else {
-                                this.#running = true;
-                                for (;this.#moveIndex < this.#movesScore.length; this.#moveIndex++) {
-                                    this.#movesScore[this.#moveIndex].score = -MAX_EVALUATION;
+                               for (;this.#moveIndex < this.#movesSorted.length; this.#moveIndex++) {
+                                    this.#movesSorted[this.#moveIndex].evaluation = this.#maximizing ?
+                                        -MAX_EVALUATION + this.#board.qtyMoves - this.#moveIndex :
+                                        MAX_EVALUATION - this.#board.qtyMoves + this.#moveIndex;
                                 }
-                                this.#movesScore.sort((a, b) => b.score - a.score);
-                                this.#depth++;
+                                if (this.#maximizing) {
+                                    this.#movesSorted.sort((a, b) => b.evaluation - a.evaluation);
+                                } else {
+                                    this.#movesSorted.sort((a, b) => a.evaluation - b.evaluation);
+                                }
+                                this.#state.maxDepth++;
                                 this.#minimax();
                             }
                         }
                     } else {
-                        this.state.moveId = this.#movesScore[this.#moveIndex++].moveId;
-                        worker.postMessage(this.state);
+                        this.#state.moveId = this.#movesSorted[this.#moveIndex++].moveId;
+                        worker.postMessage(this.#state);
                     }
                 };
                 this.#workers.push(worker);
             }
         }
-        if (this.#depth === 1) {
-            this.state = new EvaluationState();
-            this.state.board = this.#board;
-            this.state.evaluatorId = this.evaluatorId;
+        if (this.#state === null) {
+            this.#state = new EvaluationState();
+            this.#state.board = this.#board;
+            this.#state.evaluatorId = this.evaluatorId;
+            this.#state.maxDepth = 2;
         }
-        this.state.evaluation = null;
-        this.state.pieceId = null;
-        this.state.target = null;
-        this.state.alpha = -MAX_EVALUATION;
-        this.state.beta = MAX_EVALUATION;
-        this.state.maxDepth = this.#depth;
+        this.#state.alpha = -MAX_EVALUATION;
+        this.#state.beta = MAX_EVALUATION;
         for (let i = 0; i < this.#moveIndex; i++) {
-            this.state.moveId = this.#movesScore[i].moveId;
-            this.#workers[i].postMessage(this.state);
+            this.#state.moveId = this.#movesSorted[i].moveId;
+            this.#workers[i].postMessage(this.#state);
         }
-        this.state.board = null;
-        this.state.evaluatorId = null;
+        this.#state.board = null;
+        this.#state.evaluatorId = null;
 
     }
     getProgress() {
         const texts = [];
-        if (this.#depth >= 1) {
-            texts.push("Depth: " + this.#depth + " / " + MAX_DEPTH);
-            texts.push("Iterations: " + this.#getIterationsPerSecond());
-        }
-        if (this.#depth === MAX_DEPTH) {
-            texts.push("Moves: " + (this.#moveIndex - QTY_WORKERS + this.#idle) + " / " + this.#qtyMoves);
+        if (this.#state !== null) {
+            texts.push("Depth: " + this.#state.maxDepth + " / " + MAX_DEPTH);
+            texts.push("Iterations: " + this.#getIterations());
+            texts.push("Moves: " + (this.#moveIndex - QTY_WORKERS + this.#idle) + " / " + this.#board.qtyMoves);
             texts.push("Evaluation: " + this.#getEvaluation());
         }
         return texts;
     }
     #getEvaluation() {
-        if (this.state.evaluation === MAX_EVALUATION) {
+        if (this.#state.evaluation === MAX_EVALUATION) {
             return "+∞";
-        } else if (this.state.evaluation === -MAX_EVALUATION) {
+        } else if (this.#state.evaluation === -MAX_EVALUATION) {
             return "-∞";
-        } else if (this.state.evaluation > 0) {
-            return "+" + this.state.evaluation;
+        } else if (this.#state.evaluation > 0) {
+            return "+" + this.#state.evaluation;
         }
-        return this.state.evaluation ?? "?";
+        return this.#state.evaluation ?? "?";
     }
 
     reset(resetState = true) {
         this.#workers.forEach(w => w.terminate());
         this.#workers = [];
-        this.#running = false;
         this.#idle = QTY_WORKERS;
         if (resetState) {
-            this.state = new EvaluationState();
+            this.#totalTime = null;
+            this.#initTurnTime = null;
+            this.#state = null;
             this.#moveIndex = null;
         }
     }
-    #getIterationsPerSecond() {
-        if (!this.#running) {
-            return "-";
+    #getIterations() {
+        let speed = "";
+        if (this.#initTurnTime !== null) {
+            speed = " - " + Math.round(Math.round(this.#state.iterations / (Date.now() - this.#initTurnTime))) + "k/s";
+            this.#totalTime = Date.now() - this.#initTurnTime;
         }
-        return Math.round(Math.round(this.state.iterations / (Date.now() - this.#initTurnTime))) + "k/s";
+        let time = "";
+        if (this.#totalTime !== null) {
+            time = " - " + Math.round(this.#totalTime / 1000) + "s";
+        }
+        if (this.#state.iterations < 1000) {
+            return this.#state.iterations + speed + time;
+        }
+        if (this.#state.iterations < 1000000) {
+            return Math.round(this.#state.iterations / 1000) + "k" + speed + time;
+        }
+        return (Math.round(this.#state.iterations / 100000) / 10) + "M" + speed + time;
     }
 }
 class EvaluationState {
-    maxEvaluation = MAX_EVALUATION;
 
+    // qty iterations
     iterations = 0;
+
+    // input to minimax
+    maxEvaluation = MAX_EVALUATION;
+    evaluatorId;
+    board;
     alpha;
     beta;
     maxDepth;
-
-    pieceId;
-    target;
-    evaluation;
-
-    board;
-    evaluatorId;
     moveId;
+
+    // output from minimax, and to the aiPlayer
+    evaluation;
+    depth = null; // depth associated with output
+
+    // if false, only keep track of iteration qty
     done = false;
 }
 

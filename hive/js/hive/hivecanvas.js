@@ -316,8 +316,6 @@ export default class HiveCanvas {
     #drawDebug() {
         if (this.#debug) {
             const moveList = this.getMoveList();
-            let totalMoves = 0;
-            this.board.pieces.forEach(p => totalMoves += p.targets.length);
             let onlinePlayer = null;
             if (this.whitePlayer instanceof OnlinePlayer) {
                 onlinePlayer = this.whitePlayer;
@@ -334,7 +332,7 @@ export default class HiveCanvas {
                 "Mouse: " + Math.round(this.#canvasPlayer.mouseX) + "," + Math.round(this.#canvasPlayer.mouseY),
                 "Time left: " + moveList.whitePiecesTimeLeft + " / " + moveList.blackPiecesTimeLeft,
                 "Round: " + this.board.round + " / " + moveList.moves.length,
-                "Moves available: " + totalMoves,
+                "Moves available: " + this.board.qtyMoves,
                 "FPS: " + this.#framesPerSecond,
                 "board: " + this.board.stringfy(),
             ];
@@ -504,9 +502,9 @@ export default class HiveCanvas {
         let selectedTargetId = this.#canvasPlayer.selectedTargetId;
         let hoverPieceId = this.#canvasPlayer.hoverPieceId;
         const dragId = player?.dragging ? player.selectedPieceId : null;
-        if (this.board.round > this.getMoveList().moves.length && player instanceof AIPlayer && player.state.target !== null) {
-            const target = player.state.target;
-            const piece = this.board.pieces.find(p => p.id === player.state.pieceId);
+        if (this.board.round > this.getMoveList().moves.length && player instanceof AIPlayer && player.target) {
+            const target = player.target;
+            const piece = this.board.pieces.find(p => p.id === player.pieceId);
             selectedPieceId = piece.id;
             selectedTargetId = piece.targets.findIndex(t => t.x === target.x && t.y === target.y && t.z === target.z);
             hoverPieceId = piece.targets[selectedTargetId].id;

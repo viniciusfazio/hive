@@ -214,7 +214,7 @@ export const PieceType = Object.freeze({
         standard: false,
     }),
 });
-export function getPieceMoves(pieceType, board, piece, standard) {
+export function computePieceMoves(pieceType, board, piece, standard) {
     switch (pieceType) {
         case PieceType.queen.id:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
@@ -266,7 +266,7 @@ export function getPieceMoves(pieceType, board, piece, standard) {
                 Board.coordsAround(piece.x, piece.y).forEach(([x, y]) => {
                     const p = board.getInGamePiece(x, y);
                     if (p && p.type.id !== PieceType.mosquito.id) {
-                        getPieceMoves(p.type.id, board, piece, standard);
+                        computePieceMoves(p.type.id, board, piece, standard);
                     }
                 });
             }
