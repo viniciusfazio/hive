@@ -6,13 +6,19 @@ export default class Board {
     allPieces;
 
     pieces;
-    inGame;
+    inGamePieces;
     inGameTopPieces;
     hudTopPieces;
     passRound;
 
     queens;
     qtyMoves;
+
+    maxZ;
+    minX;
+    minY;
+    maxX;
+    maxY;
 
     constructor(board = null) {
         if (board === null) {
@@ -49,16 +55,29 @@ export default class Board {
     }
 
     #computePieces() {
-        this.inGame = this.allPieces.filter(p => p.inGame);
-        this.inGameTopPieces = this.inGame.filter(p => !this.inGame.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
+        this.inGamePieces = this.allPieces.filter(p => p.inGame);
+        this.inGameTopPieces = this.inGamePieces.filter(p => !this.inGamePieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
         this.pieces = this.allPieces.filter(p =>
-            (!this.standardRules || p.type.standard) && (
+            // keep only usable pieces. For example, if wasp1 was played, ant1 will never be played, so it is removed
+             (!this.standardRules || p.type.standard) && (
                 this.standardRules || p.type.linked === null || p.inGame ||
-                !this.inGame.find(l => // if linked piece is in game, can't play
+                !this.inGamePieces.find(l => // if linked piece is in game, can't play
                     l.type.id === PieceType[p.type.linked].id && l.number === p.number && l.color.id === p.color.id
                 )
-            )
-        );
+            ));
+        this.maxZ = null;
+        this.minX = null;
+        this.maxX = null;
+        this.minY = null;
+        this.maxY = null;
+        this.inGameTopPieces.forEach(p => {
+            if (this.maxX === null || this.maxX < p.x) this.maxX = p.x;
+            if (this.maxY === null || this.maxY < p.y) this.maxY = p.y;
+            if (this.maxZ === null || this.maxZ < p.z) this.maxZ = p.z;
+            if (this.minX === null || this.minX > p.x) this.minX = p.x;
+            if (this.minY === null || this.minY > p.y) this.minY = p.y;
+        });
+
         this.queens = this.pieces.filter(p => p.type.id === PieceType.queen.id);
         const notInGame = this.pieces.filter(p => !p.inGame);
         this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type.id === p.type.id && p2.color.id === p.color.id));
@@ -144,13 +163,13 @@ export default class Board {
     }
 
     stringfy(onlyLastMovesThatMatter = true) {
-        this.inGame.sort((a, b) =>
+        this.inGamePieces.sort((a, b) =>
             a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
 
         let lastP = null;
         const colorPlayingId = this.getColorPlaying().id;
         let ret = colorPlayingId === "b" ? "!" : "";
-        this.inGame.forEach(p => {
+        this.inGamePieces.forEach(p => {
             if (lastP !== null) {
                 const diff = p.x - lastP.x;
                 if (diff === 0) {
@@ -218,8 +237,9 @@ export default class Board {
 
 
     getInGamePiece(x, y, z = null) {
-        return z === null ? this.inGameTopPieces.find(p => p.x === x && p.y === y) :
-            this.inGame.find(p => p.x === x && p.y === y && p.z === z);
+        return z === null ?
+            this.inGameTopPieces.find(p => p.x === x && p.y === y) :
+            this.inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
     }
     computeLegalMoves(canMove, computeOtherSide = false) {
         this.pieces.forEach(p => {

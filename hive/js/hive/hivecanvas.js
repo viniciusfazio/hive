@@ -561,7 +561,6 @@ export default class HiveCanvas {
         if (id !== null) {
             this.board.pieces.find(p => p.id === id).targets.forEach(p => pieces.push(p));
         }
-        const maxZ = this.board.inGameTopPieces.reduce((maxZ, p) => Math.max(maxZ, p.z), 0);
         return pieces.map(p => {
             let score = 0;
             // dragging pieces draw at the end
@@ -569,7 +568,7 @@ export default class HiveCanvas {
                 score |= 1;
             }
             // draw top pieces at the end
-            score *= maxZ;
+            score *= this.board.maxZ;
             score += this.getPieceZ(p);
 
             // draw hover pieces at the end
@@ -1099,16 +1098,7 @@ class Camera {
         [this.scale, this.x, this.y, this.#toScale, this.#toX, this.#toY] = [1, 0, 0, 1, 0, 0];
     }
     recenter(hive) {
-        let minX = null;
-        let maxX = null;
-        let minY = null;
-        let maxY = null;
-        hive.board.inGameTopPieces.forEach(p => {
-            minX = Math.min(p.x, minX ?? p.x);
-            maxX = Math.max(p.x, maxX ?? p.x);
-            minY = Math.min(p.y, minY ?? p.y);
-            maxY = Math.max(p.y, maxY ?? p.y);
-        });
+        const [minX, maxX, minY, maxY] = [hive.board.minX, hive.board.maxX, hive.board.minY, hive.board.maxY];
         const [rx, ry, ] = hive.getSize(1);
         const qtyX = 7 + maxX - minX; // number of pieces on x, adding extra piece space
         const qtyY = 7 + maxY - minY; // number of pieces on y, adding extra piece space

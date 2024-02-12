@@ -458,9 +458,8 @@ function moveAround(board, piece, n = null, colorId = null) {
     }
 }
 function fly(board, piece, colorId = null) {
-    const maxZ = board.inGameTopPieces.reduce((maxZ, p) => Math.max(maxZ, p.z), 0);
     board.piecePlacement(colorId, piece.x, piece.y).forEach(([x, y]) => {
-        piece.insertTarget(x, y, 0, [[piece.x, piece.y, maxZ + 1]]);
+        piece.insertTarget(x, y, 0, [[piece.x, piece.y, board.maxZ + 1]]);
     });
 }
 function moveOver(board, piece, n = null, colorId = null) {
