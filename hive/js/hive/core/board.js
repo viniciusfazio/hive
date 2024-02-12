@@ -28,7 +28,7 @@ export default class Board {
             this.reset(true);
         } else {
             this.round = board.round;
-            this.lastMovedPiecesId = board.lastMovedPiecesId;
+            this.lastMovedPiecesId = [...board.lastMovedPiecesId];
             this.standardRules = board.standardRules;
             this.allPieces = board.allPieces.map(p => Piece.clone(p));
             this.#computePieces();

@@ -221,6 +221,7 @@ function upload() {
                     hive.whitePlayer = new AIPlayer(hive);
                 }
                 hive.setGameOver(false); // to update undo button
+                hive.board.computeLegalMoves(true);
                 hive.getPlayerPlaying().initPlayerTurn();
             }
         };

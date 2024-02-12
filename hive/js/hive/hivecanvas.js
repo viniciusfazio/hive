@@ -114,7 +114,7 @@ export default class HiveCanvas {
         this.standardRules = standardRules;
         this.flippedPieces = false;
         this.board.reset(standardRules);
-        this.board.pieces.forEach(p => {
+        this.board.allPieces.forEach(p => {
             p.transition = 0;
         });
 
@@ -133,6 +133,9 @@ export default class HiveCanvas {
         return Math.max(fz, tz);
     }
     #getPiecePosition(piece) {
+        if (piece.subNumber > 0) {
+            return [null, null, 0, piece.x, piece.y, piece.z, 0];
+        }
         const animationPosition = (piece.moveSteps.length - 1) * (1 - piece.transition);
         const animationFrame = Math.floor(animationPosition);
         const transitionOnFrame = 1 - (animationPosition - animationFrame);
@@ -558,55 +561,46 @@ export default class HiveCanvas {
         if (id !== null) {
             this.board.pieces.find(p => p.id === id).targets.forEach(p => pieces.push(p));
         }
-        return pieces.sort((a, b) => {
+        const maxZ = this.board.inGameTopPieces.reduce((maxZ, p) => Math.max(maxZ, p.z), 0);
+        return pieces.map(p => {
+            let score = 0;
             // dragging pieces draw at the end
-            if (a.id === dragId) {
-                return 1;
-            }
-            if (b.id === dragId) {
-                return -1;
+            if (p.id === dragId) {
+                score |= 1;
             }
             // draw top pieces at the end
-            const az = this.getPieceZ(a);
-            const bz = this.getPieceZ(b);
-            if (az !== bz) {
-                return az - bz;
-            }
+            score *= maxZ;
+            score += this.getPieceZ(p);
+
             // draw hover pieces at the end
-            if (a.id === hoverPieceId) {
-                return 1;
-            }
-            if (b.id === hoverPieceId) {
-                return -1;
-            }
+            score <<= 1;
+            score |= p.id === hoverPieceId ? 1 : 0;
+
             // draw selected pieces at the end
-            if (a.id === selectedPieceId) {
-                return 1;
-            }
-            if (b.id === selectedPieceId) {
-                return -1;
-            }
+            score <<= 1;
+            score |= p.id === selectedPieceId ? 1 : 0;
+
             // draw targets at the end
-            if (a.subNumber !== b.subNumber) {
-                return a.subNumber - b.subNumber;
-            }
+            score <<= 1;
+            score |= p.subNumber > 0 ? 1 : 0;
+
             // draw pieces in animation at the end
-            if (Math.abs(a.transition - b.transition) > 1e-4) {
-                return a.transition - b.transition;
-            }
+            score <<= 1;
+            score |= p.transition > 0 ? 1 : 0;
+
             // draw movable pieces at the end
-            if (a.targets.length !== b.targets.length && selectedTargetId === null) {
-                return a.targets.length - b.targets.length;
-            }
+            score <<= 1;
+            score |= p.targets.length > 0 ? 1 : 0;
+
             // draw last moved piece at the end
-            if (this.board.lastMovedPiecesId.includes(a.id) && !this.board.lastMovedPiecesId.includes(b.id)) {
-                return 1;
-            }
-            if (this.board.lastMovedPiecesId.includes(b.id) && !this.board.lastMovedPiecesId.includes(a.id)) {
-                return -1;
-            }
-            return 0;
-        });
+            score <<= 1;
+            score |= this.board.lastMovedPiecesId.includes(p.id) > 0 ? 1 : 0;
+
+            return {
+                piece: p,
+                score: score,
+            };
+        }).sort((a, b) => a.score - b.score).map(ps => ps.piece);
     }
     #linkedPieceInAnimation(p) {
         return this.board.pieces.find(l =>
@@ -788,7 +782,7 @@ export default class HiveCanvas {
         }
         from0to1to0 /= 100;
         this.ctx.globalAlpha = from0to1to0 * from0to1to0;
-        this.board.queens.filter(q => q.inGame && this.board.getInGamePiece(q.x, q.y).id !== q.id).forEach(p => {
+        this.board.queens.filter(q => q.inGame).forEach(p => { // && this.board.getInGamePiece(q.x, q.y).id !== q.id).forEach(p => {
             const [x, y] = this.getPiecePixelPosition(p);
             const [, , offset] = this.getSize();
             this.ctx.setTransform(1, 0, 0, 1, x, y);

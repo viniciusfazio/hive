@@ -1,9 +1,10 @@
 import {PieceColor} from "../core/piece.js";
 import Board from "../core/board.js";
-import QueenEvaluator from "./queenevaluator.js";
+import AIPlayer from "../player/aiplayer.js";
 
 // how many iterations until report iteration count
 const ITERATION_STEP = 1000;
+
 // max depth to sort moves by computing board evaluation of the move. It is the best sort, but too slow
 const MAX_DEPTH_TO_PEEK_NEXT_MOVE = 2;
 
@@ -14,63 +15,44 @@ let visited = null
 let board = null;
 let initialMaximizing = null;
 let evaluator = null;
-let state = null;
+let msg = null;
 let initialMoves = null;
 onmessage = e => {
-    state = e.data;
-    state.iterations = 0;
-    state.evaluation = null;
-    if (state.board !== null) {
+    msg = e.data;
+    msg.iterations = 0;
+    msg.evaluation = null;
+    msg.done = false;
+    if (msg.board !== null) {
         // new board received
-        board = new Board(state.board);
+        evaluator = AIPlayer.getEvaluator(msg.evaluatorId);
+        board = new Board(msg.board);
         lastMovedPiecesId = [...board.lastMovedPiecesId];
         initialMoves = board.getMoves();
         initialMaximizing = board.getColorPlaying().id === PieceColor.white.id;
         // clean board to not send it back
-        state.board = null;
-        switch (state.evaluatorId) {
-            case "queenai":
-                evaluator = new QueenEvaluator();
-                break;
-            default:
-                throw new Error('Invalid evaluator');
-        }
-        state.evaluatorId = null;
+        msg.board = null;
+        msg.evaluatorId = null;
     } else {
         // the board has no last moves as it ended by playing back in previous depth computing
         board.lastMovedPiecesId = [...lastMovedPiecesId];
     }
-    // reset visited moves
-    visited = new Map();
-    alphaBeta(0, state.alpha, state.beta, initialMaximizing, [initialMoves[state.moveId]]);
-    state.done = true;
-    postMessage(state);
+    if (msg.pieceId !== null && msg.targetId !== null) {
+        const move = initialMoves.find(([, , p, t]) => p.id === msg.pieceId && t.id === msg.targetId);
+        if (!move) {
+            throw Error("Invalid move on minimax");
+        }
+        visited = new Map();
+        alphaBeta(0, msg.alpha, msg.beta, initialMaximizing, [move]);
+        msg.done = true;
+        postMessage(msg);
+    }
 };
-function evaluate(board) {
-    return Math.max(-state.maxEvaluation + 1, Math.min(state.maxEvaluation - 1, evaluator.evaluate(board)));
-}
 
-function getSortedMovesPeekingNextMove(board, maximizing) {
-    // sort moves by evaluation the board of each move
-    const movesWithScore = board.getMoves().map(move => {
-        const [from, to, p, ] = move;
-        board.play(from, to, p);
-        const evaluation = evaluate(board);
-        board.playBack(from, to, p);
-        return {
-            move: move,
-            evaluation: evaluation,
-        };
-    });
-    return maximizing ?
-        movesWithScore.sort((a, b) => b.evaluation - a.evaluation).map(m => m.move) :
-        movesWithScore.sort((a, b) => a.evaluation - b.evaluation).map(m => m.move);
-}
 function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     // count iterations
-    if (++state.iterations % ITERATION_STEP === 0) {
-        postMessage(state);
-        state.iterations = 0;
+    if (++msg.iterations % ITERATION_STEP === 0) {
+        postMessage(msg);
+        msg.iterations = 0;
     }
     // check terminal state or max depth reached
     const whiteDead = board.isQueenDead(PieceColor.white.id);
@@ -78,17 +60,17 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     if (whiteDead && blackDead) {
         return 0;
     } else if (whiteDead) {
-        return -state.maxEvaluation;
+        return -msg.maxEvaluation;
     } else if (blackDead) {
-        return state.maxEvaluation;
-    } else if (depth >= state.maxDepth) {
-        return evaluate(board);
+        return msg.maxEvaluation;
+    } else if (depth >= msg.maxDepth) {
+        return AIPlayer.evaluate(board, evaluator);
     }
 
     // get sorted moves to be computed
     if (moves === null) {
-        if (depth <= Math.min(MAX_DEPTH_TO_PEEK_NEXT_MOVE, state.maxDepth - 2)) {
-            moves = getSortedMovesPeekingNextMove(board, maximizing);
+        if (depth <= Math.min(MAX_DEPTH_TO_PEEK_NEXT_MOVE, msg.maxDepth - 2)) {
+            moves = AIPlayer.getSortedMovesPeekingNextMove(board, evaluator);
         } else {
             moves = evaluator.getSortedMoves(board);
         }
@@ -127,7 +109,7 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
         if (newBestMove) {
             evaluation = childEvaluation;
             if (depth === 0) {
-                state.evaluation = evaluation;
+                msg.evaluation = evaluation;
             }
             // updates alpha and beta, and prune if necessary
             if (maximizing) {
