@@ -62,37 +62,36 @@ export default class QueenEvaluator {
 }
 
 function queenEval(board, colorId) {
-    const queen = board.queens.find(p => p.inGame && p.color.id !== colorId);
-    if (!queen) {
+    const hisQueen = board.queens.find(p => p.inGame && p.color.id !== colorId);
+    if (!hisQueen) {
         return 0;
     }
-    let aboveQueen = board.getInGamePiece(queen.x, queen.y);
-    if (aboveQueen.color.id !== colorId) {
-        aboveQueen = false;
+    let myPieceAboveHisQueen = board.getInGamePiece(hisQueen.x, hisQueen.y);
+    if (myPieceAboveHisQueen.color.id !== colorId) {
+        myPieceAboveHisQueen = false;
     }
-    const occupy = [];
-    const freeCoords = [];
-    Board.coordsAround(queen.x, queen.y).forEach(([x, y]) => {
+    const piecesAroundHisQueen = [];
+    const freeSpacesAroundHisQueen = [];
+    Board.coordsAround(hisQueen.x, hisQueen.y).forEach(([x, y]) => {
         const p = board.getInGamePiece(x, y);
         if (p) {
-            occupy.push(p);
+            piecesAroundHisQueen.push(p);
         } else {
-            freeCoords.push([x, y]);
+            freeSpacesAroundHisQueen.push([x, y]);
         }
     });
 
 
-    const allyOccupy = occupy.filter(p => p.color.id === colorId);
-    const aboveAround = allyOccupy.find(p => p.z > 0);
+    const myPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => p.color.id === colorId);
 
-    const enemyOccupy = occupy.filter(p => p.color.id !== colorId);
+    const hisPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => p.color.id !== colorId);
 
-    const pillBugDefense = enemyOccupy.find(p => p.type.id === PieceType.pillBug.id);
-    const scorpionDefense = enemyOccupy.find(p => p.type.id === PieceType.scorpion.id);
+    const pillBugDefense = hisPiecesAroundHisQueen.find(p => p.type.id === PieceType.pillBug.id);
+    const scorpionDefense = hisPiecesAroundHisQueen.find(p => p.type.id === PieceType.scorpion.id);
 
     let mosquitoPillBugDefense = false;
     if (board.standardRules) {
-        const mosquito = enemyOccupy.find(p => p.type.id === PieceType.mosquito.id && p.z === 0);
+        const mosquito = hisPiecesAroundHisQueen.find(p => p.type.id === PieceType.mosquito.id && p.z === 0);
         mosquitoPillBugDefense = mosquito && Board.coordsAround(mosquito.x, mosquito.y).find(([x, y]) => {
             const p = board.getInGamePiece(x, y);
             return p && p.type.id === PieceType.pillBug.id;
@@ -100,37 +99,40 @@ function queenEval(board, colorId) {
     }
 
 
-    const occupyIds = occupy.filter(p => p.z === 0).map(p => p.id);
-    if (aboveQueen) {
-        occupyIds.push(aboveQueen.id);
+    const pieceIdsAroundHisQueen = piecesAroundHisQueen.filter(p => p.z === 0).map(p => p.id);
+    if (myPieceAboveHisQueen) {
+        pieceIdsAroundHisQueen.push(myPieceAboveHisQueen.id);
     } else {
-        freeCoords.push([queen.x, queen.y]);
+        freeSpacesAroundHisQueen.push([hisQueen.x, hisQueen.y]);
     }
 
     const colorIsPlaying = board.getColorPlaying().id === colorId;
-    const qtyAttacked = colorIsPlaying ?
-        freeCoords.reduce((qty, [x, y]) =>
-            board.pieces.find(p => !occupyIds.includes(p.id) &&
+    const freeSpaceAroundHisQueenBeingAttacked = colorIsPlaying ?
+        freeSpacesAroundHisQueen.reduce((qty, [x, y]) =>
+            board.pieces.find(p => !pieceIdsAroundHisQueen.includes(p.id) &&
                 p.targets.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0) :
-        freeCoords.reduce((qty, [x, y]) =>
-            board.pieces.find(p => !occupyIds.includes(p.id) &&
+        freeSpacesAroundHisQueen.reduce((qty, [x, y]) =>
+            board.pieces.find(p => !pieceIdsAroundHisQueen.includes(p.id) &&
                 p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
 
-    const qtyAttacking = colorIsPlaying ?
-        board.pieces.reduce((qty, p) => !occupyIds.includes(p.id) && p.targets.length > 0 &&
-            freeCoords.find(([x, y]) => p.targets.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0) :
-        board.pieces.reduce((qty, p) => !occupyIds.includes(p.id) && p.targetsB.length > 0 &&
-            freeCoords.find(([x, y]) => p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
+    const qtyPiecesAttackingFreeSpaceAroundHisQueen = colorIsPlaying ?
+        board.pieces.reduce((qty, p) => !pieceIdsAroundHisQueen.includes(p.id) && p.targets.length > 0 &&
+            freeSpacesAroundHisQueen.find(([x, y]) => p.targets.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0) :
+        board.pieces.reduce((qty, p) => !pieceIdsAroundHisQueen.includes(p.id) && p.targetsB.length > 0 &&
+            freeSpacesAroundHisQueen.find(([x, y]) => p.targetsB.find(t => t.x === x && t.y === y)) ? qty + 1 : qty, 0);
 
-    return -enemyOccupy.length +
-        (aboveQueen ? 3 : 0) +
-        (aboveAround ? 1 : 0) +
-        allyOccupy.length * 2 +
+    const qtyPieceMovable = colorIsPlaying ?
+        board.pieces.reduce((qty, p) => p.targets.length > 0 ? qty + 1 : qty, 0) :
+        board.pieces.reduce((qty, p) => p.targetsB.length > 0 ? qty + 1 : qty, 0);
+    return  qtyPieceMovable +
+        1000 * (hisPiecesAroundHisQueen.length +
+        myPieceAboveHisQueen * 2 +
+        myPiecesAroundHisQueen.length * 2 +
         (pillBugDefense ? -1 : 0) +
         (scorpionDefense ? -1 : 0) +
         (mosquitoPillBugDefense ? -1 : 0) +
-        Math.min(qtyAttacked, qtyAttacking) +
-        (colorIsPlaying ? 1 : 0);
+        Math.min(freeSpaceAroundHisQueenBeingAttacked, qtyPiecesAttackingFreeSpaceAroundHisQueen) +
+        (colorIsPlaying ? 1 : 0));
 }
 
 const PRIORITY = [
