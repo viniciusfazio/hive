@@ -1,3 +1,4 @@
+import init, {greet} from "../pkg/hive.js";
 import HiveCanvas from "./hive/hivecanvas.js";
 import CanvasPlayer from "./hive/player/canvasplayer.js";
 import {PieceColor} from "./hive/core/piece.js";
@@ -8,10 +9,14 @@ const SHORT_ON_TIME = 20; // time to be short on time, in s
 
 let hive, canvasPlayer, onlinePlayer;
 $(() => {
+    init().then(initHive);
+});
+function initHive() {
+    greet();
     $("#timer").change();
     hive = new HiveCanvas(localCallbacks(), SHORT_ON_TIME);
     canvasPlayer = new CanvasPlayer(hive);
-    $("#confirmMoveLabel").text("Must confirm move if time > " + SHORT_ON_TIME + "s");
+    $("#confirmMoveLabel").text("Confirm move if time > " + SHORT_ON_TIME + "s");
     $("#resign").click(resign);
     $("#offerUndo").click(offerUndo);
     $("#newGame").click(newGame);
@@ -86,7 +91,7 @@ $(() => {
     }
     window.onbeforeunload = () => "-";
     window.d = () => hive.toggleDebug();
-});
+}
 function getMousePosition(e) {
     return [e.offsetX * window.devicePixelRatio, e.offsetY * window.devicePixelRatio];
 }
