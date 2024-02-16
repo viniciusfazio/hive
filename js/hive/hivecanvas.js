@@ -1,13 +1,14 @@
 import Board from "./core/board.js";
-import Piece, {PieceColor, PieceType} from "./core/piece.js";
+import Piece, {PieceType} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
 import OnlinePlayer from "./player/onlineplayer.js";
 import AIPlayer from "./player/aiplayer.js";
+import {PieceColor} from "../../hive.js";
 
 const CAMERA_SPEED = .2;   // between 0 and 1, higher is faster
 const PIECE_SPEED = .15;   // between 0 and 1, higher is faster
-const UPDATE_IN_MS = 20;   // update frame time. Every speed depends of it
+const UPDATE_IN_MS = 20;   // update frame time. Every speed depends on it
 const REDRAW_IN_MS = 10;   // draw frame time. Affects FPS only
 const MIN_FPS = 40;        // below MIN_FPS, it prints FPS on screen
 const MAX_PING = 100;      // above MAX_PING, it prints PING on screen
@@ -61,7 +62,7 @@ export default class HiveCanvas {
             this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
         }
         this.#canvasPlayer = canvasPlayer;
-        this.newGame(PieceColor.white, canvasPlayer, new AIPlayer(this), 0, 0, true);
+        this.newGame(PieceColor.White, canvasPlayer, new AIPlayer(this), 0, 0, true);
         this.#FPSUpdateTime = Date.now();
         this.#update();
         this.#redraw();
@@ -182,7 +183,7 @@ export default class HiveCanvas {
         const marginX = w / 2 - (qtyPiecesPositionOnHud + 1) * rx;
         const px = positionOnHud * rx * 2 + marginX + offset * piece.z;
         let py;
-        if (this.bottomPlayerColor.id === piece.color.id) {
+        if (this.bottomPlayerColor === piece.color) {
             py = h - ry * 2 - offset * piece.z;
         } else {
             py = 2 * ry + (this.#maxQtyPiecesOverOnHud - piece.z) * offset;
@@ -356,7 +357,7 @@ export default class HiveCanvas {
         }
         const [rx, ry, ] = this.getSize();
         const r = (rx + ry) / 2;
-        this.board.queens.filter(p => p.inGame && this.board.isQueenDead(p.color.id)).forEach(p => {
+        this.board.queens.filter(p => p.inGame && this.board.isQueenDead(p.color)).forEach(p => {
             const [x, y] = this.getPiecePixelPosition(this.board.getInGamePiece(p.x, p.y));
             let path = new Path2D();
             path.moveTo(x - r, y - r);
@@ -388,8 +389,8 @@ export default class HiveCanvas {
         const [w, h] = [this.canvas.width, this.canvas.height]
         const hh = this.getHudHeight();
         const colorPlaying = ((this.gameOver ? this.board.round + 1 : this.getMoveList().moves.length) % 2) === 0 ?
-            PieceColor.white.id : PieceColor.black.id;
-        const bottomPlaying = colorPlaying === this.bottomPlayerColor.id;
+            PieceColor.White : PieceColor.Black;
+        const bottomPlaying = colorPlaying === this.bottomPlayerColor;
         if (moveList.totalTime === 0) {
             this.ctx.fillStyle = bottomPlaying ? "rgb(0, 0, 0, .25)" : "rgb(0, 0, 0, .75)";
             this.ctx.fillRect(0, 0, w, hh);
@@ -410,7 +411,7 @@ export default class HiveCanvas {
         } else {
             [topTime, bottomTime] = [moveList.whitePiecesTimeLeft, moveList.blackPiecesTimeLeft];
         }
-        if (this.bottomPlayerColor.id === PieceColor.white.id) {
+        if (this.bottomPlayerColor === PieceColor.White) {
             [topTime, bottomTime] = [bottomTime, topTime];
         }
         const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(t => MoveList.timeToText(t, this.#shortOnTime));
@@ -604,7 +605,7 @@ export default class HiveCanvas {
     #linkedPieceInAnimation(p) {
         return this.board.pieces.find(l =>
             l.type.id === PieceType[p.type.linked].id &&
-            l.color.id === p.color.id &&
+            l.color === p.color &&
             l.number === p.number &&
             l.transition > 0
         );
@@ -631,7 +632,7 @@ export default class HiveCanvas {
     #drawPiece(piece, path, selectedPieceId, selectedTargetId, hoverPieceId, targetPiece, position) {
         if (!piece.inGame && piece.type.linked !== null && piece.subNumber === 0) {
             const id = PieceType[piece.type.linked].id;
-            const mirror = this.board.pieces.find(p => p.type.id === id && piece.color.id === p.color.id && p.number === piece.number);
+            const mirror = this.board.pieces.find(p => p.type.id === id && piece.color === p.color && p.number === piece.number);
             if (mirror && mirror.id === selectedPieceId &&
                 (selectedTargetId !== null || mirror.targets.find(p => p.id === hoverPieceId))) {
                 // the linked piece has been selected and hovering target or confirming
@@ -716,7 +717,7 @@ export default class HiveCanvas {
         } else if (style === "selected-to") {
             this.ctx.fillStyle = "rgb(0, 255, 255)";
         } else {
-            this.ctx.fillStyle = piece.color.id === "w" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
+            this.ctx.fillStyle = piece.color === PieceColor.White ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
         }
         this.ctx.fill(path);
 
@@ -846,7 +847,7 @@ export default class HiveCanvas {
         if (this.gameOver) return;
         const moveList = this.getMoveList();
         moveList.addResign(time);
-        this.#callbacks.resign(moveList.moves.length % 2 === 1 ? PieceColor.white.id : PieceColor.black.id);
+        this.#callbacks.resign(moveList.moves.length % 2 === 1 ? PieceColor.White : PieceColor.Black);
         this.#playRound(false, false, true);
     }
     draw(time = null) {
@@ -860,7 +861,7 @@ export default class HiveCanvas {
         if (this.gameOver) return;
         const moveList = this.getMoveList();
         moveList.addTimeout(time);
-        this.#callbacks.timeout(moveList.moves.length % 2 === 1 ? PieceColor.white.id : PieceColor.black.id);
+        this.#callbacks.timeout(moveList.moves.length % 2 === 1 ? PieceColor.White : PieceColor.Black);
         this.#playRound(false, false, true);
     }
     playNotation(move, time = null) {
@@ -894,8 +895,8 @@ export default class HiveCanvas {
             if (piece === null) {
                 return "invalid piece..";
             }
-            const [colorId, typeId, number] = piece;
-            const from = this.board.pieces.find(p => p.type.id === typeId && p.color.id === colorId && p.number === number);
+            const [color, typeId, number] = piece;
+            const from = this.board.pieces.find(p => p.type.id === typeId && p.color === color && p.number === number);
             const to = from.targets[0];
             this.play(from.id, to, time);
             return null;
@@ -942,13 +943,13 @@ export default class HiveCanvas {
         } else {
             return "invalid direction";
         }
-        const [colorId1, typeId1, number1] = p1;
-        const [colorId2, typeId2, number2] = p2;
-        const from = this.board.pieces.find(p => p.type.id === typeId1 && p.color.id === colorId1 && p.number === number1);
+        const [color1, typeId1, number1] = p1;
+        const [color2, typeId2, number2] = p2;
+        const from = this.board.pieces.find(p => p.type.id === typeId1 && p.color === color1 && p.number === number1);
         if (!from) {
             return "invalid piece";
         }
-        const ref = this.board.pieces.find(p => p.inGame && p.type.id === typeId2 && p.color.id === colorId2 && p.number === number2);
+        const ref = this.board.pieces.find(p => p.inGame && p.type.id === typeId2 && p.color === color2 && p.number === number2);
         if (!ref) {
             return "invalid position";
         }
@@ -984,8 +985,8 @@ export default class HiveCanvas {
         // save the move
         moveList.addMove(pieceId, target, time);
         this.#playRound(dragging, confirming);
-        const whiteLoses = this.board.isQueenDead(PieceColor.white.id);
-        const blackLoses = this.board.isQueenDead(PieceColor.black.id);
+        const whiteLoses = this.board.isQueenDead(PieceColor.White);
+        const blackLoses = this.board.isQueenDead(PieceColor.Black);
         if (whiteLoses || blackLoses) {
             moveList.addGameOver(whiteLoses, blackLoses, 0);
             if (whiteLoses && !blackLoses) {

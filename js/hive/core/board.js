@@ -1,4 +1,5 @@
-import Piece, {computePieceMoves, PieceColor, PieceType} from "./piece.js"
+import Piece, {computePieceMoves, PieceType} from "./piece.js"
+import {PieceColor} from "../../../hive.js";
 export default class Board {
     round;
     lastMovedPiecesId;
@@ -48,8 +49,8 @@ export default class Board {
         this.allPieces.forEach(p => p.reset());
         this.#computePieces();
     }
-    isQueenDead(colorId) {
-        const queen = this.queens.find(p => p.inGame && p.color.id === colorId);
+    isQueenDead(color) {
+        const queen = this.queens.find(p => p.inGame && p.color === color);
         return queen &&
             !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.getInGamePiece(x, y));
     }
@@ -62,7 +63,7 @@ export default class Board {
              (!this.standardRules || p.type.standard) && (
                 this.standardRules || p.type.linked === null || p.inGame ||
                 !this.inGamePieces.find(l => // if linked piece is in game, can't play
-                    l.type.id === PieceType[p.type.linked].id && l.number === p.number && l.color.id === p.color.id
+                    l.type.id === PieceType[p.type.linked].id && l.number === p.number && l.color === p.color
                 )
             ));
         this.maxZ = null;
@@ -80,7 +81,7 @@ export default class Board {
 
         this.queens = this.pieces.filter(p => p.type.id === PieceType.queen.id);
         const notInGame = this.pieces.filter(p => !p.inGame);
-        this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type.id === p.type.id && p2.color.id === p.color.id));
+        this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type.id === p.type.id && p2.color === p.color));
     }
     coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
         let xyz = Board.coordsAround(cx, cy).map(([x, y]) => {
@@ -167,8 +168,8 @@ export default class Board {
             a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
 
         let lastP = null;
-        const colorPlayingId = this.getColorPlaying().id;
-        let ret = colorPlayingId === "b" ? "!" : "";
+        const colorPlaying = this.getColorPlaying();
+        let ret = colorPlaying === PieceColor.Black ? "!" : "";
         this.inGamePieces.forEach(p => {
             if (lastP !== null) {
                 const diff = p.x - lastP.x;
@@ -185,11 +186,11 @@ export default class Board {
                     onlyLastMovesThatMatter &&
                     p.z === 0 && this.getInGamePiece(p.x, p.y).id === p.id && // only ground pieces matter for last move
                     p.type.id !== PieceType.scorpion.id &&  // scorpion is never affected
-                    this.queens.find(q => q.inGame && q.color.id === colorPlayingId); // only with queen in game to make moves
+                    this.queens.find(q => q.inGame && q.color === colorPlaying); // only with queen in game to make moves
                 if (checkIfLastMoveMatter) {
                     Board.coordsAround(p.x, p.y).find(([x, y]) => {
                         const p2 = this.getInGamePiece(x, y);
-                        if (!p2 || p2.z > 0 || p2.color.id !== colorPlayingId) {
+                        if (!p2 || p2.z > 0 || p2.color !== colorPlaying) {
                             return false;
                         }
                         const isPillBug = p2.type.id === PieceType.pillBug.id && (this.standardRules || p.id.type !== p2.type.id) ||
@@ -229,7 +230,7 @@ export default class Board {
                     ret += "_";
                 }
             }
-            ret += p.color.id === "w" ? p.type.id : p.type.id2;
+            ret += p.color === PieceColor.White ? p.type.id : p.type.id2;
             lastP = p;
         });
         return ret;
@@ -248,7 +249,7 @@ export default class Board {
         });
         this.passRound = false;
         this.qtyMoves = 0;
-        if (this.isQueenDead(PieceColor.white.id) || this.isQueenDead(PieceColor.black.id)) {
+        if (this.isQueenDead(PieceColor.White) || this.isQueenDead(PieceColor.Black)) {
             return;
         }
         if (canMove) {
@@ -265,16 +266,16 @@ export default class Board {
         }
     }
     #computeMoves(otherSide = false) {
-        let colorId = this.getColorPlaying().id;
+        let color = this.getColorPlaying();
         if (otherSide) {
-            colorId = colorId === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
+            color = color === PieceColor.White ? PieceColor.Black : PieceColor.White;
         }
         // cant move if queen is not in game
-        if (!this.queens.find(p => p.inGame && p.color.id === colorId)) {
+        if (!this.queens.find(p => p.inGame && p.color === color)) {
             return 0;
         }
         this.inGameTopPieces.forEach(p => {
-            if (p.color.id === colorId && (otherSide || !this.lastMovedPiecesId.includes(p.id))) {
+            if (p.color === color && (otherSide || !this.lastMovedPiecesId.includes(p.id))) {
                 computePieceMoves(p.type.id, this, p, this.standardRules);
             }
         });
@@ -282,11 +283,11 @@ export default class Board {
     }
 
     #computePiecePlacements(otherSide = false) {
-        let colorPlayingId = this.getColorPlaying().id;
+        let colorPlaying = this.getColorPlaying();
         if (otherSide) {
-            colorPlayingId = colorPlayingId === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
+            colorPlaying = colorPlaying === PieceColor.White ? PieceColor.Black : PieceColor.White;
         }
-        let myHudTopPieces = this.hudTopPieces.filter(p => p.color.id === colorPlayingId);
+        let myHudTopPieces = this.hudTopPieces.filter(p => p.color === colorPlaying);
 
         // first and second moves are special cases
         if (this.round === 1) {
@@ -309,15 +310,15 @@ export default class Board {
                 myHudTopPieces = [queen];
             }
         }
-        const positions = this.piecePlacement(colorPlayingId);
+        const positions = this.piecePlacement(colorPlaying);
         positions.forEach(([x, y]) => myHudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
         return positions.length * myHudTopPieces.length;
     }
-    piecePlacement(colorId, ignore_x = null, ignore_y = null) {
+    piecePlacement(color, ignore_x = null, ignore_y = null) {
         let visited = [];
         let ret = [];
         this.inGameTopPieces.forEach(p => {
-            if (colorId !== null && p.color.id !== colorId || ignore_x === p.x && ignore_y === p.y) {
+            if (color !== null && p.color !== color || ignore_x === p.x && ignore_y === p.y) {
                 return;
             }
             Board.coordsAround(p.x, p.y).forEach(([x, y]) => {
@@ -333,12 +334,12 @@ export default class Board {
                 }
 
                 // check if empty space has only same color piece around
-                const differentColorPieceAround = colorId !== null && Board.coordsAround(x, y).find(([x2, y2]) => {
+                const differentColorPieceAround = color !== null && Board.coordsAround(x, y).find(([x2, y2]) => {
                     if (ignore_x === x2 && ignore_y === y2) {
                         return false;
                     }
                     const p = this.getInGamePiece(x2, y2);
-                    return p && p.color.id !== colorId;
+                    return p && p.color !== color;
                 });
                 if (!differentColorPieceAround) {
                     ret.push([x, y]);
@@ -442,7 +443,7 @@ export default class Board {
     }
 
     getColorPlaying() {
-        return this.round % 2 === 1 ? PieceColor.white : PieceColor.black;
+        return this.round % 2 === 1 ? PieceColor.White : PieceColor.Black;
     }
     getMoves() {
         this.computeLegalMoves(true);

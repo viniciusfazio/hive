@@ -1,6 +1,8 @@
-import {PieceColor} from "../core/piece.js";
 import Board from "../core/board.js";
 import AIPlayer from "../player/aiplayer.js";
+import init, {PieceColor} from "../../../hive.js";
+
+init('/hive/hive_bg.wasm').then(() => postMessage("ok"));
 
 // how many iterations until report iteration count
 const ITERATION_STEP = 1000;
@@ -28,7 +30,7 @@ onmessage = e => {
         board = new Board(msg.board);
         lastMovedPiecesId = [...board.lastMovedPiecesId];
         initialMoves = board.getMoves();
-        initialMaximizing = board.getColorPlaying().id === PieceColor.white.id;
+        initialMaximizing = board.getColorPlaying() === PieceColor.White;
         // clean board to not send it back
         msg.board = null;
         msg.evaluatorId = null;
@@ -55,8 +57,8 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
         msg.iterations = 0;
     }
     // check terminal state or max depth reached
-    const whiteDead = board.isQueenDead(PieceColor.white.id);
-    const blackDead = board.isQueenDead(PieceColor.black.id);
+    const whiteDead = board.isQueenDead(PieceColor.White);
+    const blackDead = board.isQueenDead(PieceColor.Black);
     if (whiteDead && blackDead) {
         return 0;
     } else if (whiteDead) {

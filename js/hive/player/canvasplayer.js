@@ -39,7 +39,7 @@ export default class CanvasPlayer extends Player {
         // get coords to draw the button
         const [w, h] = [this.hive.canvas.width, this.hive.canvas.height];
         const hh = this.hive.getHudHeight() + this.hive.getTimerHeight();
-        const y = this.hive.board.getColorPlaying().id === this.hive.bottomPlayerColor.id ? h - hh : 0;
+        const y = this.hive.board.getColorPlaying() === this.hive.bottomPlayerColor ? h - hh : 0;
         const fh = Math.round(w / 12);
 
         // check if mouse is over
@@ -86,7 +86,7 @@ export default class CanvasPlayer extends Player {
             piecesOnSpot = pieces.filter(p =>
                 !p.inGame &&
                 p.type.id === piece.type.id &&
-                p.color.id === piece.color.id &&
+                p.color === piece.color &&
                 (p.type.linked === null || p.type.standard === !this.hive.flippedPieces));
         }
         return piecesOnSpot.sort((a, b) => a.z - b.z).pop();

@@ -1,7 +1,8 @@
 /target
 **/*.rs.bk
 Cargo.lock
-bin/
-pkg/
 wasm-pack.log
 .idea
+/hive.js
+/hive_bg.wasm
+/dist

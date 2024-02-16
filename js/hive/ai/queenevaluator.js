@@ -1,20 +1,21 @@
 import Board from "../core/board.js";
-import {PieceColor, PieceType} from "../core/piece.js";
+import {PieceType} from "../core/piece.js";
+import {PieceColor} from "../../../hive.js";
 
 
 export default class QueenEvaluator {
     evaluate(board) {
         board.computeLegalMoves(true, true);
-        return queenEval(board, PieceColor.white.id) - queenEval(board, PieceColor.black.id);
+        return queenEval(board, PieceColor.White) - queenEval(board, PieceColor.Black);
     }
     getSortedMoves(board) {
         const moves = board.getMoves();
-        const colorId = board.getColorPlaying().id;
-        const queen = board.queens.find(p => p.inGame && p.color.id !== colorId);
+        const color = board.getColorPlaying();
+        const queen = board.queens.find(p => p.inGame && p.color !== color);
         const queenZone = queen ? Board.coordsAround(queen.x, queen.y, true) : [];
         const enemyZone = [];
         board.inGameTopPieces.forEach(p => {
-            if (p.color.id !== colorId) {
+            if (p.color !== color) {
                 Board.coordsAround(p.x, p.y, true).forEach(([x, y]) => {
                     if (!enemyZone.find(([ex, ey]) => ex === x && ey === y)) {
                         enemyZone.push([x, y]);
@@ -61,13 +62,13 @@ export default class QueenEvaluator {
     }
 }
 
-function queenEval(board, colorId) {
-    const hisQueen = board.queens.find(p => p.inGame && p.color.id !== colorId);
+function queenEval(board, color) {
+    const hisQueen = board.queens.find(p => p.inGame && p.color !== color);
     if (!hisQueen) {
         return 0;
     }
     let myPieceAboveHisQueen = board.getInGamePiece(hisQueen.x, hisQueen.y);
-    if (myPieceAboveHisQueen.color.id !== colorId) {
+    if (myPieceAboveHisQueen.color !== color) {
         myPieceAboveHisQueen = false;
     }
     const piecesAroundHisQueen = [];
@@ -82,9 +83,9 @@ function queenEval(board, colorId) {
     });
 
 
-    const myPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => p.color.id === colorId);
+    const myPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => p.color === color);
 
-    const hisPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => p.color.id !== colorId);
+    const hisPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => p.color !== color);
 
     const pillBugDefense = hisPiecesAroundHisQueen.find(p => p.type.id === PieceType.pillBug.id);
     const scorpionDefense = hisPiecesAroundHisQueen.find(p => p.type.id === PieceType.scorpion.id);
@@ -106,7 +107,7 @@ function queenEval(board, colorId) {
         freeSpacesAroundHisQueen.push([hisQueen.x, hisQueen.y]);
     }
 
-    const colorIsPlaying = board.getColorPlaying().id === colorId;
+    const colorIsPlaying = board.getColorPlaying() === color;
     const freeSpaceAroundHisQueenBeingAttacked = colorIsPlaying ?
         freeSpacesAroundHisQueen.reduce((qty, [x, y]) =>
             board.pieces.find(p => !pieceIdsAroundHisQueen.includes(p.id) &&

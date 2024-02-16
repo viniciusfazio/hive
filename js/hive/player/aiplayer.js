@@ -1,7 +1,7 @@
 import Player from "./player.js";
-import {PieceColor} from "../core/piece.js";
 import Board from "../core/board.js";
 import QueenEvaluator from "../ai/queenevaluator.js";
+import {PieceColor} from "../../../hive.js";
 
 // number of workers. Too little yields slow iterations per second. Too much yields fewer alpha beta pruning.
 const QTY_WORKERS = 7;
@@ -17,6 +17,7 @@ export default class AIPlayer extends Player {
     #initTurnTime = null;
     #totalTime = null;
     #workers = [];
+    #ready;
 
     pieceId;
     target;
@@ -35,6 +36,7 @@ export default class AIPlayer extends Player {
     #moves;
     #moveIndex;
     #evaluatedMoves;
+
 
 
     initPlayerTurn() {
@@ -66,7 +68,7 @@ export default class AIPlayer extends Player {
         this.#board = new Board(this.hive.board);
 
         this.#moves = [];
-        const evaluation = this.#board.getColorPlaying().id === PieceColor.white.id ? -MAX_EVALUATION : MAX_EVALUATION;
+        const evaluation = this.#board.getColorPlaying() === PieceColor.White ? -MAX_EVALUATION : MAX_EVALUATION;
         for (const [, , p, t] of AIPlayer.getSortedMovesPeekingNextMove(this.#board, this.#evaluator)) {
             this.#moves.push({
                 pieceId: p.id,
@@ -86,14 +88,22 @@ export default class AIPlayer extends Player {
         this.#alpha = -MAX_EVALUATION;
         this.#beta = MAX_EVALUATION;
         this.#initWorkers();
-        this.#minimax();
     }
     #initWorkers() {
-        if (this.#workers.length === 0) {
+        if (this.#workers.length > 0) {
+            this.#minimax();
+        } else {
             // create all workers
+            this.#ready = 0;
             for (let i = 0; i < QTY_WORKERS; i++) {
                 const worker = new Worker("js/hive/ai/aiminimax.js", {type: 'module'});
                 worker.onmessage = e => {
+                    if (e.data === "ok") {
+                        if (++this.#ready === QTY_WORKERS) {
+                            this.#minimax();
+                        }
+                        return;
+                    }
                     // the worker responded
                     const msg = e.data;
                     // keeps track of number of iterations done
@@ -107,7 +117,7 @@ export default class AIPlayer extends Player {
                     const moveScore = this.#moves.find(m => m.pieceId === msg.pieceId && m.targetId === msg.targetId);
                     moveScore.evaluation = msg.evaluation;
 
-                    const maximizing = this.#board.getColorPlaying().id === PieceColor.white.id;
+                    const maximizing = this.#board.getColorPlaying() === PieceColor.White;
 
                     // check if evaluation is the best
                     const newBestMove = this.#evaluation === null ||
@@ -180,7 +190,7 @@ export default class AIPlayer extends Player {
             msg.board = this.#board;
             msg.evaluatorId = this.evaluatorId;
             msg.maxDepth = 2;
-        } else if (this.#board.getColorPlaying().id === PieceColor.white.id) {
+        } else if (this.#board.getColorPlaying() === PieceColor.White) {
             this.#moves.sort((a, b) => b.evaluation - a.evaluation);
         } else {
             this.#moves.sort((a, b) => a.evaluation - b.evaluation);
@@ -273,7 +283,7 @@ export default class AIPlayer extends Player {
                 evaluation: evaluation,
             };
         });
-        return board.getColorPlaying().id === PieceColor.white.id ?
+        return board.getColorPlaying() === PieceColor.White ?
             movesWithScore.sort((a, b) => b.evaluation - a.evaluation).map(m => m.move) :
             movesWithScore.sort((a, b) => a.evaluation - b.evaluation).map(m => m.move);
     }

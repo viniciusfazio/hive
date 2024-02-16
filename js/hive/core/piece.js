@@ -1,5 +1,6 @@
 
 import Board from "./board.js";
+import {color_string, PieceColor} from "../../../hive.js";
 
 export default class Piece {
     // variable
@@ -24,8 +25,9 @@ export default class Piece {
         this.number = number;
         this.subNumber = subNumber;
         if (id === null) {
-            this.id = this.color.id + this.type.id + (this.number > 0 ? this.number : "")
-                                                   + (this.subNumber > 0 ? "-" + this.subNumber : "");
+            this.id = color_string(this.color) +
+                this.type.id + (this.number > 0 ? this.number : "") +
+                (this.subNumber > 0 ? "-" + this.subNumber : "");
             this.reset();
         } else {
             this.id = id;
@@ -78,9 +80,10 @@ export default class Piece {
         let color = null;
         let type = null;
         let number = 0;
-        for (const key in PieceColor) {
-            if (p[0] === PieceColor[key].id) {
-                color = PieceColor[key];
+        for (const c of [PieceColor.White, PieceColor.Black]) {
+            if (p[0] === color_string(c)) {
+                color = c;
+                break;
             }
         }
         for (const key in PieceType) {
@@ -100,7 +103,7 @@ export default class Piece {
         if (color === null || type === null) {
             return null;
         }
-        return [color.id, type.id, number];
+        return [color, type.id, number];
     }
 }
 
@@ -247,8 +250,8 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
-            const otherColorId = piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
-            moveAround(board, piece, null, standard ? null : otherColorId);
+            const otherColor = piece.color === PieceColor.White ? PieceColor.Black : PieceColor.White;
+            moveAround(board, piece, null, standard ? null : otherColor);
             break;
         case PieceType.ladybug.id:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
@@ -337,13 +340,13 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
-            fly(board, piece, piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id);
+            fly(board, piece, piece.color === PieceColor.White ? PieceColor.Black : PieceColor.White);
             break;
         case PieceType.cockroach.id:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
-            moveOver(board, piece, null, piece.color.id);
+            moveOver(board, piece, null, piece.color);
             break;
         case PieceType.dragonfly.id:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
@@ -420,7 +423,7 @@ function move1(board, piece) {
     });
 
 }
-function moveAround(board, piece, n = null, colorId = null) {
+function moveAround(board, piece, n = null, color = null) {
     let paths = [[[piece.x, piece.y, 0]]];
     while (paths.length > 0) {
         let newPaths = [];
@@ -441,9 +444,9 @@ function moveAround(board, piece, n = null, colorId = null) {
                         newPath.push([x, y, 0]);
                         newPaths.push(newPath);
                     }
-                    const validColor = colorId === null || Board.coordsAround(x, y).find(([ax, ay]) => {
+                    const validColor = color === null || Board.coordsAround(x, y).find(([ax, ay]) => {
                         const p = board.getInGamePiece(ax, ay);
-                        return p && p.color.id === colorId;
+                        return p && p.color === color;
                     });
                     const validMoveCount = n === null || path.length === n;
                     if (validColor && validMoveCount) {
@@ -457,12 +460,12 @@ function moveAround(board, piece, n = null, colorId = null) {
         paths = newPaths;
     }
 }
-function fly(board, piece, colorId = null) {
-    board.piecePlacement(colorId, piece.x, piece.y).forEach(([x, y]) => {
+function fly(board, piece, color = null) {
+    board.piecePlacement(color, piece.x, piece.y).forEach(([x, y]) => {
         piece.insertTarget(x, y, 0, [[piece.x, piece.y, board.maxZ + 1]]);
     });
 }
-function moveOver(board, piece, n = null, colorId = null) {
+function moveOver(board, piece, n = null, color = null) {
     let paths = [[[piece.x, piece.y, piece.z]]];
     let visitedEver = [];
     while (paths.length > 0) {
@@ -485,7 +488,7 @@ function moveOver(board, piece, n = null, colorId = null) {
                 }
                 const pBelow = board.getInGamePiece(x, y);
                 const canGoUp = z >= 0 && pBelow && pBelow.type.id !== PieceType.scorpion.id &&
-                    (colorId === null || pBelow.color.id === colorId);
+                    (color === null || pBelow.color === color);
                 const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
                 if ((canGoUp || canGoDown) && Board.onHiveAndNoGate(fromZ, z, z1, z2)) {
                     // new step with no repetition
@@ -523,11 +526,3 @@ function jumpOver(board, piece, n = null) {
         }
     });
 }
-export const PieceColor = Object.freeze({
-    white: Object.freeze({
-        id: "w",
-    }),
-    black: Object.freeze({
-        id: "b",
-    }),
-});

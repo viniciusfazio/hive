@@ -1,6 +1,6 @@
 import Player from "./player.js";
-import {PieceColor} from "../core/piece.js";
 import {Move} from "../core/movelist.js";
+import {PieceColor} from "../../../hive.js";
 
 const PING_CHECK = 3000;      // check ping every n milliseconds
 
