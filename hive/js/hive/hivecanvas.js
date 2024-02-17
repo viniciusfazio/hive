@@ -1,5 +1,14 @@
 import Board from "./core/board.js";
-import Piece, {PieceColor, PieceType} from "./core/piece.js";
+import Piece, {
+    BLACK,
+    CENTIPEDE,
+    DRAGONFLY,
+    MANTIS, MAX_PIECE_QTY,
+    PIECE_LINK,
+    PIECE_STANDARD, PIECE_TXT,
+    PIECES,
+    WHITE
+} from "./core/piece.js";
 import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
 import OnlinePlayer from "./player/onlineplayer.js";
@@ -56,12 +65,8 @@ export default class HiveCanvas {
     init($canvas, canvasPlayer) {
         this.canvas = $canvas.get(0);
         this.ctx = this.canvas.getContext("2d");
-        this.#maxQtyPiecesOverOnHud = 0;
-        for (const keyType in PieceType) {
-            this.#maxQtyPiecesOverOnHud = Math.max(this.#maxQtyPiecesOverOnHud, PieceType[keyType].qty - 1);
-        }
         this.#canvasPlayer = canvasPlayer;
-        this.newGame(PieceColor.white, canvasPlayer, new AIPlayer(this), 0, 0, true);
+        this.newGame(WHITE, canvasPlayer, new AIPlayer(this), 0, 0, true);
         this.#FPSUpdateTime = Date.now();
         this.#update();
         this.#redraw();
@@ -165,27 +170,21 @@ export default class HiveCanvas {
         }
 
         // piece in hud
-        let qtyPiecesPositionOnHud = 0;
-        for (const key in PieceType) {
-            if (PieceType[key].standard) {
-                qtyPiecesPositionOnHud++;
-            }
-        }
+        let qtyPiecesPositionOnHud = PIECES.reduce((qty, type) => PIECE_STANDARD[type] ? qty + 1 : qty, 0);
         let positionOnHud = 0;
-        for (const key in PieceType) {
+        for (const type of PIECES) {
             positionOnHud++;
-            const isLinkedPiece = piece.type.linked !== null && PieceType[piece.type.linked].id === PieceType[key].id;
-            if (PieceType[key].id === piece.type.id || isLinkedPiece) {
+            if (piece.type === type || piece.type === PIECE_LINK[piece.type]) {
                 break;
             }
         }
         const marginX = w / 2 - (qtyPiecesPositionOnHud + 1) * rx;
         const px = positionOnHud * rx * 2 + marginX + offset * piece.z;
         let py;
-        if (this.bottomPlayerColor.id === piece.color.id) {
+        if (this.bottomPlayerColor === piece.color) {
             py = h - ry * 2 - offset * piece.z;
         } else {
-            py = 2 * ry + (this.#maxQtyPiecesOverOnHud - piece.z) * offset;
+            py = 2 * ry + (MAX_PIECE_QTY - 1 - piece.z) * offset;
         }
         return [px, py];
     }
@@ -254,7 +253,7 @@ export default class HiveCanvas {
             const h = Math.round(26 * this.camera.scale * this.canvas.width / 1000);
             this.board.inGameTopPieces.forEach(p => {
                 const [px, py] = this.positionToPixel(p.x, p.y, p.z);
-                this.#drawText([p.x + "," + p.y + "," + p.z, p.id], px, py, "middle", "center", h);
+                this.#drawText([p.x + "," + p.y + "," + p.z, p.txt], px, py, "middle", "center", h);
             });
             for (const [x, y] of this.#getEmptySpaces()) {
                 const [px, py] = this.positionToPixel(x, y, 0);
@@ -356,7 +355,7 @@ export default class HiveCanvas {
         }
         const [rx, ry, ] = this.getSize();
         const r = (rx + ry) / 2;
-        this.board.queens.filter(p => p.inGame && this.board.isQueenDead(p.color.id)).forEach(p => {
+        this.board.queens.filter(p => p.inGame && this.board.isQueenDead(p.color)).forEach(p => {
             const [x, y] = this.getPiecePixelPosition(this.board.getInGamePiece(p.x, p.y));
             let path = new Path2D();
             path.moveTo(x - r, y - r);
@@ -374,7 +373,7 @@ export default class HiveCanvas {
     }
     getHudHeight() {
         const [, ry, offset] = this.getSize();
-        return 4 * ry + this.#maxQtyPiecesOverOnHud * offset + 1;
+        return 4 * ry + (MAX_PIECE_QTY - 1) * offset + 1;
     }
     getTimerHeight() {
         return Math.round(this.canvas.width / 10);
@@ -388,8 +387,8 @@ export default class HiveCanvas {
         const [w, h] = [this.canvas.width, this.canvas.height]
         const hh = this.getHudHeight();
         const colorPlaying = ((this.gameOver ? this.board.round + 1 : this.getMoveList().moves.length) % 2) === 0 ?
-            PieceColor.white.id : PieceColor.black.id;
-        const bottomPlaying = colorPlaying === this.bottomPlayerColor.id;
+            WHITE : BLACK;
+        const bottomPlaying = colorPlaying === this.bottomPlayerColor;
         if (moveList.totalTime === 0) {
             this.ctx.fillStyle = bottomPlaying ? "rgb(0, 0, 0, .25)" : "rgb(0, 0, 0, .75)";
             this.ctx.fillRect(0, 0, w, hh);
@@ -410,7 +409,7 @@ export default class HiveCanvas {
         } else {
             [topTime, bottomTime] = [moveList.whitePiecesTimeLeft, moveList.blackPiecesTimeLeft];
         }
-        if (this.bottomPlayerColor.id === PieceColor.white.id) {
+        if (this.bottomPlayerColor === WHITE) {
             [topTime, bottomTime] = [bottomTime, topTime];
         }
         const [topTimeTxt, bottomTimeTxt] = [topTime, bottomTime].map(t => MoveList.timeToText(t, this.#shortOnTime));
@@ -528,21 +527,21 @@ export default class HiveCanvas {
             position.push([dragId, [player.mouseX, player.mouseY]]);
         }
         if (targetPiece) {
-            if (targetPiece.type.id === PieceType.mantis.id) {
+            if (targetPiece.type === MANTIS) {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z === 0) {
                     position.push([targetPiece.id, this.positionToPixel(x, y, 1)]);
                     const prey = this.board.getInGamePiece(targetPiece.x, targetPiece.y);
                     position.push([prey.id, this.positionToPixel(x, y, 0)]);
                 }
-            } else if (targetPiece.type.id === PieceType.dragonfly.id) {
+            } else if (targetPiece.type === DRAGONFLY) {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z > 0 && targetPiece.z === 0) {
                     position.push([targetPiece.id, this.positionToPixel(targetPiece.x, targetPiece.y, 1)]);
                     const prey = this.board.getInGamePiece(x, y, z - 1);
                     position.push([prey.id, this.positionToPixel(targetPiece.x, targetPiece.y, 0)]);
                 }
-            } else if (targetPiece.type.id === PieceType.centipede.id) {
+            } else if (targetPiece.type === CENTIPEDE) {
                 const [x, y, z] = targetPiece.moveSteps[0];
                 if (x !== null && y !== null && z > 0) {
                     position.push([targetPiece.id, this.positionToPixel(targetPiece.x, targetPiece.y, 0)]);
@@ -555,8 +554,8 @@ export default class HiveCanvas {
     }
     #getPiecesToDraw(selectedPieceId, selectedTargetId, hoverPieceId, dragId) {
         // get the pieces sorted for drawing
-        const pieces = this.board.pieces.filter(p => p.inGame || p.type.linked === null || p.transition > 0 ||
-            p.type.standard === !this.flippedPieces && !this.#linkedPieceInAnimation(p));
+        const pieces = this.board.pieces.filter(p => p.inGame || PIECE_LINK[p.type] === null || p.transition > 0 ||
+            PIECE_STANDARD[p.type] === !this.flippedPieces && !this.#linkedPieceInAnimation(p));
         const id = selectedPieceId ?? hoverPieceId;
         if (id !== null) {
             this.board.pieces.find(p => p.id === id).targets.forEach(p => pieces.push(p));
@@ -603,8 +602,8 @@ export default class HiveCanvas {
     }
     #linkedPieceInAnimation(p) {
         return this.board.pieces.find(l =>
-            l.type.id === PieceType[p.type.linked].id &&
-            l.color.id === p.color.id &&
+            l.type === PIECE_LINK[p.type] &&
+            l.color === p.color &&
             l.number === p.number &&
             l.transition > 0
         );
@@ -629,9 +628,9 @@ export default class HiveCanvas {
     }
 
     #drawPiece(piece, path, selectedPieceId, selectedTargetId, hoverPieceId, targetPiece, position) {
-        if (!piece.inGame && piece.type.linked !== null && piece.subNumber === 0) {
-            const id = PieceType[piece.type.linked].id;
-            const mirror = this.board.pieces.find(p => p.type.id === id && piece.color.id === p.color.id && p.number === piece.number);
+        if (!piece.inGame && PIECE_LINK[piece.type] !== null && piece.subNumber === 0) {
+            const type = PIECE_LINK[piece.type];
+            const mirror = this.board.pieces.find(p => p.type === type && piece.color === p.color && p.number === piece.number);
             if (mirror && mirror.id === selectedPieceId &&
                 (selectedTargetId !== null || mirror.targets.find(p => p.id === hoverPieceId))) {
                 // the linked piece has been selected and hovering target or confirming
@@ -716,13 +715,13 @@ export default class HiveCanvas {
         } else if (style === "selected-to") {
             this.ctx.fillStyle = "rgb(0, 255, 255)";
         } else {
-            this.ctx.fillStyle = piece.color.id === "w" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
+            this.ctx.fillStyle = piece.color === WHITE ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
         }
         this.ctx.fill(path);
 
         // draw piece image, rotating according to the number identification
         this.ctx.rotate(-Math.PI / 2 + Math.max(0, piece.number - 1) * Math.PI / 3);
-        this.#drawImage("piece" + piece.type.id, .75 * (rx + ry) / 2);
+        this.#drawImage("piece" + PIECE_TXT[piece.type][0], .75 * (rx + ry) / 2);
         this.ctx.setTransform(1, 0, 0, 1, x, y);
 
         // draw border
@@ -846,7 +845,7 @@ export default class HiveCanvas {
         if (this.gameOver) return;
         const moveList = this.getMoveList();
         moveList.addResign(time);
-        this.#callbacks.resign(moveList.moves.length % 2 === 1 ? PieceColor.white.id : PieceColor.black.id);
+        this.#callbacks.resign(moveList.moves.length % 2 === 1 ? WHITE : BLACK);
         this.#playRound(false, false, true);
     }
     draw(time = null) {
@@ -860,8 +859,11 @@ export default class HiveCanvas {
         if (this.gameOver) return;
         const moveList = this.getMoveList();
         moveList.addTimeout(time);
-        this.#callbacks.timeout(moveList.moves.length % 2 === 1 ? PieceColor.white.id : PieceColor.black.id);
+        this.#callbacks.timeout(moveList.moves.length % 2 === 1 ? WHITE : BLACK);
         this.#playRound(false, false, true);
+    }
+    #getPieceFromNotation(txt) {
+        return this.board.pieces.find(p => p.txt === txt && (!this.standardRules || PIECE_STANDARD[p.type]));
     }
     playNotation(move, time = null) {
         if (move.match(/^(\d+\D *)?draw by agreement/)) {
@@ -886,16 +888,14 @@ export default class HiveCanvas {
             return null;
         }
         if (this.board.round === 1) {
-            const matches = move.match(/^(\d+\D *)?([wb][A-Z]\d?)( |$)/);
-            if (!matches) {
+            const firstMoveMatch = move.match(/^(\d+\D *)?([wb][A-Z]\d?)( |$)/);
+            if (!firstMoveMatch) {
                 return "cant parse";
             }
-            const piece = Piece.parse(matches[2], this.standardRules);
-            if (piece === null) {
+            const from = this.#getPieceFromNotation(firstMoveMatch[2]);
+            if (!from) {
                 return "invalid piece..";
             }
-            const [colorId, typeId, number] = piece;
-            const from = this.board.pieces.find(p => p.type.id === typeId && p.color.id === colorId && p.number === number);
             const to = from.targets[0];
             this.play(from.id, to, time);
             return null;
@@ -907,50 +907,43 @@ export default class HiveCanvas {
             this.pass(time);
             return null;
         }
-        const matches = move.match(/^(\d+\D *)?([wb][A-Z]\d?) +([-/\\]?)([wb][A-Z]\d?)([-/\\]?)( |$)/);
-        if (!matches) {
+        const moveMatch = move.match(/^(\d+\D *)?([wb][A-Z]\d?) +([-/\\]?)([wb][A-Z]\d?)([-/\\]?)( |$)/);
+        if (!moveMatch) {
             return "cant parse";
         }
-        const p1 = Piece.parse(matches[2], this.standardRules);
-        const p2 = Piece.parse(matches[4], this.standardRules);
-        if (p1 === null || p2 === null) {
+        const from = this.#getPieceFromNotation(moveMatch[2]);
+        const ref = this.#getPieceFromNotation(moveMatch[4]);
+        if (!from) {
             return "invalid piece...";
+        }
+        if (!ref) {
+            return "invalid position...";
         }
         let dx;
         let dy;
-        if (matches[3] === "/") {
+        if (moveMatch[3] === "/") {
             dx = -1;
             dy = -1;
-        } else if (matches[3] === "-") {
+        } else if (moveMatch[3] === "-") {
             dx = -2;
             dy = 0;
-        } else if (matches[3] === "\\") {
+        } else if (moveMatch[3] === "\\") {
             dx = -1;
             dy = 1;
-        } else if (matches[5] === "/") {
+        } else if (moveMatch[5] === "/") {
             dx = 1;
             dy = 1;
-        } else if (matches[5] === "-") {
+        } else if (moveMatch[5] === "-") {
             dx = 2;
             dy = 0;
-        } else if (matches[5] === "\\") {
+        } else if (moveMatch[5] === "\\") {
             dx = 1;
             dy = -1;
-        } else if (matches[3] === "" && matches[5] === "") {
+        } else if (moveMatch[3] === "" && moveMatch[5] === "") {
             dx = 0;
             dy = 0;
         } else {
             return "invalid direction";
-        }
-        const [colorId1, typeId1, number1] = p1;
-        const [colorId2, typeId2, number2] = p2;
-        const from = this.board.pieces.find(p => p.type.id === typeId1 && p.color.id === colorId1 && p.number === number1);
-        if (!from) {
-            return "invalid piece";
-        }
-        const ref = this.board.pieces.find(p => p.inGame && p.type.id === typeId2 && p.color.id === colorId2 && p.number === number2);
-        if (!ref) {
-            return "invalid position";
         }
         const [rx, ry] = [ref.x + dx, ref.y + dy];
         const to = from.targets.find(p => p.x === rx && p.y === ry);
@@ -984,16 +977,16 @@ export default class HiveCanvas {
         // save the move
         moveList.addMove(pieceId, target, time);
         this.#playRound(dragging, confirming);
-        const whiteLoses = this.board.isQueenDead(PieceColor.white.id);
-        const blackLoses = this.board.isQueenDead(PieceColor.black.id);
+        const whiteLoses = this.board.isQueenDead(WHITE);
+        const blackLoses = this.board.isQueenDead(BLACK);
         if (whiteLoses || blackLoses) {
             moveList.addGameOver(whiteLoses, blackLoses, 0);
             if (whiteLoses && !blackLoses) {
-                this.#callbacks.gameOver("b");
+                this.#callbacks.gameOver(BLACK);
             } else if (!whiteLoses && blackLoses) {
-                this.#callbacks.gameOver("w");
+                this.#callbacks.gameOver(WHITE);
             } else if (whiteLoses && blackLoses) {
-                this.#callbacks.gameOver("d");
+                this.#callbacks.gameOver(null);
             }
             this.#playRound();
         }

@@ -1,5 +1,5 @@
 import Player from "./player.js";
-import {PieceColor} from "../core/piece.js";
+import {BLACK, COLOR_TXT, WHITE} from "../core/piece.js";
 import {Move} from "../core/movelist.js";
 
 const PING_CHECK = 3000;      // check ping every n milliseconds
@@ -94,20 +94,20 @@ export default class OnlinePlayer extends Player {
                     callbacks.opponentOffersUndo();
                     break;
                 case "new":
-                    const color = data.color === "b" || data.color !== "w" && Math.random() < .5 ? "w" : "b";
-                    const colorOpponent = color === "b" ? "w" : "b";
+                    const color = data.colorTxt === COLOR_TXT[BLACK] || data.colorTxt !== COLOR_TXT[WHITE] && Math.random() < .5 ? WHITE : BLACK;
+                    const colorTxtOpponent = color === WHITE ? COLOR_TXT[BLACK] : COLOR_TXT[WHITE];
                     this.#challenge = {
                         type: "new_ok",
                         colorAccepted: color,
-                        color: colorOpponent,
+                        colorTxt: colorTxtOpponent,
                         totalTime: data.totalTime,
                         increment: data.increment,
                         standardRules: data.standardRules,
                     };
-                    callbacks.opponentOffersNewGame(data.color, data.totalTime, data.increment, data.standardRules);
+                    callbacks.opponentOffersNewGame(data.colorTxt, data.totalTime, data.increment, data.standardRules);
                     break;
                 case "new_ok":
-                    const bottomColor = data.color === "w" ? PieceColor.white : PieceColor.black;
+                    const bottomColor = data.colorTxt === COLOR_TXT[WHITE] ? WHITE : BLACK;
                     callbacks.newGame(bottomColor, data.totalTime, data.increment, data.standardRules);
                     break;
                 case "draw_ok":
@@ -129,10 +129,10 @@ export default class OnlinePlayer extends Player {
         }).on("close", () => this.#resetConnection(callbacks));
         setTimeout(() => this.#ping(), PING_CHECK);
     }
-    newGame(color, totalTime, increment, standardRules) {
+    newGame(colorTxt, totalTime, increment, standardRules) {
         this.#conn.send({
             type: "new",
-            color: color,
+            colorTxt: colorTxt,
             totalTime: totalTime,
             increment: increment,
             standardRules: standardRules,
@@ -147,8 +147,7 @@ export default class OnlinePlayer extends Player {
     acceptNewGame(callbacks) {
         if (this.#conn) {
             this.#conn.send(this.#challenge);
-            const bottomColor = this.#challenge.colorAccepted === "w" ? PieceColor.white : PieceColor.black;
-            callbacks.newGame(bottomColor, this.#challenge.totalTime, this.#challenge.increment, this.#challenge.standardRules);
+            callbacks.newGame(this.#challenge.colorAccepted, this.#challenge.totalTime, this.#challenge.increment, this.#challenge.standardRules);
         }
     }
     acceptDraw() {

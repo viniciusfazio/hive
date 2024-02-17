@@ -1,6 +1,6 @@
 import HiveCanvas from "./hive/hivecanvas.js";
 import CanvasPlayer from "./hive/player/canvasplayer.js";
-import {PieceColor} from "./hive/core/piece.js";
+import {BLACK, COLOR_TXT, WHITE} from "./hive/core/piece.js";
 import OnlinePlayer from "./hive/player/onlineplayer.js";
 import AIPlayer from "./hive/player/aiplayer.js";
 
@@ -8,6 +8,8 @@ const SHORT_ON_TIME = 20; // time to be short on time, in s
 
 let hive, canvasPlayer, onlinePlayer;
 $(() => {
+    $("#whitePiece").val(COLOR_TXT[WHITE]);
+    $("#blackPiece").val(COLOR_TXT[BLACK]);
     $("#timer").change();
     hive = new HiveCanvas(localCallbacks(), SHORT_ON_TIME);
     canvasPlayer = new CanvasPlayer(hive);
@@ -195,7 +197,7 @@ function upload() {
     const files = $file.prop("files");
     if (files.length === 1) {
         const piece = $("[name='piece']:checked").val();
-        const color = piece === "b" || piece !== "w" && Math.random() < .5 ? PieceColor.black : PieceColor.white;
+        const color = piece === COLOR_TXT[BLACK] || piece !== COLOR_TXT[WHITE] && Math.random() < .5 ? BLACK : WHITE;
         const fileReader = new FileReader();
         fileReader.onload = e => {
             const fileContent = (e.target.result ?? "").split("\n");
@@ -215,7 +217,7 @@ function upload() {
                 }
             }
             if (!hive.gameOver && $("#ai").prop("checked")) {
-                if (color.id === PieceColor.white.id) {
+                if (color === WHITE) {
                     hive.blackPlayer = new AIPlayer(hive);
                 } else {
                     hive.whitePlayer = new AIPlayer(hive);
@@ -310,14 +312,14 @@ function download() {
 }
 function newGame() {
     const piece = $("[name='piece']:checked").val();
-    const color = piece === "b" || piece !== "w" && Math.random() < .5 ? PieceColor.black : PieceColor.white;
+    const color = piece === COLOR_TXT[BLACK] || piece !== COLOR_TXT[WHITE] && Math.random() < .5 ? BLACK : WHITE;
     const standardRules = !$('#alternativeRules').prop('checked');
     const [totalTime, increment] = getTime();
     const ai = $("#ai").prop("checked");
     hive.newGame(
         color,
-        !ai || color.id === PieceColor.white.id ? canvasPlayer : new AIPlayer(hive),
-        !ai || color.id === PieceColor.black.id ? canvasPlayer : new AIPlayer(hive),
+        !ai || color === WHITE ? canvasPlayer : new AIPlayer(hive),
+        !ai || color === BLACK ? canvasPlayer : new AIPlayer(hive),
         totalTime, increment, standardRules);
 }
 function getTime() {
@@ -405,8 +407,8 @@ function localCallbacks() {
                 $("#resign, #offerUndo, #draw").removeClass("d-none");
             }
         },
-        resign: id => {
-            if (id === "b") {
+        resign: color => {
+            if (color === BLACK) {
                 showMessage("Black resigns! White wins!");
             } else {
                 showMessage("White resigns! Black wins!");
@@ -434,17 +436,17 @@ function localCallbacks() {
             }
         },
         timeout: id => {
-            if (id === "b") {
+            if (id === BLACK) {
                 showMessage("Time is over! White wins!");
             } else {
                 showMessage("Time is over! Black wins!");
             }
             gameOver();
         },
-        gameOver: id => {
-            if (id === "w") {
+        gameOver: color => {
+            if (color === WHITE) {
                 showMessage("White wins!");
-            } else if (id === "b") {
+            } else if (color === BLACK) {
                 showMessage("Black wins!");
             } else {
                 showMessage("Draw!");
@@ -480,8 +482,8 @@ function onlineCallbacks() {
             $("#newOnlineGame, #disconnect").removeClass("d-none");
             showMessage("Connected!");
         },
-        opponentOffersNewGame: (color, totalTime, increment, standardRules) => {
-            const you = color === "random" ? "Random" : (color === "w" ? "Black" : "White");
+        opponentOffersNewGame: (colorTxt, totalTime, increment, standardRules) => {
+            const you = colorTxt === COLOR_TXT[WHITE] ? "White" : (colorTxt === COLOR_TXT[BLACK] ? "Black" : "Random");
             const timeControl = hive.getMoveList().timeControlToText(totalTime, increment);
             let text = "You play as " + you + " with " + timeControl;
             if (!standardRules) {
@@ -492,8 +494,8 @@ function onlineCallbacks() {
             $("#challengeToast").toast("show", { autohide: false });
         },
         newGame: (bottomColor, totalTime, increment, standardRules) => {
-            const whitePlayer = bottomColor.id === PieceColor.white.id ? canvasPlayer : onlinePlayer;
-            const blackPlayer = bottomColor.id === PieceColor.black.id ? canvasPlayer : onlinePlayer;
+            const whitePlayer = bottomColor === WHITE ? canvasPlayer : onlinePlayer;
+            const blackPlayer = bottomColor === BLACK ? canvasPlayer : onlinePlayer;
             hive.newGame(bottomColor, whitePlayer, blackPlayer, totalTime, increment, standardRules);
         },
         disconnect: () => showMessage("Disconnected"),

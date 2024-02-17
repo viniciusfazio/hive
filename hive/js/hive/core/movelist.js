@@ -1,5 +1,5 @@
 import Board from "./board.js";
-import {PieceType} from "./piece.js";
+import {CENTIPEDE, MANTIS, QUEEN} from "./piece.js";
 
 export default class MoveList {
     moves = [];
@@ -196,10 +196,10 @@ export class Move {
             // not first move
             const p1 = board.pieces.find(p => p.id === move.pieceId);
             let p2 = null;
-            if (p1.type.id === PieceType.mantis.id && fromX !== null && fromY !== null && fromZ === 0 && toZ === 1) {
+            if (p1.type === MANTIS && fromX !== null && fromY !== null && fromZ === 0 && toZ === 1) {
                 // mantis special move
                 p2 = board.getInGamePiece(fromX, fromY, fromZ);
-            } else if (p1.type.id === PieceType.centipede.id && toZ > 0) {
+            } else if (p1.type === CENTIPEDE && toZ > 0) {
                 // centipede special move
                 p2 = board.getInGamePiece(fromX, fromY, fromZ);
             } else if (toZ > 0) {
@@ -215,7 +215,7 @@ export class Move {
                         return;
                     }
                     let pref = 1;
-                    if (p.type.id === PieceType.queen.id) {
+                    if (p.type === QUEEN) {
                         pref += 8;
                     }
                     if (p.number === 0) {
@@ -233,21 +233,21 @@ export class Move {
             if (!p2) {
                 ret += " invalid";
             } else if (toZ > 0) {
-                ret += " " + p2.id;
+                ret += " " + p2.txt;
             } else if (toX - p2.x === -2) {
-                ret += " -" + p2.id;
+                ret += " -" + p2.txt;
             } else if (toX - p2.x === 2) {
-                ret += " " + p2.id + "-";
+                ret += " " + p2.txt + "-";
             } else if (toX - p2.x === -1) {
                 if (toY - p2.y === 1) {
-                    ret += " \\" + p2.id;
+                    ret += " \\" + p2.txt;
                 } else {
-                    ret += " /" + p2.id;
+                    ret += " /" + p2.txt;
                 }
             } else if (toY - p2.y === 1) {
-                ret += " " + p2.id + "/";
+                ret += " " + p2.txt + "/";
             } else {
-                ret += " " + p2.id + "\\";
+                ret += " " + p2.txt + "\\";
             }
         }
 

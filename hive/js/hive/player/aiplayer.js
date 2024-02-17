@@ -1,5 +1,5 @@
 import Player from "./player.js";
-import {PieceColor} from "../core/piece.js";
+import {WHITE} from "../core/piece.js";
 import Board from "../core/board.js";
 import QueenEvaluator from "../ai/queenevaluator.js";
 
@@ -66,7 +66,7 @@ export default class AIPlayer extends Player {
         this.#board = new Board(this.hive.board);
 
         this.#moves = [];
-        const evaluation = this.#board.getColorPlaying().id === PieceColor.white.id ? -MAX_EVALUATION : MAX_EVALUATION;
+        const evaluation = this.#board.getColorPlaying() === WHITE ? -MAX_EVALUATION : MAX_EVALUATION;
         for (const [, , p, t] of AIPlayer.getSortedMovesPeekingNextMove(this.#board, this.#evaluator)) {
             this.#moves.push({
                 pieceId: p.id,
@@ -107,7 +107,7 @@ export default class AIPlayer extends Player {
                     const moveScore = this.#moves.find(m => m.pieceId === msg.pieceId && m.targetId === msg.targetId);
                     moveScore.evaluation = msg.evaluation;
 
-                    const maximizing = this.#board.getColorPlaying().id === PieceColor.white.id;
+                    const maximizing = this.#board.getColorPlaying() === WHITE;
 
                     // check if evaluation is the best
                     const newBestMove = this.#evaluation === null ||
@@ -180,7 +180,7 @@ export default class AIPlayer extends Player {
             msg.board = this.#board;
             msg.evaluatorId = this.evaluatorId;
             msg.maxDepth = 2;
-        } else if (this.#board.getColorPlaying().id === PieceColor.white.id) {
+        } else if (this.#board.getColorPlaying() === WHITE) {
             this.#moves.sort((a, b) => b.evaluation - a.evaluation);
         } else {
             this.#moves.sort((a, b) => a.evaluation - b.evaluation);
@@ -273,7 +273,7 @@ export default class AIPlayer extends Player {
                 evaluation: evaluation,
             };
         });
-        return board.getColorPlaying().id === PieceColor.white.id ?
+        return board.getColorPlaying() === WHITE ?
             movesWithScore.sort((a, b) => b.evaluation - a.evaluation).map(m => m.move) :
             movesWithScore.sort((a, b) => a.evaluation - b.evaluation).map(m => m.move);
     }

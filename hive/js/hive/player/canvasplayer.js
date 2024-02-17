@@ -1,4 +1,5 @@
 import Player from "./player.js";
+import {PIECE_LINK, PIECE_STANDARD} from "../core/piece.js";
 
 export default class CanvasPlayer extends Player {
     mouseX;
@@ -39,7 +40,7 @@ export default class CanvasPlayer extends Player {
         // get coords to draw the button
         const [w, h] = [this.hive.canvas.width, this.hive.canvas.height];
         const hh = this.hive.getHudHeight() + this.hive.getTimerHeight();
-        const y = this.hive.board.getColorPlaying().id === this.hive.bottomPlayerColor.id ? h - hh : 0;
+        const y = this.hive.board.getColorPlaying() === this.hive.bottomPlayerColor ? h - hh : 0;
         const fh = Math.round(w / 12);
 
         // check if mouse is over
@@ -57,7 +58,7 @@ export default class CanvasPlayer extends Player {
 
         const pieceSelected = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
         const targets = pieceSelected?.targets ?? [];
-        const allPieces = this.hive.board.pieces.filter(p => p.inGame || p.type.linked === null || p.type.standard === !this.hive.flippedPieces)
+        const allPieces = this.hive.board.pieces.filter(p => p.inGame || PIECE_LINK[p.type] === null || PIECE_STANDARD[p.type] === !this.hive.flippedPieces)
             .concat(targets);
         let pieceHover = allPieces.find(p => {
             const [px, py] = this.hive.getPiecePixelPosition(p);
@@ -85,9 +86,9 @@ export default class CanvasPlayer extends Player {
         } else {
             piecesOnSpot = pieces.filter(p =>
                 !p.inGame &&
-                p.type.id === piece.type.id &&
-                p.color.id === piece.color.id &&
-                (p.type.linked === null || p.type.standard === !this.hive.flippedPieces));
+                p.type === piece.type &&
+                p.color === piece.color &&
+                (PIECE_LINK[p.type] === null || PIECE_STANDARD[p.type] === !this.hive.flippedPieces));
         }
         return piecesOnSpot.sort((a, b) => a.z - b.z).pop();
     }

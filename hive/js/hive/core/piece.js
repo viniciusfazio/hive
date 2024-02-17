@@ -1,6 +1,107 @@
 
 import Board from "./board.js";
 
+export const WHITE = 1;
+export const BLACK = 2;
+
+export const COLOR_TXT = [];
+COLOR_TXT[WHITE] = "w";
+COLOR_TXT[BLACK] = "b";
+
+
+export const QUEEN = 1;
+export const BEETLE = 2;
+export const GRASSHOPPER = 3;
+export const SPIDER = 4;
+export const ANT = 5;
+export const LADYBUG = 6;
+export const MOSQUITO = 7;
+export const PILL_BUG = 8;
+export const MANTIS = 9;
+export const FLY = 10;
+export const SCORPION = 11;
+export const WASP = 12;
+export const COCKROACH = 13;
+export const DRAGONFLY = 14;
+export const CENTIPEDE = 15;
+
+export const PIECES = [
+    QUEEN, BEETLE, GRASSHOPPER,   SPIDER,  ANT,   LADYBUG,  MOSQUITO,   PILL_BUG,
+           MANTIS,         FLY, SCORPION, WASP, COCKROACH, DRAGONFLY, CENTIPEDE,
+];
+
+const MAX_PIECE_TYPE_ID = Math.max.apply(null, PIECES);
+
+export const PIECE_STANDARD = [null];
+PIECE_STANDARD[QUEEN] = true;
+PIECE_STANDARD[BEETLE] = true;
+PIECE_STANDARD[GRASSHOPPER] = true;
+PIECE_STANDARD[SPIDER] = true;
+PIECE_STANDARD[ANT] = true;
+PIECE_STANDARD[LADYBUG] = true;
+PIECE_STANDARD[MOSQUITO] = true;
+PIECE_STANDARD[PILL_BUG] = true;
+PIECE_STANDARD[MANTIS] = false;
+PIECE_STANDARD[FLY] = false;
+PIECE_STANDARD[SCORPION] = false;
+PIECE_STANDARD[WASP] = false;
+PIECE_STANDARD[COCKROACH] = false;
+PIECE_STANDARD[DRAGONFLY] = false;
+PIECE_STANDARD[CENTIPEDE] = false;
+
+export const PIECE_LINK = [null];
+PIECE_LINK[QUEEN] = null;
+PIECE_LINK[BEETLE] = MANTIS;
+PIECE_LINK[GRASSHOPPER] = FLY;
+PIECE_LINK[SPIDER] = SCORPION;
+PIECE_LINK[ANT] = WASP;
+PIECE_LINK[LADYBUG] = COCKROACH;
+PIECE_LINK[MOSQUITO] = DRAGONFLY;
+PIECE_LINK[PILL_BUG] = CENTIPEDE;
+PIECE_LINK[MANTIS] = BEETLE;
+PIECE_LINK[FLY] = GRASSHOPPER;
+PIECE_LINK[SCORPION] = SPIDER;
+PIECE_LINK[WASP] = ANT;
+PIECE_LINK[COCKROACH] = LADYBUG;
+PIECE_LINK[DRAGONFLY] = MOSQUITO;
+PIECE_LINK[CENTIPEDE] = PILL_BUG;
+
+export const PIECE_QTY = [null];
+PIECE_QTY[QUEEN] = 1;
+PIECE_QTY[BEETLE] = 2;
+PIECE_QTY[GRASSHOPPER] = 3;
+PIECE_QTY[SPIDER] = 2;
+PIECE_QTY[ANT] = 3;
+PIECE_QTY[LADYBUG] = 1;
+PIECE_QTY[MOSQUITO] = 1;
+PIECE_QTY[PILL_BUG] = 1;
+PIECE_QTY[MANTIS] = 2;
+PIECE_QTY[FLY] = 3;
+PIECE_QTY[SCORPION] = 2;
+PIECE_QTY[WASP] = 3;
+PIECE_QTY[COCKROACH] = 1;
+PIECE_QTY[DRAGONFLY] = 1;
+PIECE_QTY[CENTIPEDE] = 1;
+
+export const MAX_PIECE_QTY = Math.max.apply(null, PIECE_QTY);
+
+export const PIECE_TXT = [["null", null]];
+PIECE_TXT[QUEEN] = ["Q", "q"];
+PIECE_TXT[BEETLE] = ["B", "b"];
+PIECE_TXT[GRASSHOPPER] = ["G", "g"];
+PIECE_TXT[SPIDER] = ["S", "s"];
+PIECE_TXT[ANT] = ["A", "a"];
+PIECE_TXT[LADYBUG] = ["L", "l"];
+PIECE_TXT[MOSQUITO] = ["M", "m"];
+PIECE_TXT[PILL_BUG] = ["P", "p"];
+PIECE_TXT[MANTIS] = ["T", "t"];
+PIECE_TXT[FLY] = ["F", "f"];
+PIECE_TXT[SCORPION] = ["N", "n"];
+PIECE_TXT[WASP] = ["W", "w"];
+PIECE_TXT[COCKROACH] = ["R", "r"];
+PIECE_TXT[DRAGONFLY] = ["D", "d"];
+PIECE_TXT[CENTIPEDE] = ["C", "c"];
+
 export default class Piece {
     // variable
     moveSteps = [];
@@ -17,22 +118,37 @@ export default class Piece {
     number;
     subNumber;
     id;
+    txt;
 
-    constructor(color, type, number, subNumber = 0, id = null) {
+    constructor(color, type, number, subNumber = 0, id = null, txt = null) {
         this.color = color;
         this.type = type;
         this.number = number;
         this.subNumber = subNumber;
-        if (id === null) {
-            this.id = this.color.id + this.type.id + (this.number > 0 ? this.number : "")
-                                                   + (this.subNumber > 0 ? "-" + this.subNumber : "");
+        if (id === null || txt === null) {
+            this.txt = COLOR_TXT[this.color];
+            this.txt += PIECE_TXT[this.type][0];
+            if (this.number > 0) {
+                this.txt += this.number;
+            }
+            if (this.subNumber > 0) {
+                this.txt += "-" + this.subNumber;
+            }
+            this.id = this.subNumber;
+            this.id *= Math.max(WHITE, BLACK) + 1;
+            this.id |= this.color;
+            this.id *= MAX_PIECE_TYPE_ID + 1;
+            this.id |= this.type;
+            this.id *= MAX_PIECE_QTY + 1;
+            this.id |= this.number;
             this.reset();
         } else {
             this.id = id;
+            this.txt = txt;
         }
     }
     static clone(p) {
-        const piece = new Piece(p.color, p.type, p.number, p.subNumber, p.id);
+        const piece = new Piece(p.color, p.type, p.number, p.subNumber, p.id, p.txt);
         [piece.x, piece.y, piece.z, piece.inGame] = [p.x, p.y, p.z, p.inGame];
         piece.targets = [];
         piece.targetsB = [];
@@ -53,7 +169,7 @@ export default class Piece {
     reset() {
         this.x = null;
         this.y = null;
-        this.z = this.type.qty - Math.max(1, this.number);
+        this.z = PIECE_QTY[this.type] - Math.max(1, this.number);
         this.moveSteps = [[this.x, this.y, this.z]];
         this.inGame = false;
         this.targets = [];
@@ -71,170 +187,31 @@ export default class Piece {
         this.targets = [];
         this.targetsB = [];
     }
-    static parse(p, standardRules) {
-        if (p.length < 2 || p.length > 3) {
-            return null;
-        }
-        let color = null;
-        let type = null;
-        let number = 0;
-        for (const key in PieceColor) {
-            if (p[0] === PieceColor[key].id) {
-                color = PieceColor[key];
-            }
-        }
-        for (const key in PieceType) {
-            if (p[1] === PieceType[key].id && (!standardRules || PieceType[key].standard)) {
-                type = PieceType[key];
-                if (type.qty === 1 && p.length === 3 || type.qty > 1 && p.length === 2) {
-                    return null;
-                }
-                if (type.qty > 1) {
-                    number = parseInt(p[2]);
-                    if (number < 1 || number > type.qty) {
-                        return null;
-                    }
-                }
-            }
-        }
-        if (color === null || type === null) {
-            return null;
-        }
-        return [color.id, type.id, number];
-    }
 }
 
 
 
-
-export const PieceType = Object.freeze({
-    queen: Object.freeze({
-        id: "Q",
-        id2: "q",
-        qty: 1,
-        linked: null,
-        standard: true,
-    }),
-    beetle: Object.freeze({
-        id: "B",
-        id2: "b",
-        qty: 2,
-        linked: "mantis",
-        standard: true,
-    }),
-    grasshopper: Object.freeze({
-        id: "G",
-        id2: "g",
-        qty: 3,
-        linked: "fly",
-        standard: true,
-    }),
-    spider: Object.freeze({
-        id: "S",
-        id2: "s",
-        qty: 2,
-        linked: "scorpion",
-        standard: true,
-    }),
-    ant: Object.freeze({
-        id: "A",
-        id2: "a",
-        qty: 3,
-        linked: "wasp",
-        standard: true,
-    }),
-    ladybug: Object.freeze({
-        id: "L",
-        id2: "l",
-        qty: 1,
-        linked: "cockroach",
-        standard: true,
-    }),
-    mosquito: Object.freeze({
-        id: "M",
-        id2: "m",
-        qty: 1,
-        linked: "dragonfly",
-        standard: true,
-    }),
-    pillBug: Object.freeze({
-        id: "P",
-        id2: "p",
-        qty: 1,
-        linked: "centipede",
-        standard: true,
-    }),
-    mantis: Object.freeze({
-        id: "T",
-        id2: "t",
-        qty: 2,
-        linked: "beetle",
-        standard: false,
-    }),
-    fly: Object.freeze({
-        id: "F",
-        id2: "f",
-        qty: 3,
-        linked: "grasshopper",
-        standard: false,
-    }),
-    scorpion: Object.freeze({
-        id: "N",
-        id2: "n",
-        qty: 2,
-        linked: "spider",
-        standard: false,
-    }),
-    wasp: Object.freeze({
-        id: "W",
-        id2: "w",
-        qty: 3,
-        linked: "ant",
-        standard: false,
-    }),
-    cockroach: Object.freeze({
-        id: "R",
-        id2: "r",
-        qty: 1,
-        linked: "ladybug",
-        standard: false,
-    }),
-    dragonfly: Object.freeze({
-        id: "D",
-        id2: "d",
-        qty: 1,
-        linked: "mosquito",
-        standard: false,
-    }),
-    centipede: Object.freeze({
-        id: "C",
-        id2: "c",
-        qty: 1,
-        linked: "pillBug",
-        standard: false,
-    }),
-});
 export function computePieceMoves(pieceType, board, piece, standard) {
     switch (pieceType) {
-        case PieceType.queen.id:
+        case QUEEN:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             move1Around(board, piece);
             break;
-        case PieceType.beetle.id:
+        case BEETLE:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             move1(board, piece);
             break;
-        case PieceType.grasshopper.id:
+        case GRASSHOPPER:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             jumpOver(board, piece);
             break;
-        case PieceType.spider.id:
+        case SPIDER:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
@@ -243,20 +220,20 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 jumpOver(board, piece, 1);
             }
             break;
-        case PieceType.ant.id:
+        case ANT:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
-            const otherColorId = piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id;
-            moveAround(board, piece, null, standard ? null : otherColorId);
+            const otherColor = piece.color === WHITE ? BLACK : WHITE;
+            moveAround(board, piece, null, standard ? null : otherColor);
             break;
-        case PieceType.ladybug.id:
+        case LADYBUG:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             moveOver(board, piece, 3);
             break;
-        case PieceType.mosquito.id:
+        case MOSQUITO:
             if (piece.z > 0) {
                 if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                     return;
@@ -265,18 +242,18 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             } else {
                 Board.coordsAround(piece.x, piece.y).forEach(([x, y]) => {
                     const p = board.getInGamePiece(x, y);
-                    if (p && p.type.id !== PieceType.mosquito.id) {
-                        computePieceMoves(p.type.id, board, piece, standard);
+                    if (p && p.type !== MOSQUITO) {
+                        computePieceMoves(p.type, board, piece, standard);
                     }
                 });
             }
             break;
-        case PieceType.pillBug.id:
+        case PILL_BUG:
             if (board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 move1Around(board, piece);
             }
             // move preys
-            if (standard || piece.type.id !== PieceType.mosquito.id) {
+            if (standard || piece.type !== MOSQUITO) {
                 let noPieces = [];
                 let preys = [];
                 board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
@@ -292,7 +269,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 preys.forEach(([x, y]) => {
                     const prey = board.getInGamePiece(x, y);
                     const canMove = standard
-                        || ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id);
+                        || ![PILL_BUG, CENTIPEDE, SCORPION].includes(prey.type);
                     const notLastMove = !board.lastMovedPiecesId.includes(prey.id);
                     if (canMove && notLastMove && board.stillOneHiveAfterRemoveOnXY(prey.x, prey.y)) {
                         noPieces.forEach(([tx, ty]) => {
@@ -302,24 +279,24 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 });
             }
             break;
-        case PieceType.mantis.id:
+        case MANTIS:
             if (piece.z > 0) {
                 if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                     return;
                 }
                 move1(board, piece);
-            } else if (piece.type.id !== PieceType.mosquito.id) {
+            } else if (piece.type !== MOSQUITO) {
                 board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
                     const hasSpace = z === 0 && (z1 < 0 || z2 < 0);
                     const prey = board.getInGamePiece(x, y);
-                    const canEat = prey && prey.type.id !== PieceType.scorpion.id && !board.lastMovedPiecesId.includes(prey.id);
+                    const canEat = prey && prey.type !== SCORPION && !board.lastMovedPiecesId.includes(prey.id);
                     if (canEat && hasSpace && board.stillOneHiveAfterRemoveOnXY(prey.x, prey.y)) {
                         piece.insertTarget(x, y, z + 1);
                     }
                 });
             }
             break;
-        case PieceType.fly.id:
+        case FLY:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
@@ -327,25 +304,25 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 fly(board, piece);
             }
             break;
-        case PieceType.scorpion.id:
+        case SCORPION:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             moveAround(board, piece, 3);
             break;
-        case PieceType.wasp.id:
+        case WASP:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
-            fly(board, piece, piece.color.id === PieceColor.white.id ? PieceColor.black.id : PieceColor.white.id);
+            fly(board, piece, piece.color === WHITE ? BLACK : WHITE);
             break;
-        case PieceType.cockroach.id:
+        case COCKROACH:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
-            moveOver(board, piece, null, piece.color.id);
+            moveOver(board, piece, null, piece.color);
             break;
-        case PieceType.dragonfly.id:
+        case DRAGONFLY:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
@@ -353,14 +330,14 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             for (let i = 1; i <= 6; i++) {
                 const [ix, iy, iz, iz1, iz2] = around[i % 6];
                 const pBelow = board.getInGamePiece(ix, iy);
-                if (pBelow && pBelow.type.id === PieceType.scorpion.id || !Board.onHiveAndNoGate(piece.z, iz, iz1, iz2)) {
+                if (pBelow && pBelow.type === SCORPION || !Board.onHiveAndNoGate(piece.z, iz, iz1, iz2)) {
                     continue;
                 }
                 const moveSteps = [[ix, iy, iz + 1]];
                 const destiny = board.coordsAroundWithNeighbor(ix, iy);
                 [destiny[i - 1], destiny[(i + 1) % 6]].forEach(([x, y, z, z1, z2]) => {
                     const target = board.getInGamePiece(x, y);
-                    if (target && target.type.id === PieceType.scorpion.id || !Board.onHiveAndNoGate(iz + 1, z, z1, z2)) {
+                    if (target && target.type === SCORPION || !Board.onHiveAndNoGate(iz + 1, z, z1, z2)) {
                         return;
                     }
                     const isFromGround = piece.z === 0;
@@ -369,7 +346,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                         piece.insertTarget(x, y, z + 1, moveSteps);
                     } else {
                         const prey = board.getInGamePiece(piece.x, piece.y, piece.z - 1);
-                        const isPrey = prey && prey.type.id !== PieceType.dragonfly.id;
+                        const isPrey = prey && prey.type !== DRAGONFLY;
                         if (isPrey && board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y, 2)) {
                             piece.insertTarget(x, y, 0, moveSteps);
                         }
@@ -377,22 +354,20 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 });
             }
             break;
-        case PieceType.centipede.id:
+        case CENTIPEDE:
             if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
                 return;
             }
             move1Around(board, piece);
-            if (piece.type.id === PieceType.mosquito.id) {
+            if (piece.type === MOSQUITO) {
                 return;
             }
             board.coordsAroundWithNeighbor(piece.x, piece.y).filter(([, , z, z1, z2]) => z === 0 && (z1 < 0 || z2 < 0))
                 .forEach(([x, y, , , ]) => {
                     const prey = board.getInGamePiece(x, y);
                     const lastMove = prey && !board.lastMovedPiecesId.includes(prey.id);
-                    if (lastMove && ![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
-                        if (![PieceType.pillBug.id, PieceType.centipede.id, PieceType.scorpion.id].includes(prey.type.id)) {
-                            piece.insertTarget(x, y, piece.z + 1);
-                        }
+                    if (lastMove && ![PILL_BUG, CENTIPEDE, SCORPION].includes(prey.type)) {
+                        piece.insertTarget(x, y, piece.z + 1);
                     }
                 });
             break;
@@ -413,14 +388,14 @@ function move1Around(board, piece) {
 function move1(board, piece) {
     board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
         const p = board.getInGamePiece(x, y);
-        const canMoveOver = !p || p.type.id !== PieceType.scorpion.id;
+        const canMoveOver = !p || p.type !== SCORPION;
         if (canMoveOver && Board.onHiveAndNoGate(piece.z, z, z1, z2)) {
             piece.insertTarget(x, y, z + 1);
         }
     });
 
 }
-function moveAround(board, piece, n = null, colorId = null) {
+function moveAround(board, piece, n = null, color = null) {
     let paths = [[[piece.x, piece.y, 0]]];
     while (paths.length > 0) {
         let newPaths = [];
@@ -441,9 +416,9 @@ function moveAround(board, piece, n = null, colorId = null) {
                         newPath.push([x, y, 0]);
                         newPaths.push(newPath);
                     }
-                    const validColor = colorId === null || Board.coordsAround(x, y).find(([ax, ay]) => {
+                    const validColor = color === null || Board.coordsAround(x, y).find(([ax, ay]) => {
                         const p = board.getInGamePiece(ax, ay);
-                        return p && p.color.id === colorId;
+                        return p && p.color === color;
                     });
                     const validMoveCount = n === null || path.length === n;
                     if (validColor && validMoveCount) {
@@ -457,12 +432,12 @@ function moveAround(board, piece, n = null, colorId = null) {
         paths = newPaths;
     }
 }
-function fly(board, piece, colorId = null) {
-    board.piecePlacement(colorId, piece.x, piece.y).forEach(([x, y]) => {
+function fly(board, piece, color = null) {
+    board.piecePlacement(color, piece.x, piece.y).forEach(([x, y]) => {
         piece.insertTarget(x, y, 0, [[piece.x, piece.y, board.maxZ + 1]]);
     });
 }
-function moveOver(board, piece, n = null, colorId = null) {
+function moveOver(board, piece, n = null, color = null) {
     let paths = [[[piece.x, piece.y, piece.z]]];
     let visitedEver = [];
     while (paths.length > 0) {
@@ -484,8 +459,8 @@ function moveOver(board, piece, n = null, colorId = null) {
                     visitedEver.push([x, y]);
                 }
                 const pBelow = board.getInGamePiece(x, y);
-                const canGoUp = z >= 0 && pBelow && pBelow.type.id !== PieceType.scorpion.id &&
-                    (colorId === null || pBelow.color.id === colorId);
+                const canGoUp = z >= 0 && pBelow && pBelow.type !== SCORPION &&
+                    (color === null || pBelow.color === color);
                 const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
                 if ((canGoUp || canGoDown) && Board.onHiveAndNoGate(fromZ, z, z1, z2)) {
                     // new step with no repetition
@@ -509,7 +484,7 @@ function jumpOver(board, piece, n = null) {
     Board.coordsAround(0, 0).forEach(([dx, dy]) => {
         let pBelow = board.getInGamePiece(piece.x + dx, piece.y + dy);
         let moveSteps = [];
-        while (pBelow && pBelow.type.id !== PieceType.scorpion.id) {
+        while (pBelow && pBelow.type !== SCORPION) {
             moveSteps.push([pBelow.x, pBelow.y, pBelow.z + 1]);
             const [tx, ty] = [pBelow.x + dx, pBelow.y + dy];
             pBelow = board.getInGamePiece(tx, ty);
@@ -523,11 +498,4 @@ function jumpOver(board, piece, n = null) {
         }
     });
 }
-export const PieceColor = Object.freeze({
-    white: Object.freeze({
-        id: "w",
-    }),
-    black: Object.freeze({
-        id: "b",
-    }),
-});
+
