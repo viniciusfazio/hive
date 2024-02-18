@@ -37,6 +37,19 @@ export default class AIPlayer extends Player {
     #evaluatedMoves;
 
 
+    #getMovesSortedByTime() {
+        return this.#moves.map((move, idx) => {
+            const moveTxt = this.#board.getMoveNotation(move.pieceId, move.targetCoords, this.#board.round === 1);
+            const timeTxt = Math.round(move.time / 100) / 10 + "s";
+            const iterTxt = Math.round(move.iterations / 100) / 10 + "k";
+            const moveId = idx + 1;
+            return {
+                time: move.time,
+                txt: moveId + ": " + moveTxt + " " + timeTxt + " " + iterTxt,
+            }
+        }).sort((a, b) => a.time - b.time).map(m => m.txt);
+    }
+
     initPlayerTurn() {
         if (this.#initTurnTime !== null) {
             // already running
@@ -70,7 +83,9 @@ export default class AIPlayer extends Player {
         for (const [, , p, t] of AIPlayer.getSortedMovesPeekingNextMove(this.#board, this.#evaluator)) {
             this.#moves.push({
                 pieceId: p.id,
-                targetId: t.id,
+                targetCoords: [t.x, t.y, t.z],
+                time: 0,
+                iterations: 0,
                 target: t,
                 evaluation: evaluation,
             });
@@ -97,6 +112,14 @@ export default class AIPlayer extends Player {
                     // the worker responded
                     const msg = e.data;
                     // keeps track of number of iterations done
+                    const move = this.#moves.find(m =>
+                        m.pieceId === msg.pieceId &&
+                        m.targetCoords[0] === msg.targetCoords[0] &&
+                        m.targetCoords[1] === msg.targetCoords[1] &&
+                        m.targetCoords[2] === msg.targetCoords[2]
+                    );
+                    move.iterations += msg.iterations;
+                    move.time = msg.time;
                     this.#iterations += msg.iterations;
                     if (!msg.done) {
                         // the worker only updated the iteration count
@@ -104,8 +127,7 @@ export default class AIPlayer extends Player {
                     }
 
                     this.#evaluatedMoves++;
-                    const moveScore = this.#moves.find(m => m.pieceId === msg.pieceId && m.targetId === msg.targetId);
-                    moveScore.evaluation = msg.evaluation;
+                    move.evaluation = msg.evaluation;
 
                     const maximizing = this.#board.getColorPlaying() === WHITE;
 
@@ -119,8 +141,8 @@ export default class AIPlayer extends Player {
                         // saves the evaluation and the move
                         this.#evaluation = msg.evaluation;
                         this.#evaluationDepth = msg.maxDepth;
-                        this.pieceId = moveScore.pieceId;
-                        this.target = moveScore.target;
+                        this.pieceId = move.pieceId;
+                        this.target = move.target;
 
                         // updates alpha and beta, and check victory
                         if (maximizing) {
@@ -146,14 +168,14 @@ export default class AIPlayer extends Player {
                         msg.beta = this.#beta;
                         if (this.#evaluatedMoves > COMPUTE_BEST_N_MOVES_FIRST) {
                             msg.pieceId = this.#moves[this.#moveIndex].pieceId;
-                            msg.targetId = this.#moves[this.#moveIndex].targetId;
+                            msg.targetCoords = this.#moves[this.#moveIndex].targetCoords;
                             this.#moveIndex++;
                             worker.postMessage(msg);
                         } else if (this.#evaluatedMoves === COMPUTE_BEST_N_MOVES_FIRST) {
                             ++this.#idle;
                             for (let i = 0; i < QTY_WORKERS && this.#moveIndex < this.#moves.length; i++) {
                                 msg.pieceId = this.#moves[this.#moveIndex].pieceId;
-                                msg.targetId = this.#moves[this.#moveIndex].targetId;
+                                msg.targetCoords = this.#moves[this.#moveIndex].targetCoords;
                                 this.#moveIndex++;
                                 this.#idle--;
                                 this.#workers[i].postMessage(msg);
@@ -180,10 +202,16 @@ export default class AIPlayer extends Player {
             msg.board = this.#board;
             msg.evaluatorId = this.evaluatorId;
             msg.maxDepth = 2;
-        } else if (this.#board.getColorPlaying() === WHITE) {
-            this.#moves.sort((a, b) => b.evaluation - a.evaluation);
         } else {
-            this.#moves.sort((a, b) => a.evaluation - b.evaluation);
+            if (this.#board.getColorPlaying() === WHITE) {
+                this.#moves.sort((a, b) => b.evaluation - a.evaluation);
+            } else {
+                this.#moves.sort((a, b) => a.evaluation - b.evaluation);
+            }
+            this.#moves.forEach(move => {
+                move.time = 0;
+                move.iterations = 0;
+            });
         }
         this.#alpha = -MAX_EVALUATION;
         this.#beta = MAX_EVALUATION;
@@ -194,10 +222,10 @@ export default class AIPlayer extends Player {
             // makes each worker start processing a move
             if (i < this.#moveIndex) {
                 msg.pieceId = this.#moves[i].pieceId;
-                msg.targetId = this.#moves[i].targetId;
+                msg.targetCoords = this.#moves[i].targetCoords;
             } else {
                 msg.pieceId = null;
-                msg.targetId = null;
+                msg.targetCoords = null;
             }
             this.#workers[i].postMessage(msg);
         }
@@ -216,6 +244,24 @@ export default class AIPlayer extends Player {
             texts.push("Iterations: " + this.#getIterations());
             texts.push("Moves: " + this.#evaluatedMoves + " / " + this.#moves.length);
             texts.push("Evaluation: " + this.#getEvaluation());
+            if (this.#evaluationDepth === MAX_DEPTH) {
+                const movesSorted = this.#getMovesSortedByTime();
+                const qty = Math.min(10, movesSorted.length);
+                if (movesSorted.length === qty) {
+                    texts.push("Moves:");
+                } else {
+                    texts.push("Fastest moves:");
+                }
+                for (let i = 0; i < qty; i++) {
+                    texts.push(movesSorted[i]);
+                }
+                if (movesSorted.length > qty) {
+                    texts.push("Slowest moves:");
+                    for (let i = movesSorted.length - qty; i < movesSorted.length; i++) {
+                        texts.push(movesSorted[i]);
+                    }
+                }
+            }
         }
         return texts;
     }
@@ -291,8 +337,6 @@ export default class AIPlayer extends Player {
 
 }
 class WorkerMessage {
-    // qty iterations
-    iterations = 0;
 
     // input to minimax
     maxEvaluation = MAX_EVALUATION;
@@ -302,11 +346,11 @@ class WorkerMessage {
     beta = MAX_EVALUATION;
     maxDepth;
     pieceId = null;
-    targetId = null;
+    targetCoords = null;
 
     // output from minimax, and to the aiPlayer
     evaluation;
-
-    // indicates end of computing move
+    time;
+    iterations = 0;
     done = false;
 }

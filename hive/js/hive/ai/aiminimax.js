@@ -17,6 +17,7 @@ let initialMaximizing = null;
 let evaluator = null;
 let msg = null;
 let initialMoves = null;
+let initTime = null;
 onmessage = e => {
     msg = e.data;
     msg.iterations = 0;
@@ -36,13 +37,16 @@ onmessage = e => {
         // the board has no last moves as it ended by playing back in previous depth computing
         board.lastMovedPiecesId = [...lastMovedPiecesId];
     }
-    if (msg.pieceId !== null && msg.targetId !== null) {
-        const move = initialMoves.find(([, , p, t]) => p.id === msg.pieceId && t.id === msg.targetId);
+    if (msg.pieceId !== null && msg.targetCoords !== null) {
+        const [x, y, z] = msg.targetCoords;
+        const move = initialMoves.find(([, , p, t]) => p.id === msg.pieceId && t.x === x && t.y === y && t.z === z);
         if (!move) {
             throw Error("Invalid move on minimax");
         }
         visited = new Map();
+        initTime = Date.now();
         alphaBeta(0, msg.alpha, msg.beta, initialMaximizing, [move]);
+        msg.time = Date.now() - initTime;
         msg.done = true;
         postMessage(msg);
     }
@@ -51,6 +55,7 @@ onmessage = e => {
 function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     // count iterations
     if (++msg.iterations % ITERATION_STEP === 0) {
+        msg.time = Date.now() - initTime;
         postMessage(msg);
         msg.iterations = 0;
     }

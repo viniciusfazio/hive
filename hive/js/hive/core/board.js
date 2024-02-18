@@ -61,6 +61,70 @@ export default class Board {
             !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.getInGamePiece(x, y));
     }
 
+    getMoveNotation(pieceId, to, firstMove) {
+        const p1 = this.pieces.find(p => p.id === pieceId);
+        let ret = p1.txt;
+        if (!firstMove) {
+            const [fromX, fromY, fromZ] = [p1.x, p1.y, p1.z];
+            const [toX, toY, toZ] = to;
+            // not first move
+            let p2 = null;
+            if (p1.type === MANTIS && fromX !== null && fromY !== null && fromZ === 0 && toZ === 1) {
+                // mantis special move
+                p2 = this.getInGamePiece(fromX, fromY, fromZ);
+            } else if (p1.type === CENTIPEDE && toZ > 0) {
+                // centipede special move
+                p2 = this.getInGamePiece(fromX, fromY, fromZ);
+            } else if (toZ > 0) {
+                // move over a piece
+                p2 = this.getInGamePiece(toX, toY, toZ - 1);
+            } else {
+                // move to the ground
+                let p2Pref = 0;
+                Board.coordsAround(toX, toY).forEach(([x, y]) => {
+                    // prefer unique pieces as reference, and to the queen, and pieces not on pile
+                    const p = this.getInGamePiece(x, y);
+                    if (!p) {
+                        return;
+                    }
+                    let pref = 1;
+                    if (p.type === QUEEN) {
+                        pref += 8;
+                    }
+                    if (p.number === 0) {
+                        pref += 4;
+                    }
+                    if (p.z === 0) {
+                        pref += 2;
+                    }
+                    if (pref > p2Pref) {
+                        p2Pref = pref;
+                        p2 = p;
+                    }
+                });
+            }
+            if (!p2) {
+                ret += " invalid";
+            } else if (toZ > 0) {
+                ret += " " + p2.txt;
+            } else if (toX - p2.x === -2) {
+                ret += " -" + p2.txt;
+            } else if (toX - p2.x === 2) {
+                ret += " " + p2.txt + "-";
+            } else if (toX - p2.x === -1) {
+                if (toY - p2.y === 1) {
+                    ret += " \\" + p2.txt;
+                } else {
+                    ret += " /" + p2.txt;
+                }
+            } else if (toY - p2.y === 1) {
+                ret += " " + p2.txt + "/";
+            } else {
+                ret += " " + p2.txt + "\\";
+            }
+        }
+        return ret;
+    }
     #computePieces() {
         this.inGamePieces = this.allPieces.filter(p => p.inGame);
         this.inGameTopPieces = this.inGamePieces.filter(p => !this.inGamePieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
