@@ -189,12 +189,12 @@ export class Move {
         if (move.blackLoses) {
             return "white wins";
         }
-        let ret = move.pieceId;
+        const p1 = board.pieces.find(p => p.id === move.pieceId);
+        let ret = p1.txt;
         if (board.round > 2) {
             const [fromX, fromY, fromZ] = move.moveSteps[0];
             const [toX, toY, toZ] = move.moveSteps[move.moveSteps.length - 1];
             // not first move
-            const p1 = board.pieces.find(p => p.id === move.pieceId);
             let p2 = null;
             if (p1.type === MANTIS && fromX !== null && fromY !== null && fromZ === 0 && toZ === 1) {
                 // mantis special move
