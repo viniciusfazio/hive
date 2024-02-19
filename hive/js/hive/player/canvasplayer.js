@@ -58,7 +58,7 @@ export default class CanvasPlayer extends Player {
 
         const pieceSelected = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
         const targets = pieceSelected?.targets ?? [];
-        const allPieces = this.hive.board.pieces.filter(p => p.inGame || PIECE_LINK[p.type] === null || PIECE_STANDARD[p.type] === !this.hive.flippedPieces)
+        const allPieces = this.hive.board.pieces.filter(p => p.inGame || PIECE_LINK[p.type] === 0 || !PIECE_STANDARD[p.type] === this.hive.flippedPieces)
             .concat(targets);
         let pieceHover = allPieces.find(p => {
             const [px, py] = this.hive.getPiecePixelPosition(p);
@@ -88,7 +88,7 @@ export default class CanvasPlayer extends Player {
                 !p.inGame &&
                 p.type === piece.type &&
                 p.color === piece.color &&
-                (PIECE_LINK[p.type] === null || PIECE_STANDARD[p.type] === !this.hive.flippedPieces));
+                (PIECE_LINK[p.type] === 0 || !PIECE_STANDARD[p.type] === this.hive.flippedPieces));
         }
         return piecesOnSpot.sort((a, b) => a.z - b.z).pop();
     }

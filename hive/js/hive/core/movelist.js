@@ -106,7 +106,7 @@ export default class MoveList {
         // first move doesn't compute time
         if (this.moves.length > 0 || time !== null) {
             this.moves.forEach((move, i) => {
-                if (i % 2 === this.moves.length % 2) {
+                if ((i & 1) === (this.moves.length & 1)) {
                     timePast += move.time;
                 }
             });
@@ -117,7 +117,7 @@ export default class MoveList {
             }
         }
         const timeLeft = Math.max(0, totalTime - timePast);
-        if (this.moves.length % 2 === 0) {
+        if ((this.moves.length & 1) === 0) {
             this.whitePiecesTimeLeft = timeLeft;
         } else {
             this.blackPiecesTimeLeft = timeLeft;
@@ -162,7 +162,7 @@ export class Move {
     static notation(move, board, shortOnTime = null) {
         let time = "";
         if (shortOnTime !== null && move.whitePiecesTimeLeft !== null && move.blackPiecesTimeLeft !== null) {
-            if (board.round % 2 === 0) {
+            if ((board.round & 1) === 0) {
                 time = " " + MoveList.timeToText(move.whitePiecesTimeLeft, shortOnTime);
             } else {
                 time = " " + MoveList.timeToText(move.blackPiecesTimeLeft, shortOnTime);

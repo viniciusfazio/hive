@@ -137,7 +137,7 @@ function appendMoveList(round, move, moveListId = 0) {
     const ul2 = '<ul class="list-group list-group-horizontal move-list-' + moveListId + '">' + li2 + li + '</ul>';
     if (moveListId === 0) {
         // main list
-        if (round === 1 || round % 2 === 0) {
+        if (round === 1 || (round & 1) === 0) {
             // a new line will be added to the main list
             $("#move-list").append(ul);
         } else {
@@ -152,11 +152,11 @@ function appendMoveList(round, move, moveListId = 0) {
             $ul = $("#move-list > ul.move-list-" + moveList.parentMoveListId + " > li.round-" + round).parent();
             if ($ul.length === 0) {
                 // it is after last move
-                $("#move-list").append(round % 2 === 0 ? ul : ul2);
+                $("#move-list").append((round & 1) === 0 ? ul : ul2);
             } else {
-                $(round % 2 === 0 ? ul : ul2).insertAfter($ul);
+                $((round & 1) === 0 ? ul : ul2).insertAfter($ul);
             }
-        } else if (round === 1 || round % 2 === 0) {
+        } else if (round === 1 || (round & 1) === 0) {
             // new line will be added to the alternative list
             // insert at the end, after children too
             let lastLength = null;
@@ -267,7 +267,7 @@ function tryParseFile(fileContent, standardRules, color) {
                 let timeStamp = 0;
                 matches[1].split(":").forEach(t => timeStamp = timeStamp * 60 + t * 1000);
                 const moveList = hive.getMoveList();
-                const timeLeft = hive.board.round % 2 === 1 ? moveList.whitePiecesTimeLeft : moveList.blackPiecesTimeLeft;
+                const timeLeft = (hive.board.round & 1) === 1 ? moveList.whitePiecesTimeLeft : moveList.blackPiecesTimeLeft;
                 time = timeLeft - timeStamp;
                 if (hive.board.round > 1) {
                     time += moveList.increment * 1000;
@@ -421,7 +421,7 @@ function localCallbacks() {
         },
         undo: ok => {
             if (ok) {
-                if (hive.board.round % 2 === 1) {
+                if ((hive.board.round & 1) === 1) {
                     $("#move-list > ul:last-child").remove();
                 } else {
                     $("#move-list > ul > li.round-" + (hive.board.round + 1)).remove();

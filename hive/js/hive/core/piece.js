@@ -4,9 +4,11 @@ import Board from "./board.js";
 export const WHITE = 1;
 export const BLACK = 2;
 
-export const COLOR_TXT = [];
-COLOR_TXT[WHITE] = "w";
-COLOR_TXT[BLACK] = "b";
+export const COLORS = [WHITE, BLACK];
+
+export const COLOR_TXT = [null];
+COLOR_TXT[WHITE] = 'w';
+COLOR_TXT[BLACK] = 'b';
 
 
 export const QUEEN = 1;
@@ -25,32 +27,25 @@ export const COCKROACH = 13;
 export const DRAGONFLY = 14;
 export const CENTIPEDE = 15;
 
-export const PIECES = [
-    QUEEN, BEETLE, GRASSHOPPER,   SPIDER,  ANT,   LADYBUG,  MOSQUITO,   PILL_BUG,
-           MANTIS,         FLY, SCORPION, WASP, COCKROACH, DRAGONFLY, CENTIPEDE,
-];
+export const PIECES = new Uint32Array([
+    QUEEN,
+    BEETLE, GRASSHOPPER,   SPIDER,  ANT,   LADYBUG,  MOSQUITO,  PILL_BUG,
+    MANTIS,         FLY, SCORPION, WASP, COCKROACH, DRAGONFLY, CENTIPEDE,
+]);
 
-const MAX_PIECE_TYPE_ID = Math.max.apply(null, PIECES);
+const MAX_PIECE_TYPE_ID = PIECES.length;
 
-export const PIECE_STANDARD = [null];
-PIECE_STANDARD[QUEEN] = true;
-PIECE_STANDARD[BEETLE] = true;
-PIECE_STANDARD[GRASSHOPPER] = true;
-PIECE_STANDARD[SPIDER] = true;
-PIECE_STANDARD[ANT] = true;
-PIECE_STANDARD[LADYBUG] = true;
-PIECE_STANDARD[MOSQUITO] = true;
-PIECE_STANDARD[PILL_BUG] = true;
-PIECE_STANDARD[MANTIS] = false;
-PIECE_STANDARD[FLY] = false;
-PIECE_STANDARD[SCORPION] = false;
-PIECE_STANDARD[WASP] = false;
-PIECE_STANDARD[COCKROACH] = false;
-PIECE_STANDARD[DRAGONFLY] = false;
-PIECE_STANDARD[CENTIPEDE] = false;
+export const PIECE_STANDARD = new Uint32Array(MAX_PIECE_TYPE_ID + 1);
+PIECE_STANDARD[QUEEN] = 1;
+PIECE_STANDARD[BEETLE] = 1;
+PIECE_STANDARD[GRASSHOPPER] = 1;
+PIECE_STANDARD[SPIDER] = 1;
+PIECE_STANDARD[ANT] = 1;
+PIECE_STANDARD[LADYBUG] = 1;
+PIECE_STANDARD[MOSQUITO] = 1;
+PIECE_STANDARD[PILL_BUG] = 1;
 
-export const PIECE_LINK = [null];
-PIECE_LINK[QUEEN] = null;
+export const PIECE_LINK = new Uint32Array(MAX_PIECE_TYPE_ID + 1);
 PIECE_LINK[BEETLE] = MANTIS;
 PIECE_LINK[GRASSHOPPER] = FLY;
 PIECE_LINK[SPIDER] = SCORPION;
@@ -66,7 +61,7 @@ PIECE_LINK[COCKROACH] = LADYBUG;
 PIECE_LINK[DRAGONFLY] = MOSQUITO;
 PIECE_LINK[CENTIPEDE] = PILL_BUG;
 
-export const PIECE_QTY = [null];
+export const PIECE_QTY = new Uint32Array(MAX_PIECE_TYPE_ID + 1);
 PIECE_QTY[QUEEN] = 1;
 PIECE_QTY[BEETLE] = 2;
 PIECE_QTY[GRASSHOPPER] = 3;
@@ -85,22 +80,22 @@ PIECE_QTY[CENTIPEDE] = 1;
 
 export const MAX_PIECE_QTY = Math.max.apply(null, PIECE_QTY);
 
-export const PIECE_TXT = [["null", null]];
-PIECE_TXT[QUEEN] = ["Q", "q"];
-PIECE_TXT[BEETLE] = ["B", "b"];
-PIECE_TXT[GRASSHOPPER] = ["G", "g"];
-PIECE_TXT[SPIDER] = ["S", "s"];
-PIECE_TXT[ANT] = ["A", "a"];
-PIECE_TXT[LADYBUG] = ["L", "l"];
-PIECE_TXT[MOSQUITO] = ["M", "m"];
-PIECE_TXT[PILL_BUG] = ["P", "p"];
-PIECE_TXT[MANTIS] = ["T", "t"];
-PIECE_TXT[FLY] = ["F", "f"];
-PIECE_TXT[SCORPION] = ["N", "n"];
-PIECE_TXT[WASP] = ["W", "w"];
-PIECE_TXT[COCKROACH] = ["R", "r"];
-PIECE_TXT[DRAGONFLY] = ["D", "d"];
-PIECE_TXT[CENTIPEDE] = ["C", "c"];
+export const PIECE_TXT = [".."];
+PIECE_TXT[QUEEN] = "Qq";
+PIECE_TXT[BEETLE] = "Bb";
+PIECE_TXT[GRASSHOPPER] = "Gg";
+PIECE_TXT[SPIDER] = "Ss";
+PIECE_TXT[ANT] = "Aa";
+PIECE_TXT[LADYBUG] = "Ll";
+PIECE_TXT[MOSQUITO] = "Mm";
+PIECE_TXT[PILL_BUG] = "Pp";
+PIECE_TXT[MANTIS] = "Tt";
+PIECE_TXT[FLY] = "Ff";
+PIECE_TXT[SCORPION] = "Nn";
+PIECE_TXT[WASP] = "Ww";
+PIECE_TXT[COCKROACH] = "Rr";
+PIECE_TXT[DRAGONFLY] = "Dd";
+PIECE_TXT[CENTIPEDE] = "Cc";
 
 export default class Piece {
     // variable
@@ -135,7 +130,7 @@ export default class Piece {
                 this.txt += "-" + this.subNumber;
             }
             this.id = this.subNumber;
-            this.id *= Math.max(WHITE, BLACK) + 1;
+            this.id *= COLORS.length + 1;
             this.id |= this.color;
             this.id *= MAX_PIECE_TYPE_ID + 1;
             this.id |= this.type;
@@ -240,12 +235,12 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 }
                 move1(board, piece);
             } else {
-                Board.coordsAround(piece.x, piece.y).forEach(([x, y]) => {
+                for (const [x, y] of Board.coordsAround(piece.x, piece.y)) {
                     const p = board.getInGamePiece(x, y);
                     if (p && p.type !== MOSQUITO) {
                         computePieceMoves(p.type, board, piece, standard);
                     }
-                });
+                }
             }
             break;
         case PILL_BUG:
@@ -256,7 +251,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             if (standard || piece.type !== MOSQUITO) {
                 let noPieces = [];
                 let preys = [];
-                board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+                for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(piece.x, piece.y)) {
                     const noPiece = z < 0;
                     const isPrey = z === 0;
                     const isMovableTarget = noPiece && Board.onHiveAndNoGate(piece.z + 1, z, z1, z2);
@@ -265,8 +260,8 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                     } else if (isPrey && Board.onHiveAndNoGate(z, piece.z, z1, z2)) {
                         preys.push([x, y]);
                     }
-                });
-                preys.forEach(([x, y]) => {
+                }
+                for (const [x, y] of preys) {
                     const prey = board.getInGamePiece(x, y);
                     const canMove = standard
                         || ![PILL_BUG, CENTIPEDE, SCORPION].includes(prey.type);
@@ -276,7 +271,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                             prey.insertTarget(tx, ty, prey.z, [[piece.x, piece.y, piece.z + 1]]);
                         });
                     }
-                });
+                }
             }
             break;
         case MANTIS:
@@ -286,14 +281,14 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 }
                 move1(board, piece);
             } else if (piece.type !== MOSQUITO) {
-                board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+                for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(piece.x, piece.y)) {
                     const hasSpace = z === 0 && (z1 < 0 || z2 < 0);
                     const prey = board.getInGamePiece(x, y);
                     const canEat = prey && prey.type !== SCORPION && !board.lastMovedPiecesId.includes(prey.id);
                     if (canEat && hasSpace && board.stillOneHiveAfterRemoveOnXY(prey.x, prey.y)) {
                         piece.insertTarget(x, y, z + 1);
                     }
-                });
+                }
             }
             break;
         case FLY:
@@ -335,10 +330,10 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 }
                 const moveSteps = [[ix, iy, iz + 1]];
                 const destiny = board.coordsAroundWithNeighbor(ix, iy);
-                [destiny[i - 1], destiny[(i + 1) % 6]].forEach(([x, y, z, z1, z2]) => {
+                for (const [x, y, z, z1, z2] of [destiny[i - 1], destiny[(i + 1) % 6]]) {
                     const target = board.getInGamePiece(x, y);
                     if (target && target.type === SCORPION || !Board.onHiveAndNoGate(iz + 1, z, z1, z2)) {
-                        return;
+                        continue;
                     }
                     const isFromGround = piece.z === 0;
                     const isToGround = z < 0;
@@ -351,7 +346,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                             piece.insertTarget(x, y, 0, moveSteps);
                         }
                     }
-                });
+                }
             }
             break;
         case CENTIPEDE:
@@ -376,23 +371,23 @@ export function computePieceMoves(pieceType, board, piece, standard) {
 }
 function move1Around(board, piece) {
     let qty = 0;
-    board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+    for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(piece.x, piece.y)) {
         const noPiece = z < 0;
         if (noPiece && Board.onHiveAndNoGate(piece.z, z, z1, z2)) {
             piece.insertTarget(x, y, piece.z);
             qty++;
         }
-    });
+    }
     return qty;
 }
 function move1(board, piece) {
-    board.coordsAroundWithNeighbor(piece.x, piece.y).forEach(([x, y, z, z1, z2]) => {
+    for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(piece.x, piece.y)) {
         const p = board.getInGamePiece(x, y);
         const canMoveOver = !p || p.type !== SCORPION;
         if (canMoveOver && Board.onHiveAndNoGate(piece.z, z, z1, z2)) {
             piece.insertTarget(x, y, z + 1);
         }
-    });
+    }
 
 }
 function moveAround(board, piece, n = null, color = null) {
@@ -433,9 +428,9 @@ function moveAround(board, piece, n = null, color = null) {
     }
 }
 function fly(board, piece, color = null) {
-    board.piecePlacement(color, piece.x, piece.y).forEach(([x, y]) => {
+    for (const [x, y] of board.piecePlacement(color, piece.x, piece.y)) {
         piece.insertTarget(x, y, 0, [[piece.x, piece.y, board.maxZ + 1]]);
-    });
+    }
 }
 function moveOver(board, piece, n = null, color = null) {
     let paths = [[[piece.x, piece.y, piece.z]]];
@@ -481,7 +476,7 @@ function moveOver(board, piece, n = null, color = null) {
 }
 function jumpOver(board, piece, n = null) {
     // look around
-    Board.coordsAround(0, 0).forEach(([dx, dy]) => {
+    for (const [dx, dy] of Board.coordsAround(0, 0)) {
         let pBelow = board.getInGamePiece(piece.x + dx, piece.y + dy);
         let moveSteps = [];
         while (pBelow && pBelow.type !== SCORPION) {
@@ -496,6 +491,6 @@ function jumpOver(board, piece, n = null) {
                 break;
             }
         }
-    });
+    }
 }
 

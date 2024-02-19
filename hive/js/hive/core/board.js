@@ -1,5 +1,5 @@
 import Piece, {
-    BLACK, CENTIPEDE,
+    BLACK, CENTIPEDE, COLORS,
     computePieceMoves, DRAGONFLY, MANTIS, MOSQUITO,
     PIECE_LINK,
     PIECE_QTY,
@@ -20,6 +20,7 @@ export default class Board {
     inGameTopPieces;
     hudTopPieces;
     passRound;
+    #piecesZOver;
 
     queens;
     qtyMoves;
@@ -33,11 +34,13 @@ export default class Board {
     constructor(board = null) {
         if (board === null) {
             this.allPieces = [];
-            [WHITE, BLACK].forEach(color => PIECES.forEach(type => {
-                for (let number = 1; number <= PIECE_QTY[type]; number++) {
-                    this.allPieces.push(new Piece(color, type, PIECE_QTY[type] === 1 ? 0 : number));
+            for (const color of COLORS) {
+                for (const type of PIECES) {
+                    for (let number = 1; number <= PIECE_QTY[type]; number++) {
+                        this.allPieces.push(new Piece(color, type, PIECE_QTY[type] === 1 ? 0 : number));
+                    }
                 }
-            }));
+            }
             this.reset(true);
         } else {
             this.round = board.round;
@@ -81,11 +84,11 @@ export default class Board {
             } else {
                 // move to the ground
                 let p2Pref = 0;
-                Board.coordsAround(toX, toY).forEach(([x, y]) => {
+                for (const [x, y] of Board.coordsAround(toX, toY)) {
                     // prefer unique pieces as reference, and to the queen, and pieces not on pile
                     const p = this.getInGamePiece(x, y);
                     if (!p) {
-                        return;
+                        continue;
                     }
                     let pref = 1;
                     if (p.type === QUEEN) {
@@ -101,7 +104,7 @@ export default class Board {
                         p2Pref = pref;
                         p2 = p;
                     }
-                });
+                }
             }
             if (!p2) {
                 ret += " invalid";
@@ -131,7 +134,7 @@ export default class Board {
         this.pieces = this.allPieces.filter(p =>
             // keep only usable pieces. For example, if wasp1 was played, ant1 will never be played, so it is removed
              (!this.standardRules || PIECE_STANDARD[p.type]) && (
-                this.standardRules || PIECE_LINK[p.type] === null || p.inGame ||
+                this.standardRules || PIECE_LINK[p.type] === 0 || p.inGame ||
                 !this.inGamePieces.find(l => // if linked piece is in game, can't play
                     l.type === PIECE_LINK[p.type] && l.number === p.number && l.color === p.color
                 )
@@ -141,29 +144,34 @@ export default class Board {
         this.maxX = null;
         this.minY = null;
         this.maxY = null;
-        this.inGameTopPieces.forEach(p => {
+        for (const p of this.inGameTopPieces) {
             if (this.maxX === null || this.maxX < p.x) this.maxX = p.x;
             if (this.maxY === null || this.maxY < p.y) this.maxY = p.y;
             if (this.maxZ === null || this.maxZ < p.z) this.maxZ = p.z;
             if (this.minX === null || this.minX > p.x) this.minX = p.x;
             if (this.minY === null || this.minY > p.y) this.minY = p.y;
-        });
+        }
+        this.maxX += (this.maxX - this.minX) & 1;
+        const sizeX = ((this.maxX - this.minX) >> 1) + 1;
+        this.#piecesZOver = new Uint32Array(sizeX * (this.maxY - this.minY + 1));
+        for (const p of this.inGameTopPieces) {
+            const offsetX = (p.x - this.minX) >> 1;
+            this.#piecesZOver[sizeX * (p.y - this.minY) + offsetX] = p.z + 1;
+        }
 
         this.queens = this.pieces.filter(p => p.type === QUEEN);
         const notInGame = this.pieces.filter(p => !p.inGame);
         this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type === p.type && p2.color === p.color));
     }
     coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
+        const sizeX = ((this.maxX - this.minX) >> 1) + 1;
         let xyz = Board.coordsAround(cx, cy).map(([x, y]) => {
-            // get all pieces around
-            const piece = this.getInGamePiece(x, y);
-            if (!piece) {
+            if (x < this.minX || x > this.maxX || y < this.minY || y > this.maxY) {
                 return [x, y, -1];
-            } else if (x === ignoreX && y === ignoreY) {
-                return [x, y, piece.z - 1];
-            } else {
-                return [x, y, piece.z];
             }
+            const offsetX = (x - this.minX) >> 1;
+            const z = this.#piecesZOver[sizeX * (y - this.minY) + offsetX] - 1;
+            return x === ignoreX && y === ignoreY ? [x, y, z - 1] : [x, y, z];
         });
         let ret = [];
         for (let i = 1; i <= 6; i++) {
@@ -193,7 +201,7 @@ export default class Board {
         let lastPosition = null;
         let groupsAround = 0;
         let piecesAround = [];
-        Board.coordsAround(x, y).forEach(([ax, ay]) => {
+        for (const [ax, ay] of Board.coordsAround(x, y)) {
             const piece = this.getInGamePiece(ax, ay);
             if (lastPosition === null) {
                 lastPosition = piece;
@@ -205,7 +213,7 @@ export default class Board {
                 piecesAround.push(piece);
             }
             lastPosition = piece;
-        });
+        }
         if (!lastPosition && fistPosition) {
             groupsAround++;
         }
@@ -218,15 +226,15 @@ export default class Board {
         let edges = [piecesAround[0]];
         while (edges.length > 0) {
             let newEdges = [];
-            edges.forEach(edge => {
-                Board.coordsAround(edge.x, edge.y).forEach(([ax, ay]) => {
+            for (const edge of edges) {
+                for (const [ax, ay] of Board.coordsAround(edge.x, edge.y)) {
                     const piece = this.getInGamePiece(ax, ay);
                     if (piece && !marked.find(p => p.id === piece.id)) {
                         marked.push(piece);
                         newEdges.push(piece);
                     }
-                });
-            });
+                }
+            }
             edges = newEdges;
         }
         // true if it cant find piece around nor marked
@@ -240,7 +248,7 @@ export default class Board {
         let lastP = null;
         const colorPlaying = this.getColorPlaying();
         let ret = colorPlaying === BLACK ? "!" : "";
-        this.inGamePieces.forEach(p => {
+        for (const p of this.inGamePieces) {
             if (lastP !== null) {
                 const diff = p.x - lastP.x;
                 if (diff === 0) {
@@ -258,10 +266,10 @@ export default class Board {
                     p.type !== SCORPION &&  // scorpion is never affected
                     this.queens.find(q => q.inGame && q.color === colorPlaying); // only with queen in game to make moves
                 if (checkIfLastMoveMatter) {
-                    Board.coordsAround(p.x, p.y).find(([x, y]) => {
+                    for (const [x, y] of Board.coordsAround(p.x, p.y)) {
                         const p2 = this.getInGamePiece(x, y);
                         if (!p2 || p2.z > 0 || p2.color !== colorPlaying) {
-                            return false;
+                            continue;
                         }
                         const isPillBug = p2.type === PILL_BUG && (this.standardRules || p.type !== p2.type) ||
                             this.standardRules && p2.type === MOSQUITO && Board.coordsAround(p2.x, p2.y).find(([x, y]) => {
@@ -271,7 +279,7 @@ export default class Board {
                         if (isPillBug) {
                             let hasDestiny = false;
                             let validPrey = false;
-                            this.coordsAroundWithNeighbor(p2.x, p2.y).forEach(([x, y, z, z1, z2]) => {
+                            for (const [x, y, z, z1, z2] of this.coordsAroundWithNeighbor(p2.x, p2.y)) {
                                 const noPiece = z < 0;
                                 const isPrey = x === p.x && y === p.y;
                                 const isMovableTarget = noPiece && Board.onHiveAndNoGate(p2.z + 1, z, z1, z2);
@@ -280,7 +288,7 @@ export default class Board {
                                 } else if (isPrey && Board.onHiveAndNoGate(z, p2.z, z1, z2)) {
                                     validPrey = true;
                                 }
-                            });
+                            }
                             addMarker = hasDestiny && validPrey && this.stillOneHiveAfterRemoveOnXY(p.x, p.y);
                         }
                         if ([MANTIS, CENTIPEDE].includes(p2.type)) {
@@ -293,8 +301,10 @@ export default class Board {
                                     this.stillOneHiveAfterRemoveOnXY(p2.x, p2.y);
                             }
                         }
-                        return addMarker;
-                    });
+                        if (addMarker) {
+                            break;
+                        }
+                    }
                 }
                 if (addMarker) {
                     ret += "_";
@@ -302,7 +312,7 @@ export default class Board {
             }
             ret += PIECE_TXT[p.type][p.color === WHITE ? 0 : 1];
             lastP = p;
-        });
+        }
         return ret;
     }
 
@@ -313,10 +323,10 @@ export default class Board {
             this.inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
     }
     computeLegalMoves(canMove, computeOtherSide = false) {
-        this.pieces.forEach(p => {
+        for (const p of this.pieces) {
             p.targetsB = [];
             p.targets = [];
-        });
+        }
         this.passRound = false;
         this.qtyMoves = 0;
         if (this.isQueenDead(WHITE) || this.isQueenDead(BLACK)) {
@@ -326,10 +336,10 @@ export default class Board {
             if (computeOtherSide) {
                 this.#computePiecePlacements(true);
                 this.#computeMoves(true);
-                this.pieces.forEach(p => {
+                for (const p of this.pieces) {
                     p.targetsB = p.targets;
                     p.targets = [];
-                });
+                }
             }
             this.qtyMoves = this.#computePiecePlacements() + this.#computeMoves();
             this.passRound = this.qtyMoves === 0;
@@ -344,11 +354,11 @@ export default class Board {
         if (!this.queens.find(p => p.inGame && p.color === color)) {
             return 0;
         }
-        this.inGameTopPieces.forEach(p => {
+        for (const p of this.inGameTopPieces) {
             if (p.color === color && (otherSide || !this.lastMovedPiecesId.includes(p.id))) {
                 computePieceMoves(p.type, this, p, this.standardRules);
             }
-        });
+        }
         return otherSide ? 0 : this.inGameTopPieces.reduce((qty, p) => qty + p.targets.length, 0);
     }
 
@@ -387,20 +397,20 @@ export default class Board {
     piecePlacement(color, ignore_x = null, ignore_y = null) {
         let visited = [];
         let ret = [];
-        this.inGameTopPieces.forEach(p => {
+        for (const p of this.inGameTopPieces) {
             if (color !== null && p.color !== color || ignore_x === p.x && ignore_y === p.y) {
-                return;
+                continue;
             }
-            Board.coordsAround(p.x, p.y).forEach(([x, y]) => {
+            for (const [x, y] of Board.coordsAround(p.x, p.y)) {
                 // skip if already visited
                 if (visited.find(([rx, ry]) => rx === x && ry === y)) {
-                    return;
+                    continue;
                 }
                 visited.push([x, y]);
 
                 // skip if not empty
                 if (this.getInGamePiece(x, y)) {
-                    return;
+                    continue;
                 }
 
                 // check if empty space has only same color piece around
@@ -414,8 +424,8 @@ export default class Board {
                 if (!differentColorPieceAround) {
                     ret.push([x, y]);
                 }
-            });
-        });
+            }
+        }
         return ret;
     }
     pass() {
@@ -453,9 +463,10 @@ export default class Board {
             callbackMove(p, false);
             p.play(toX, toY, toZ, moveSteps);
         }
-        this.lastMovedPiecesId = [p.id];
-        if (p2 !== null) {
-            this.lastMovedPiecesId.push(p2.id);
+        if (p2 === null) {
+            this.lastMovedPiecesId = new Uint32Array([p.id]);
+        } else {
+            this.lastMovedPiecesId = new Uint32Array([p.id, p2.id]);
         }
         this.round++;
         this.#computePieces();
@@ -513,7 +524,7 @@ export default class Board {
     }
 
     getColorPlaying() {
-        return this.round % 2 === 1 ? WHITE : BLACK;
+        return (this.round & 1) === 1 ? WHITE : BLACK;
     }
     getMoves() {
         this.computeLegalMoves(true);
