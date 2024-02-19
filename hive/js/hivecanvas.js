@@ -172,7 +172,7 @@ export default class HiveCanvas {
         let positionOnHud = 0;
         for (const type of PIECES) {
             positionOnHud++;
-            if (piece.type === type || piece.type === PIECE_LINK[piece.type]) {
+            if ([piece.type, PIECE_LINK[piece.type]].includes(type)) {
                 break;
             }
         }
