@@ -1,6 +1,3 @@
-import Board from "./board.js";
-import {CENTIPEDE, MANTIS, QUEEN} from "./piece.js";
-
 export default class MoveList {
     moves = [];
     totalTime;
