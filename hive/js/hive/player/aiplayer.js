@@ -38,7 +38,7 @@ export default class AIPlayer extends Player {
 
 
     #getMovesSortedByTime() {
-        return this.#moves.map((move, idx) => {
+        return this.#moves.filter(move => move.iterations > 0).map((move, idx) => {
             const moveTxt = this.#board.getMoveNotation(move.pieceId, move.targetCoords, this.#board.round === 1);
             const timeTxt = Math.round(move.time / 100) / 10 + "s";
             const iterTxt = Math.round(move.iterations / 100) / 10 + "k";
@@ -237,14 +237,14 @@ export default class AIPlayer extends Player {
         this.pieceId = null;
         this.target = null;
     }
-    getProgress() {
+    getProgress(complete) {
         const texts = [];
         if (this.#moves) {
             texts.push("Depth: " + this.#evaluationDepth + " / " + MAX_DEPTH);
             texts.push("Iterations: " + this.#getIterations());
             texts.push("Moves: " + this.#evaluatedMoves + " / " + this.#moves.length);
             texts.push("Evaluation: " + this.#getEvaluation());
-            if (this.#evaluationDepth === MAX_DEPTH) {
+            if (complete && this.#evaluationDepth === MAX_DEPTH) {
                 const movesSorted = this.#getMovesSortedByTime();
                 const qty = Math.min(10, movesSorted.length);
                 if (movesSorted.length === qty) {
@@ -297,7 +297,7 @@ export default class AIPlayer extends Player {
         }
         let time = "";
         if (this.#totalTime !== null) {
-            time = " - " + Math.round(this.#totalTime / 1000) + "s";
+            time = " - " + (Math.round(this.#totalTime / 100) / 10) + "s";
         }
         if (this.#iterations < 1000) {
             return this.#iterations + speed + time;

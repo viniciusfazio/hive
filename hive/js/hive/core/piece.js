@@ -104,7 +104,6 @@ export default class Piece {
     y;
     inGame;
     targets;
-    targetsB;
     z;
 
     // constant
@@ -121,13 +120,12 @@ export default class Piece {
         this.number = number;
         this.subNumber = subNumber;
         if (id === null || txt === null) {
-            this.txt = COLOR_TXT[this.color];
-            this.txt += PIECE_TXT[this.type][0];
-            if (this.number > 0) {
-                this.txt += this.number;
-            }
-            if (this.subNumber > 0) {
-                this.txt += "-" + this.subNumber;
+            if (this.subNumber === 0) {
+                this.txt = COLOR_TXT[this.color];
+                this.txt += PIECE_TXT[this.type][0];
+                if (this.number > 0) {
+                    this.txt += this.number;
+                }
             }
             this.id = this.subNumber;
             this.id *= COLORS.length + 1;
@@ -146,7 +144,6 @@ export default class Piece {
         const piece = new Piece(p.color, p.type, p.number, p.subNumber, p.id, p.txt);
         [piece.x, piece.y, piece.z, piece.inGame] = [p.x, p.y, p.z, p.inGame];
         piece.targets = [];
-        piece.targetsB = [];
         return piece;
     }
     insertTarget(x, y, z, moveSteps = []) {
@@ -154,7 +151,7 @@ export default class Piece {
         piece.x = x;
         piece.y = y;
         piece.z = z;
-        piece.moveSteps = [[this.x, this.y, this.z]].concat(moveSteps).concat([[x, y, z]]);
+        piece.moveSteps = [[this.x, this.y, this.z], ...moveSteps, [x, y, z]];
         piece.inGame = true;
         if (!this.targets.find(p => p.x === x && p.y === y)) {
             this.targets.push(piece);
@@ -168,7 +165,6 @@ export default class Piece {
         this.moveSteps = [[this.x, this.y, this.z]];
         this.inGame = false;
         this.targets = [];
-        this.targetsB = [];
     }
     play(x, y, z, moveSteps = []) {
         if (moveSteps.length === 0) {
@@ -180,7 +176,6 @@ export default class Piece {
         this.moveSteps = moveSteps.map(xyz => [...xyz]);
         this.inGame = x !== null;
         this.targets = [];
-        this.targetsB = [];
     }
 }
 

@@ -93,12 +93,12 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
             board.pass();
         }
         // if it is a repeated move, it is already computed
-        const str = depth + board.stringfy();
-        let childEvaluation = visited.get(str);
+        const boardStr = depth + board.stringfy();
+        let childEvaluation = visited.get(boardStr);
         if (typeof childEvaluation === "undefined") {
             // if not, compute it and save it for later
             childEvaluation = alphaBeta(depth + 1, alpha, beta, !maximizing);
-            visited.set(str, childEvaluation);
+            visited.set(boardStr, childEvaluation);
         }
         // undo the move
         if (move !== null) {

@@ -198,11 +198,11 @@ export default class HiveCanvas {
 
         this.#drawTime();
 
-        this.#drawPerformance();
-
         this.#drawEmptySpace();
 
         this.#drawPieces();
+
+        this.#drawGameTexts();
 
         this.#drawCoords();
 
@@ -269,7 +269,7 @@ export default class HiveCanvas {
             this.#drawText(["Click anywhere to pass"], w2, h2, "middle", "center", fh, "rgb(255, 255, 0)");
         }
     }
-    #drawPerformance() {
+    #drawGameTexts() {
         let texts = [];
         let aiPlayer = null;
         if (this.whitePlayer instanceof AIPlayer) {
@@ -278,7 +278,7 @@ export default class HiveCanvas {
             aiPlayer = this.blackPlayer;
         }
         if (aiPlayer !== null) {
-            aiPlayer.getProgress().forEach(t => texts.push(t));
+            aiPlayer.getProgress(this.#debug).forEach(t => texts.push(t));
         }
         if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
             texts.push(this.#framesPerSecond + " FPS");

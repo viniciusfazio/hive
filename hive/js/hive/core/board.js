@@ -139,6 +139,10 @@ export default class Board {
                     l.type === PIECE_LINK[p.type] && l.number === p.number && l.color === p.color
                 )
             ));
+        this.inGameTopPiecesByColor = [[]];
+        for (const color of COLORS) {
+            this.inGameTopPiecesByColor[color] = this.inGameTopPieces.filter(p => p.color === color);
+        }
         this.maxZ = null;
         this.minX = null;
         this.maxX = null;
@@ -242,9 +246,7 @@ export default class Board {
     }
 
     stringfy(onlyLastMovesThatMatter = true) {
-        this.inGamePieces.sort((a, b) =>
-            a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
-
+        this.inGamePieces.sort((a, b) => a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
         let lastP = null;
         const colorPlaying = this.getColorPlaying();
         let ret = colorPlaying === BLACK ? "!" : "";
@@ -322,44 +324,26 @@ export default class Board {
             this.inGameTopPieces.find(p => p.x === x && p.y === y) :
             this.inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
     }
-    computeLegalMoves(canMove, computeOtherSide = false) {
-        for (const p of this.pieces) {
-            p.targetsB = [];
-            p.targets = [];
-        }
+    computeLegalMoves(canMove) {
+        this.pieces.forEach(p => p.targets = []);
         this.passRound = false;
         this.qtyMoves = 0;
         if (this.isQueenDead(WHITE) || this.isQueenDead(BLACK)) {
             return;
         }
         if (canMove) {
-            if (computeOtherSide) {
-                this.#computePiecePlacements(true);
-                this.#computeMoves(true);
-                for (const p of this.pieces) {
-                    p.targetsB = p.targets;
-                    p.targets = [];
-                }
-            }
             this.qtyMoves = this.#computePiecePlacements() + this.#computeMoves();
             this.passRound = this.qtyMoves === 0;
         }
     }
-    #computeMoves(otherSide = false) {
+    #computeMoves() {
         let color = this.getColorPlaying();
-        if (otherSide) {
-            color = color === WHITE ? BLACK : WHITE;
-        }
         // cant move if queen is not in game
         if (!this.queens.find(p => p.inGame && p.color === color)) {
             return 0;
         }
-        for (const p of this.inGameTopPieces) {
-            if (p.color === color && (otherSide || !this.lastMovedPiecesId.includes(p.id))) {
-                computePieceMoves(p.type, this, p, this.standardRules);
-            }
-        }
-        return otherSide ? 0 : this.inGameTopPieces.reduce((qty, p) => qty + p.targets.length, 0);
+        this.inGameTopPiecesByColor[color].forEach(p => computePieceMoves(p.type, this, p, this.standardRules));
+        return this.inGameTopPieces.reduce((qty, p) => qty + p.targets.length, 0);
     }
 
     #computePiecePlacements(otherSide = false) {
@@ -394,11 +378,11 @@ export default class Board {
         positions.forEach(([x, y]) => myHudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
         return positions.length * myHudTopPieces.length;
     }
-    piecePlacement(color, ignore_x = null, ignore_y = null) {
+    piecePlacement(color = null, ignore_x = null, ignore_y = null) {
         let visited = [];
         let ret = [];
-        for (const p of this.inGameTopPieces) {
-            if (color !== null && p.color !== color || ignore_x === p.x && ignore_y === p.y) {
+        for (const p of (color === null ? this.inGameTopPieces : this.inGameTopPiecesByColor[color])) {
+            if (ignore_x === p.x && ignore_y === p.y) {
                 continue;
             }
             for (const [x, y] of Board.coordsAround(p.x, p.y)) {
