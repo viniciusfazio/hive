@@ -394,7 +394,8 @@ function moveAround(board, piece, n = null, color = null) {
             const [fromX, fromY, fromZ] = path[path.length - 1];
             for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(fromX, fromY, piece.x, piece.y)) {
                 // if path repeats, continue
-                if (path.find(([cx, cy,]) => cx === x && cy === y) || visitedInThisStep.find(([cx, cy]) => cx === x && cy === y)) {
+                if (path.find(([cx, cy,]) => cx === x && cy === y) ||
+                    visitedInThisStep.find(([cx, cy]) => cx === x && cy === y)) {
                     continue;
                 }
                 visitedInThisStep.push([x, y]);
@@ -437,9 +438,8 @@ function moveOver(board, piece, n = null, color = null) {
             const [fromX, fromY, fromZ] = path[path.length - 1];
             for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(fromX, fromY, piece.x, piece.y)) {
                 // if path repeats, continue
-                if (visitedEver.find(([cx, cy]) => cx === x && cy === y)) {
-                    continue;
-                } else if (path.find(([cx, cy, ]) => cx === x && cy === y) ||
+                if (visitedEver.find(([cx, cy]) => cx === x && cy === y) ||
+                    path.find(([cx, cy, ]) => cx === x && cy === y) ||
                     visitedInThisStep.find(([cx, cy]) => cx === x && cy === y)) {
                     continue;
                 }
