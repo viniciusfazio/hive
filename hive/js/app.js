@@ -1,8 +1,8 @@
-import HiveCanvas from "./hive/hivecanvas.js";
-import CanvasPlayer from "./hive/player/canvasplayer.js";
-import {BLACK, COLOR_TXT, WHITE} from "./hive/core/piece.js";
-import OnlinePlayer from "./hive/player/onlineplayer.js";
-import AIPlayer from "./hive/player/aiplayer.js";
+import HiveCanvas from "./hivecanvas.js";
+import CanvasPlayer from "./player/canvasplayer.js";
+import {BLACK, COLOR_TXT, WHITE} from "./core/piece.js";
+import OnlinePlayer from "./player/onlineplayer.js";
+import AIPlayer from "./player/aiplayer.js";
 
 const SHORT_ON_TIME = 20; // time to be short on time, in s
 

@@ -107,7 +107,7 @@ export default class AIPlayer extends Player {
         if (this.#workers.length === 0) {
             // create all workers
             for (let i = 0; i < QTY_WORKERS; i++) {
-                const worker = new Worker("js/hive/ai/aiminimax.js", {type: 'module'});
+                const worker = new Worker("js/ai/aiminimax.js", {type: 'module'});
                 worker.onmessage = e => {
                     // the worker responded
                     const msg = e.data;
