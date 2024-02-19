@@ -271,14 +271,16 @@ export default class HiveCanvas {
     }
     #drawGameTexts() {
         let texts = [];
-        let aiPlayer = null;
-        if (this.whitePlayer instanceof AIPlayer) {
-            aiPlayer = this.whitePlayer;
-        } else if (this.blackPlayer instanceof AIPlayer) {
-            aiPlayer = this.blackPlayer;
-        }
-        if (aiPlayer !== null) {
-            aiPlayer.getProgress(this.#debug).forEach(t => texts.push(t));
+        if (this.#debug) {
+            let aiPlayer = null;
+            if (this.whitePlayer instanceof AIPlayer) {
+                aiPlayer = this.whitePlayer;
+            } else if (this.blackPlayer instanceof AIPlayer) {
+                aiPlayer = this.blackPlayer;
+            }
+            if (aiPlayer !== null) {
+                aiPlayer.getProgress(this.#debug).forEach(t => texts.push(t));
+            }
         }
         if (this.#framesPerSecond !== null && this.#framesPerSecond < MIN_FPS) {
             texts.push(this.#framesPerSecond + " FPS");

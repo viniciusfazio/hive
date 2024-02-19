@@ -237,30 +237,28 @@ export default class AIPlayer extends Player {
         this.pieceId = null;
         this.target = null;
     }
-    getProgress(complete) {
+    getProgress() {
         const texts = [];
         if (this.#moves) {
             texts.push("Evaluation: " + this.#getEvaluation());
-            if (complete) {
-                texts.push("Depth: " + this.#evaluationDepth + " / " + MAX_DEPTH);
-                texts.push("Iterations: " + this.#getIterations());
-                texts.push("Moves: " + this.#evaluatedMoves + " / " + this.#moves.length);
-                if (this.#evaluationDepth === MAX_DEPTH) {
-                    const movesSorted = this.#getMovesSortedByTime();
-                    const qty = Math.min(10, movesSorted.length);
-                    if (movesSorted.length === qty) {
-                        texts.push("Moves:");
-                    } else {
-                        texts.push("Fastest moves:");
-                    }
-                    for (let i = 0; i < qty; i++) {
+            texts.push("Depth: " + this.#evaluationDepth + " / " + MAX_DEPTH);
+            texts.push("Iterations: " + this.#getIterations());
+            texts.push("Moves: " + this.#evaluatedMoves + " / " + this.#moves.length);
+            if (this.#evaluationDepth === MAX_DEPTH) {
+                const movesSorted = this.#getMovesSortedByTime();
+                const qty = Math.min(10, movesSorted.length);
+                if (movesSorted.length === qty) {
+                    texts.push("Moves:");
+                } else {
+                    texts.push("Fastest moves:");
+                }
+                for (let i = 0; i < qty; i++) {
+                    texts.push(movesSorted[i]);
+                }
+                if (movesSorted.length > qty) {
+                    texts.push("Slowest moves:");
+                    for (let i = movesSorted.length - qty; i < movesSorted.length; i++) {
                         texts.push(movesSorted[i]);
-                    }
-                    if (movesSorted.length > qty) {
-                        texts.push("Slowest moves:");
-                        for (let i = movesSorted.length - qty; i < movesSorted.length; i++) {
-                            texts.push(movesSorted[i]);
-                        }
                     }
                 }
             }
