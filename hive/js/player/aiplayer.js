@@ -251,9 +251,9 @@ export default class AIPlayer extends Player {
             evaluation = 0;
         } else  if (this.#evaluation === -MAX_EVALUATION) {
             evaluation = -2;
-        } else if (this.#evaluation < -1) {
+        } else if (this.#evaluation < -100) {
             evaluation = -1;
-        } else if (this.#evaluation <= 1) {
+        } else if (this.#evaluation <= 100) {
             evaluation = 0;
         } else if (this.#evaluation < MAX_EVALUATION) {
             evaluation = 1;

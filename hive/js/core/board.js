@@ -193,10 +193,11 @@ export default class Board {
         return onHive && noGate;
     }
 
-    stillOneHiveAfterRemoveOnXY(x, y, levels = 1) {
-        // if not in game of piece is stacked, it is one hive
-        const pCheck = this.getInGamePiece(x, y);
-        if (!pCheck || pCheck.z >= levels) {
+    stillOneHiveAfterRemove(p, levels = 1) {
+        if (!this.getInGamePiece(p.x, p.y)) {
+            return false;
+        }
+        if (p.z >= levels) {
             return true;
         }
 
@@ -205,7 +206,7 @@ export default class Board {
         let lastPosition = null;
         let groupsAround = 0;
         let piecesAround = [];
-        for (const [ax, ay] of Board.coordsAround(x, y)) {
+        for (const [ax, ay] of Board.coordsAround(p.x, p.y)) {
             const piece = this.getInGamePiece(ax, ay);
             if (lastPosition === null) {
                 lastPosition = piece;
@@ -226,7 +227,7 @@ export default class Board {
             return true;
         }
         // try "paint the hive" in an edge. If all pieces around get painted, it is one hive
-        let marked = [pCheck, piecesAround[0]];
+        let marked = [p, piecesAround[0]];
         let edges = [piecesAround[0]];
         while (edges.length > 0) {
             let newEdges = [];
@@ -291,7 +292,7 @@ export default class Board {
                                     validPrey = true;
                                 }
                             }
-                            addMarker = hasDestiny && validPrey && this.stillOneHiveAfterRemoveOnXY(p.x, p.y);
+                            addMarker = hasDestiny && validPrey && this.stillOneHiveAfterRemove(p);
                         }
                         if ([MANTIS, CENTIPEDE].includes(p2.type)) {
                             const hasEmptySpace = this.coordsAroundWithNeighbor(p2.x, p2.y).find(([x, y, , z1, z2]) => {
@@ -299,8 +300,8 @@ export default class Board {
                             });
                             if (hasEmptySpace) {
                                 addMarker = p2.type === MANTIS ?
-                                    this.stillOneHiveAfterRemoveOnXY(p.x, p.y) :
-                                    this.stillOneHiveAfterRemoveOnXY(p2.x, p2.y);
+                                    this.stillOneHiveAfterRemove(p) :
+                                    this.stillOneHiveAfterRemove(p2);
                             }
                         }
                         if (addMarker) {

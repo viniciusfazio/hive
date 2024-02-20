@@ -184,25 +184,25 @@ export default class Piece {
 export function computePieceMoves(pieceType, board, piece, standard) {
     switch (pieceType) {
         case QUEEN:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             move1Around(board, piece);
             break;
         case BEETLE:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             move1(board, piece);
             break;
         case GRASSHOPPER:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             jumpOver(board, piece);
             break;
         case SPIDER:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             moveAround(board, piece, 3);
@@ -211,21 +211,21 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case ANT:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             const otherColor = piece.color === WHITE ? BLACK : WHITE;
             moveAround(board, piece, null, standard ? null : otherColor);
             break;
         case LADYBUG:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             moveOver(board, piece, 3);
             break;
         case MOSQUITO:
             if (piece.z > 0) {
-                if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+                if (!board.stillOneHiveAfterRemove(piece)) {
                     return;
                 }
                 move1(board, piece);
@@ -239,7 +239,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case PILL_BUG:
-            if (board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (board.stillOneHiveAfterRemove(piece)) {
                 move1Around(board, piece);
             }
             // move preys
@@ -261,7 +261,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                     const canMove = standard
                         || ![PILL_BUG, CENTIPEDE, SCORPION].includes(prey.type);
                     const notLastMove = !board.lastMovedPiecesId.includes(prey.id);
-                    if (canMove && notLastMove && board.stillOneHiveAfterRemoveOnXY(prey.x, prey.y)) {
+                    if (canMove && notLastMove && board.stillOneHiveAfterRemove(prey)) {
                         noPieces.forEach(([tx, ty]) => {
                             prey.insertTarget(tx, ty, prey.z, [[piece.x, piece.y, piece.z + 1]]);
                         });
@@ -271,7 +271,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             break;
         case MANTIS:
             if (piece.z > 0) {
-                if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+                if (!board.stillOneHiveAfterRemove(piece)) {
                     return;
                 }
                 move1(board, piece);
@@ -280,14 +280,14 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                     const hasSpace = z === 0 && (z1 < 0 || z2 < 0);
                     const prey = board.getInGamePiece(x, y);
                     const canEat = prey && prey.type !== SCORPION && !board.lastMovedPiecesId.includes(prey.id);
-                    if (canEat && hasSpace && board.stillOneHiveAfterRemoveOnXY(prey.x, prey.y)) {
+                    if (canEat && hasSpace && board.stillOneHiveAfterRemove(prey)) {
                         piece.insertTarget(x, y, z + 1);
                     }
                 }
             }
             break;
         case FLY:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             if (move1Around(board, piece) === 0) {
@@ -295,25 +295,25 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case SCORPION:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             moveAround(board, piece, 3);
             break;
         case WASP:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             fly(board, piece, piece.color === WHITE ? BLACK : WHITE);
             break;
         case COCKROACH:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             moveOver(board, piece, null, piece.color);
             break;
         case DRAGONFLY:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             let around = board.coordsAroundWithNeighbor(piece.x, piece.y);
@@ -337,7 +337,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                     } else {
                         const prey = board.getInGamePiece(piece.x, piece.y, piece.z - 1);
                         const isPrey = prey && prey.type !== DRAGONFLY;
-                        if (isPrey && board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y, 2)) {
+                        if (isPrey && board.stillOneHiveAfterRemove(piece)) {
                             piece.insertTarget(x, y, 0, moveSteps);
                         }
                     }
@@ -345,7 +345,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case CENTIPEDE:
-            if (!board.stillOneHiveAfterRemoveOnXY(piece.x, piece.y)) {
+            if (!board.stillOneHiveAfterRemove(piece)) {
                 return;
             }
             move1Around(board, piece);

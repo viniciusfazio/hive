@@ -110,7 +110,7 @@ function queenEval(board, color) {
     }
 
     const score1 = board.inGameTopPiecesByColor[color].reduce((qty, p) =>
-        board.stillOneHiveAfterRemoveOnXY(p.x, p.y) ? qty + 1 : qty
+        board.stillOneHiveAfterRemove(p) ? qty + 1 : qty
     , 0);
     const score100 =
         hisPiecesAroundHisQueen.length +
