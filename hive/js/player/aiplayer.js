@@ -246,11 +246,10 @@ export default class AIPlayer extends Player {
         this.target = null;
     }
     getEvaluation5Levels() {
-        if (this.#evaluation === null) {
-            return null;
-        }
         let evaluation;
-        if (this.#evaluation === -MAX_EVALUATION) {
+        if (this.#evaluation === null) {
+            evaluation = 0;
+        } else  if (this.#evaluation === -MAX_EVALUATION) {
             evaluation = -2;
         } else if (this.#evaluation < -1) {
             evaluation = -1;
