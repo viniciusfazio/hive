@@ -202,6 +202,8 @@ export default class HiveCanvas {
 
         this.#drawPieces();
 
+        this.#drawAI();
+
         this.#drawGameTexts();
 
         this.#drawCoords();
@@ -268,6 +270,27 @@ export default class HiveCanvas {
             this.ctx.fillRect(0, 0, w2 * 2, h2 * 2);
             this.#drawText(["Click anywhere to pass"], w2, h2, "middle", "center", fh, "rgb(255, 255, 0)");
         }
+    }
+    #drawAI() {
+        if (this.#debug) {
+            return;
+        }
+        let aiPlayer = null;
+        if (this.whitePlayer instanceof AIPlayer) {
+            aiPlayer = this.whitePlayer;
+        } else if (this.blackPlayer instanceof AIPlayer) {
+            aiPlayer = this.blackPlayer;
+        } else {
+            return;
+        }
+        const evaluation = aiPlayer.getEvaluation5Levels();
+        if (evaluation === null) {
+            return;
+        }
+        const [rx, ry, ] = this.getSize();
+        const r = (rx + ry) * 2 / 3;
+        const [x, y] = [this.canvas.width - r, this.getHudHeight() + r];
+        this.#drawImage("ai" + evaluation, r, x, y);
     }
     #drawGameTexts() {
         let texts = [];

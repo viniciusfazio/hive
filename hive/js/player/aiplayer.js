@@ -30,7 +30,8 @@ export default class AIPlayer extends Player {
     #alpha;
     #beta;
 
-    #evaluation;
+    #color;
+    #evaluation = null;
     #evaluationDepth;
     #moves;
     #moveIndex;
@@ -94,6 +95,7 @@ export default class AIPlayer extends Player {
         this.#iterations = 0;
 
         this.#evaluation = null;
+        this.#color = this.#board.getColorPlaying();
         this.#evaluationDepth = 0;
         this.pieceId = null;
         this.target = null;
@@ -141,12 +143,16 @@ export default class AIPlayer extends Player {
                         // saves the evaluation and the move
                         this.#evaluation = msg.evaluation;
                         this.#evaluationDepth = msg.maxDepth;
-                        this.pieceId = move.pieceId;
-                        this.target = move.target;
+                        if (this.#evaluationDepth > 2) {
+                            this.pieceId = move.pieceId;
+                            this.target = move.target;
+                        }
 
                         // updates alpha and beta, and check victory
                         if (maximizing) {
                             if (msg.evaluation === MAX_EVALUATION) {
+                                this.pieceId = move.pieceId;
+                                this.target = move.target;
                                 this.#play();
                                 this.#resetWorkers();
                                 return;
@@ -155,6 +161,8 @@ export default class AIPlayer extends Player {
                             }
                         } else {
                             if (msg.evaluation === -MAX_EVALUATION) {
+                                this.pieceId = move.pieceId;
+                                this.target = move.target;
                                 this.#play();
                                 this.#resetWorkers();
                                 return;
@@ -236,6 +244,24 @@ export default class AIPlayer extends Player {
         this.hive.play(this.pieceId, this.target);
         this.pieceId = null;
         this.target = null;
+    }
+    getEvaluation5Levels() {
+        if (this.#evaluation === null) {
+            return null;
+        }
+        let evaluation;
+        if (this.#evaluation === -MAX_EVALUATION) {
+            evaluation = -2;
+        } else if (this.#evaluation < -1) {
+            evaluation = -1;
+        } else if (this.#evaluation <= 1) {
+            evaluation = 0;
+        } else if (this.#evaluation < MAX_EVALUATION) {
+            evaluation = 1;
+        } else {
+            evaluation = 2;
+        }
+        return this.#color === WHITE ? evaluation : -evaluation;
     }
     getProgress() {
         const texts = [];
