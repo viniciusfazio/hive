@@ -247,7 +247,7 @@ export default class HiveCanvas {
         const ret = [];
         for (const p of this.board.inGameTopPieces) {
             for (const [x, y] of Board.coordsAround(p.x, p.y)) {
-                if (this.board.getZOverWithColor(x, y) === 0 &&
+                if (this.board.getPieceEncoded(x, y) === 0 &&
                     !ret.find(([ex, ey]) => ex === x && ey === y)) {
                     ret.push([x, y]);
                 }

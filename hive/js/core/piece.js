@@ -231,8 +231,8 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 move1(board, piece);
             } else {
                 for (const [x, y] of Board.coordsAround(piece.x, piece.y)) {
-                    const p = board.getInGamePiece(x, y);
-                    if (p && p.type !== MOSQUITO) {
+                    const p = board.getPieceEncoded(x, y);
+                    if (p !== 0 && ((p >> 16) & 0xff) !== MOSQUITO) {
                         computePieceMoves(p.type, board, piece, standard);
                     }
                 }
@@ -319,15 +319,15 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             let around = board.coordsAroundWithNeighbor(piece.x, piece.y);
             for (let i = 1; i <= 6; i++) {
                 const [ix, iy, iz, iz1, iz2] = around[i % 6];
-                const pBelow = board.getInGamePiece(ix, iy);
-                if (pBelow && pBelow.type === SCORPION || !Board.onHiveAndNoGate(piece.z, iz, iz1, iz2)) {
+                const isScorpion = ((board.getPieceEncoded(ix, iy) >> 16) & 0xff) === SCORPION;
+                if (isScorpion || !Board.onHiveAndNoGate(piece.z, iz, iz1, iz2)) {
                     continue;
                 }
                 const moveSteps = [[ix, iy, iz + 1]];
                 const destiny = board.coordsAroundWithNeighbor(ix, iy);
                 for (const [x, y, z, z1, z2] of [destiny[i - 1], destiny[(i + 1) % 6]]) {
-                    const target = board.getInGamePiece(x, y);
-                    if (target && target.type === SCORPION || !Board.onHiveAndNoGate(iz + 1, z, z1, z2)) {
+                    const isScorpion = ((board.getPieceEncoded(x, y) >> 16) & 0xff) === SCORPION;
+                    if (isScorpion || !Board.onHiveAndNoGate(iz + 1, z, z1, z2)) {
                         continue;
                     }
                     const isFromGround = piece.z === 0;
@@ -377,8 +377,7 @@ function move1Around(board, piece) {
 }
 function move1(board, piece) {
     for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(piece.x, piece.y)) {
-        const p = board.getInGamePiece(x, y);
-        const canMoveOver = !p || p.type !== SCORPION;
+        const canMoveOver = ((board.getPieceEncoded(x, y) >> 16) & 0xff) !== SCORPION;
         if (canMoveOver && Board.onHiveAndNoGate(piece.z, z, z1, z2)) {
             piece.insertTarget(x, y, z + 1);
         }
@@ -407,10 +406,9 @@ function moveAround(board, piece, n = null, color = null) {
                         newPath.push([x, y, 0]);
                         newPaths.push(newPath);
                     }
-                    const validColor = color === null || Board.coordsAround(x, y).find(([ax, ay]) => {
-                        const z = board.getZOverWithColor(ax, ay);
-                        return z > 0 && color === WHITE || z < 0 && color === BLACK;
-                    });
+                    const validColor = color === null || Board.coordsAround(x, y).find(([ax, ay]) =>
+                        color === ((board.getPieceEncoded(ax, ay) >> 8) & 0xff)
+                    );
                     const validMoveCount = n === null || path.length === n;
                     if (validColor && validMoveCount) {
                         let moveSteps = path.map(xyz => [...xyz]);
@@ -448,9 +446,9 @@ function moveOver(board, piece, n = null, color = null) {
                 }  else if (path.length > 1) {
                     visitedEver.push([x, y]);
                 }
-                const pBelow = board.getInGamePiece(x, y);
-                const canGoUp = z >= 0 && pBelow && pBelow.type !== SCORPION &&
-                    (color === null || pBelow.color === color);
+                const pBelow = board.getPieceEncoded(x, y);
+                const canGoUp = z >= 0 && ((pBelow >> 16) & 0xff) !== SCORPION &&
+                    (color === null || ((pBelow >> 8) & 0xff) === color);
                 const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
                 if ((canGoUp || canGoDown) && Board.onHiveAndNoGate(fromZ, z, z1, z2)) {
                     // new step with no repetition
@@ -472,14 +470,17 @@ function moveOver(board, piece, n = null, color = null) {
 function jumpOver(board, piece, n = null) {
     // look around
     for (const [dx, dy] of Board.coordsAround(0, 0)) {
-        let pBelow = board.getInGamePiece(piece.x + dx, piece.y + dy);
+        let x = piece.x + dx;
+        let y = piece.y + dy;
+        let pBelow = board.getPieceEncoded(x, y);
         let moveSteps = [];
-        while (pBelow && pBelow.type !== SCORPION) {
-            moveSteps.push([pBelow.x, pBelow.y, pBelow.z + 1]);
-            const [tx, ty] = [pBelow.x + dx, pBelow.y + dy];
-            pBelow = board.getInGamePiece(tx, ty);
-            if (!pBelow) { // found a hole
-                piece.insertTarget(tx, ty, 0, moveSteps);
+        while (pBelow !== 0 && ((pBelow >> 16) & 0xff) !== SCORPION) {
+            moveSteps.push([x, y, pBelow & 0xff]);
+            x += dx;
+            y += dy;
+            pBelow = board.getPieceEncoded(x, y);
+            if (pBelow === 0) { // found a hole
+                piece.insertTarget(x, y, 0, moveSteps);
                 break;
             }
             if (n !== null && --n <= 0) {

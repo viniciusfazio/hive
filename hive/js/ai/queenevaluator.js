@@ -76,37 +76,28 @@ function queenEval(board, color) {
     if (!hisQueen) {
         return 0;
     }
-    let myPieceAboveHisQueen = board.getInGamePiece(hisQueen.x, hisQueen.y);
-    if (myPieceAboveHisQueen.color !== color) {
-        myPieceAboveHisQueen = false;
-    }
+    const myPieceAboveHisQueen = ((board.getPieceEncoded(hisQueen.x, hisQueen.y) >> 8) & 0xff) === color;
     const piecesAroundHisQueen = [];
     for (const [x, y] of Board.coordsAround(hisQueen.x, hisQueen.y)) {
-        const p = board.getInGamePiece(x, y);
-        if (p) {
+        const p = board.getPieceEncoded(x, y);
+        if (p !== 0) {
             piecesAroundHisQueen.push(p);
         }
     }
 
-    const myPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => p.color === color);
+    const myPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => ((p >> 8) & 0xff) === color);
 
-    const hisPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => p.color !== color);
+    const hisPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => ((p >> 8) & 0xff) !== color);
 
-    const pillBugDefense = hisPiecesAroundHisQueen.find(p => p.type === PILL_BUG);
-    const scorpionDefense = hisPiecesAroundHisQueen.find(p => p.type === SCORPION);
+    const pillBugDefense = hisPiecesAroundHisQueen.find(p => ((p >> 16) & 0xff) === PILL_BUG);
+    const scorpionDefense = hisPiecesAroundHisQueen.find(p => ((p >> 16) & 0xff) === SCORPION);
 
     let mosquitoPillBugDefense = false;
     if (board.standardRules) {
-        const mosquito = hisPiecesAroundHisQueen.find(p => p.type === MOSQUITO && p.z === 0);
-        mosquitoPillBugDefense = mosquito && Board.coordsAround(mosquito.x, mosquito.y).find(([x, y]) => {
-            const p = board.getInGamePiece(x, y);
-            return p && p.type === PILL_BUG;
-        });
-    }
-
-    const pieceIdsAroundHisQueen = piecesAroundHisQueen.filter(p => p.z === 0).map(p => p.id);
-    if (myPieceAboveHisQueen) {
-        pieceIdsAroundHisQueen.push(myPieceAboveHisQueen.id);
+        const mosquito = hisPiecesAroundHisQueen.find(p => ((p >> 8) & 0xff) === MOSQUITO && (p & 0xff) === 1);
+        mosquitoPillBugDefense = mosquito && Board.coordsAround(mosquito.x, mosquito.y).find(([x, y]) =>
+            ((board.getPieceEncoded(x, y) >> 16) & 0xff) === PILL_BUG
+        );
     }
 
     const score1 = board.inGameTopPiecesByColor[color].reduce((qty, p) =>

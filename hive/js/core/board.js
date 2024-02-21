@@ -20,7 +20,7 @@ export default class Board {
     inGameTopPieces;
     hudTopPieces;
     passRound;
-    #piecesZOver;
+    #piecesOnBoard;
 
     queens;
     qtyMoves;
@@ -61,7 +61,7 @@ export default class Board {
     isQueenDead(color) {
         const queen = this.queens.find(p => p.inGame && p.color === color);
         return queen &&
-            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => this.getZOverWithColor(x, y) === 0);
+            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => this.getPieceEncoded(x, y) === 0);
     }
 
     getMoveNotation(pieceId, to, firstMove) {
@@ -157,10 +157,10 @@ export default class Board {
         }
         this.maxX += (this.maxX - this.minX) & 1;
         const sizeX = ((this.maxX - this.minX) >> 1) + 1;
-        this.#piecesZOver = new Int32Array(sizeX * (this.maxY - this.minY + 1));
+        this.#piecesOnBoard = new Uint32Array(sizeX * (this.maxY - this.minY + 1));
         for (const p of this.inGameTopPieces) {
             const offsetX = (p.x - this.minX) >> 1;
-            this.#piecesZOver[sizeX * (p.y - this.minY) + offsetX] = p.color === WHITE ? (p.z + 1): -(p.z + 1);
+            this.#piecesOnBoard[sizeX * (p.y - this.minY) + offsetX] = (p.number << 24) | (p.type << 16) | (p.color << 8) | (p.z + 1);
         }
 
         this.queens = this.pieces.filter(p => p.type === QUEEN);
@@ -168,22 +168,22 @@ export default class Board {
         this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type === p.type && p2.color === p.color));
     }
     // return z where 0 is no piece, 1 is white piece on z=0, 2 is white piece on z=1, -1 is black piece on z=0, and so on
-    getZOverWithColor(x, y) {
+    getPieceEncoded(x, y) {
         if (x < this.minX || x > this.maxX || y < this.minY || y > this.maxY) {
             return 0;
         }
         const sizeX = ((this.maxX - this.minX) >> 1) + 1;
         const offsetX = (x - this.minX) >> 1;
-        return this.#piecesZOver[sizeX * (y - this.minY) + offsetX];
+        return this.#piecesOnBoard[sizeX * (y - this.minY) + offsetX];
     }
     coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
         let xyz;
         if (ignoreX !== null && ignoreY !== null) {
             xyz = Board.coordsAround(cx, cy).map(([x, y]) =>
-                [x, y, Math.max(-1, Math.abs(this.getZOverWithColor(x, y)) - (x === ignoreX && y === ignoreY ? 2 : 1))]
+                [x, y, Math.max(-1, (this.getPieceEncoded(x, y) & 0xff) - (x === ignoreX && y === ignoreY ? 2 : 1))]
             );
         } else {
-            xyz = Board.coordsAround(cx, cy).map(([x, y]) => [x, y, Math.abs(this.getZOverWithColor(x, y)) - 1]);
+            xyz = Board.coordsAround(cx, cy).map(([x, y]) => [x, y, (this.getPieceEncoded(x, y) & 0xff) - 1]);
         }
         let ret = [];
         for (let i = 1; i <= 6; i++) {
@@ -201,8 +201,14 @@ export default class Board {
         return onHive && noGate;
     }
 
+    #coordsToXY(x, y) {
+        return ((x - this.minX) << 8) | (y - this.minY);
+    }
+    #XYToCoords(xy) {
+        return [((xy >> 8) & 0xff) + this.minX, (xy & 0xff) + this.minY];
+    }
     stillOneHiveAfterRemove(p, levels = 1) {
-        if (this.getInGamePiece(p.x, p.y).id !== p.id) {
+        if ((this.getPieceEncoded(p.x, p.y) & 0xff) - 1 > p.z) {
             return false;
         }
         if (p.z >= levels) {
@@ -213,21 +219,21 @@ export default class Board {
         let fistPosition = null;
         let lastPosition = null;
         let groupsAround = 0;
-        let piecesAround = [];
+        let coordsWithPieceAround = [];
         for (const [ax, ay] of Board.coordsAround(p.x, p.y)) {
-            const piece = this.getInGamePiece(ax, ay);
+            const piece = this.getPieceEncoded(ax, ay);
             if (lastPosition === null) {
                 lastPosition = piece;
                 fistPosition = piece;
-            } else if (!lastPosition && piece) {
+            } else if (lastPosition === 0 && piece !== 0) {
                 groupsAround++;
             }
-            if (piece) {
-                piecesAround.push(piece);
+            if (piece !== 0) {
+                coordsWithPieceAround.push(this.#coordsToXY(ax, ay));
             }
             lastPosition = piece;
         }
-        if (!lastPosition && fistPosition) {
+        if (lastPosition === 0 && fistPosition !== 0) {
             groupsAround++;
         }
         if (groupsAround <= 1) {
@@ -235,23 +241,26 @@ export default class Board {
             return true;
         }
         // try "paint the hive" in an edge. If all pieces around get painted, it is one hive
-        let marked = [p, piecesAround[0]];
-        let edges = [piecesAround[0]];
+        let marked = [this.#coordsToXY(p.x, p.y), coordsWithPieceAround[0]];
+        let edges = [coordsWithPieceAround[0]];
         while (edges.length > 0) {
             let newEdges = [];
             for (const edge of edges) {
-                for (const [ax, ay] of Board.coordsAround(edge.x, edge.y)) {
-                    const piece = this.getInGamePiece(ax, ay);
-                    if (piece && !marked.find(p => p.id === piece.id)) {
-                        marked.push(piece);
-                        newEdges.push(piece);
+                const [ex, ey] = this.#XYToCoords(edge);
+                for (const [ax, ay] of Board.coordsAround(ex, ey)) {
+                    if (this.getPieceEncoded(ax, ay) !== 0) {
+                        const axy = this.#coordsToXY(ax, ay);
+                        if (!marked.includes(axy)) {
+                            marked.push(axy);
+                            newEdges.push(axy);
+                        }
                     }
                 }
             }
             edges = newEdges;
         }
-        // true if it cant find piece around nor marked
-        return !piecesAround.find(p => !marked.find(p2 => p2.id === p.id));
+        // true if it cant find piece around not marked
+        return !coordsWithPieceAround.find(p => !marked.includes(p));
     }
 
     stringfy(onlyLastMovesThatMatter = true) {
@@ -273,43 +282,42 @@ export default class Board {
                 // only not stacked pieces can be moved
                 const checkIfLastMoveMatter =
                     onlyLastMovesThatMatter &&
-                    p.z === 0 && this.getInGamePiece(p.x, p.y).id === p.id && // only ground pieces matter for last move
+                    p.z === 0 && (this.getPieceEncoded(p.x, p.y) & 0xff) - 1 === p.z && // only ground pieces matter for last move
                     p.type !== SCORPION &&  // scorpion is never affected
                     this.queens.find(q => q.inGame && q.color === colorPlaying); // only with queen in game to make moves
                 if (checkIfLastMoveMatter) {
-                    for (const [x, y] of Board.coordsAround(p.x, p.y)) {
-                        const p2 = this.getInGamePiece(x, y);
-                        if (!p2 || p2.z > 0 || p2.color !== colorPlaying) {
+                    for (const [x2, y2] of Board.coordsAround(p.x, p.y)) {
+                        const p2 = this.getPieceEncoded(x2, y2);
+                        if (p2 === 0 || (p2 & 0xff) > 1 || ((p2 >> 8) & 0xff) !== colorPlaying) {
                             continue;
                         }
-                        const isPillBug = p2.type === PILL_BUG && (this.standardRules || p.type !== p2.type) ||
-                            this.standardRules && p2.type === MOSQUITO && Board.coordsAround(p2.x, p2.y).find(([x, y]) => {
-                                const p3 = this.getInGamePiece(x, y);
-                                return p3 && p3.type === PILL_BUG;
-                            });
+                        const isPillBug = ((p2 >> 16) & 0xff) === PILL_BUG && (this.standardRules || p.type !== ((p2 >> 16) & 0xff)) ||
+                            this.standardRules && ((p2 >> 16) & 0xff) === MOSQUITO && Board.coordsAround(x2, y2).find(([x3, y3]) =>
+                                ((this.getPieceEncoded(x3, y3) >> 16) & 0xff) === PILL_BUG
+                            );
                         if (isPillBug) {
                             let hasDestiny = false;
                             let validPrey = false;
-                            for (const [x, y, z, z1, z2] of this.coordsAroundWithNeighbor(p2.x, p2.y)) {
+                            for (const [x, y, z, z1, z2] of this.coordsAroundWithNeighbor(x2, y2)) {
                                 const noPiece = z < 0;
                                 const isPrey = x === p.x && y === p.y;
-                                const isMovableTarget = noPiece && Board.onHiveAndNoGate(p2.z + 1, z, z1, z2);
+                                const isMovableTarget = noPiece && Board.onHiveAndNoGate((p2 & 0xff), z, z1, z2);
                                 if (isMovableTarget) {
                                     hasDestiny = true;
-                                } else if (isPrey && Board.onHiveAndNoGate(z, p2.z, z1, z2)) {
+                                } else if (isPrey && Board.onHiveAndNoGate(z, (p2 & 0xff) - 1, z1, z2)) {
                                     validPrey = true;
                                 }
                             }
                             addMarker = hasDestiny && validPrey && this.stillOneHiveAfterRemove(p);
                         }
-                        if ([MANTIS, CENTIPEDE].includes(p2.type)) {
-                            const hasEmptySpace = this.coordsAroundWithNeighbor(p2.x, p2.y).find(([x, y, , z1, z2]) => {
+                        if ([MANTIS, CENTIPEDE].includes((p2 >> 16) & 0xff)) {
+                            const hasEmptySpace = this.coordsAroundWithNeighbor(x2, y2).find(([x, y, , z1, z2]) => {
                                 return p.x === x && p.y === y && (z1 < 0 || z2 < 0);
                             });
                             if (hasEmptySpace) {
-                                addMarker = p2.type === MANTIS ?
+                                addMarker = ((p2 >> 16) & 0xff) === MANTIS ?
                                     this.stillOneHiveAfterRemove(p) :
-                                    this.stillOneHiveAfterRemove(p2);
+                                    this.stillOneHiveAfterRemove(this.getInGamePiece(x2, y2));
                             }
                         }
                         if (addMarker) {
@@ -329,15 +337,13 @@ export default class Board {
 
 
     getInGamePiece(x, y, z = null) {
-        const zOver = this.getZOverWithColor(x, y);
-        if (zOver === 0) {
+        const p = this.getPieceEncoded(x, y);
+        if (p === 0) {
             return false;
         } else if (z !== null) {
             return this.inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
-        } else if (zOver > 0) {
-            return this.inGameTopPiecesByColor[WHITE].find(p => p.x === x && p.y === y);
         } else {
-            return this.inGameTopPiecesByColor[BLACK].find(p => p.x === x && p.y === y);
+            return this.inGameTopPiecesByColor[(p >> 8) & 0xff].find(p => p.x === x && p.y === y);
         }
     }
     computeLegalMoves(canMove) {
@@ -362,11 +368,8 @@ export default class Board {
         return this.inGameTopPieces.reduce((qty, p) => qty + p.targets.length, 0);
     }
 
-    #computePiecePlacements(otherSide = false) {
+    #computePiecePlacements() {
         let colorPlaying = this.getColorPlaying();
-        if (otherSide) {
-            colorPlaying = colorPlaying === WHITE ? BLACK : WHITE;
-        }
         let myHudTopPieces = this.hudTopPieces.filter(p => p.color === colorPlaying);
 
         // first and second moves are special cases
@@ -409,17 +412,14 @@ export default class Board {
                 visited.push([x, y]);
 
                 // skip if not empty
-                if (this.getZOverWithColor(x, y) !== 0) {
+                if (this.getPieceEncoded(x, y) !== 0) {
                     continue;
                 }
 
                 // check if empty space has only same color piece around
                 const differentColorPieceAround = color !== null && Board.coordsAround(x, y).find(([x2, y2]) => {
-                    if (ignore_x === x2 && ignore_y === y2) {
-                        return false;
-                    }
-                    const z = this.getZOverWithColor(x2, y2);
-                    return z > 0 && color === BLACK || z < 0 && color === WHITE;
+                    const c = ((this.getPieceEncoded(x2, y2) >> 8) & 0xff);
+                    return (ignore_x !== x2 || ignore_y !== y2) && c !== 0 &&  color !== c;
                 });
                 if (!differentColorPieceAround) {
                     ret.push([x, y]);
