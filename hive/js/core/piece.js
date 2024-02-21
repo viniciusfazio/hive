@@ -337,7 +337,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                     } else {
                         const prey = board.getInGamePiece(piece.x, piece.y, piece.z - 1);
                         const isPrey = prey && prey.type !== DRAGONFLY;
-                        if (isPrey && board.stillOneHiveAfterRemove(piece)) {
+                        if (isPrey && board.stillOneHiveAfterRemove(piece, 2)) {
                             piece.insertTarget(x, y, 0, moveSteps);
                         }
                     }
