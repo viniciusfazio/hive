@@ -233,7 +233,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 for (const [x, y] of Board.coordsAround(piece.x, piece.y)) {
                     const p = board.getPieceEncoded(x, y);
                     if (p !== 0 && ((p >> 16) & 0xff) !== MOSQUITO) {
-                        computePieceMoves(p.type, board, piece, standard);
+                        computePieceMoves(((p >> 16) & 0xff), board, piece, standard);
                     }
                 }
             }
