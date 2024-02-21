@@ -14,8 +14,10 @@ import MoveList, {Move} from "./core/movelist.js";
 import OnlinePlayer from "./player/onlineplayer.js";
 import AIPlayer from "./player/aiplayer.js";
 
-const CAMERA_SPEED = .2;   // between 0 and 1, higher is faster
-const PIECE_SPEED = .15;   // between 0 and 1, higher is faster
+const CAMERA_SPEED = .2;   // between 0 and 1, >0, higher is faster
+const PIECE_TOP_SPEED = .11;// between 0 and 1, >0, the top speed
+const PIECE_POINT_TOP_SPEED = .6;// between 0 and 1, the point where speed is higher
+const PIECE_INITIAL_SPEED = .1;// between 0 and TOP_SPEED, >0, the initial speed
 const UPDATE_IN_MS = 20;   // update frame time. Every speed depends of it
 const REDRAW_IN_MS = 10;   // draw frame time. Affects FPS only
 const MIN_FPS = 40;        // below MIN_FPS, it prints FPS on screen
@@ -91,7 +93,19 @@ export default class HiveCanvas {
 
         // update piece animation
         const inAnimation = this.board.pieces.filter(p => p.transition > 0);
-        inAnimation.forEach(p => p.transition = p.transition < 1e-4 ? 0 : p.transition * (1 - PIECE_SPEED));
+
+        inAnimation.forEach(p => {
+            if (p.transition < 1e-4) {
+                p.transition = 0;
+            } else {
+                // p.transition -= PIECE_SPEED * p.transition;
+                if (p.transition <= PIECE_POINT_TOP_SPEED) {
+                    p.transition -= PIECE_TOP_SPEED * p.transition / PIECE_POINT_TOP_SPEED;
+                } else {
+                    p.transition -= PIECE_INITIAL_SPEED + (1 - p.transition) / (1 - PIECE_POINT_TOP_SPEED) * (PIECE_TOP_SPEED - PIECE_INITIAL_SPEED);
+                }
+            }
+        });
 
         // update camera animation
         this.camera.update();
