@@ -61,7 +61,7 @@ export default class Board {
     isQueenDead(color) {
         const queen = this.queens.find(p => p.inGame && p.color === color);
         return queen &&
-            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => !this.getInGamePiece(x, y));
+            !Board.coordsAround(queen.x, queen.y).find(([x, y]) => this.getZOverWithColor(x, y) === 0);
     }
 
     getMoveNotation(pieceId, to, firstMove) {
@@ -157,26 +157,34 @@ export default class Board {
         }
         this.maxX += (this.maxX - this.minX) & 1;
         const sizeX = ((this.maxX - this.minX) >> 1) + 1;
-        this.#piecesZOver = new Uint32Array(sizeX * (this.maxY - this.minY + 1));
+        this.#piecesZOver = new Int32Array(sizeX * (this.maxY - this.minY + 1));
         for (const p of this.inGameTopPieces) {
             const offsetX = (p.x - this.minX) >> 1;
-            this.#piecesZOver[sizeX * (p.y - this.minY) + offsetX] = p.z + 1;
+            this.#piecesZOver[sizeX * (p.y - this.minY) + offsetX] = p.color === WHITE ? (p.z + 1): -(p.z + 1);
         }
 
         this.queens = this.pieces.filter(p => p.type === QUEEN);
         const notInGame = this.pieces.filter(p => !p.inGame);
         this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type === p.type && p2.color === p.color));
     }
-    coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
+    // return z where 0 is no piece, 1 is white piece on z=0, 2 is white piece on z=1, -1 is black piece on z=0, and so on
+    getZOverWithColor(x, y) {
+        if (x < this.minX || x > this.maxX || y < this.minY || y > this.maxY) {
+            return 0;
+        }
         const sizeX = ((this.maxX - this.minX) >> 1) + 1;
-        let xyz = Board.coordsAround(cx, cy).map(([x, y]) => {
-            if (x < this.minX || x > this.maxX || y < this.minY || y > this.maxY) {
-                return [x, y, -1];
-            }
-            const offsetX = (x - this.minX) >> 1;
-            const z = this.#piecesZOver[sizeX * (y - this.minY) + offsetX] - 1;
-            return x === ignoreX && y === ignoreY ? [x, y, z - 1] : [x, y, z];
-        });
+        const offsetX = (x - this.minX) >> 1;
+        return this.#piecesZOver[sizeX * (y - this.minY) + offsetX];
+    }
+    coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
+        let xyz;
+        if (ignoreX !== null && ignoreY !== null) {
+            xyz = Board.coordsAround(cx, cy).map(([x, y]) =>
+                [x, y, Math.max(-1, Math.abs(this.getZOverWithColor(x, y)) - (x === ignoreX && y === ignoreY ? 2 : 1))]
+            );
+        } else {
+            xyz = Board.coordsAround(cx, cy).map(([x, y]) => [x, y, Math.abs(this.getZOverWithColor(x, y)) - 1]);
+        }
         let ret = [];
         for (let i = 1; i <= 6; i++) {
             // return z level of pieces around
@@ -194,7 +202,7 @@ export default class Board {
     }
 
     stillOneHiveAfterRemove(p, levels = 1) {
-        if (!this.getInGamePiece(p.x, p.y)) {
+        if (this.getInGamePiece(p.x, p.y).id !== p.id) {
             return false;
         }
         if (p.z >= levels) {
@@ -321,9 +329,16 @@ export default class Board {
 
 
     getInGamePiece(x, y, z = null) {
-        return z === null ?
-            this.inGameTopPieces.find(p => p.x === x && p.y === y) :
-            this.inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
+        const zOver = this.getZOverWithColor(x, y);
+        if (zOver === 0) {
+            return false;
+        } else if (z !== null) {
+            return this.inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
+        } else if (zOver > 0) {
+            return this.inGameTopPiecesByColor[WHITE].find(p => p.x === x && p.y === y);
+        } else {
+            return this.inGameTopPiecesByColor[BLACK].find(p => p.x === x && p.y === y);
+        }
     }
     computeLegalMoves(canMove) {
         this.pieces.forEach(p => p.targets = []);
@@ -394,7 +409,7 @@ export default class Board {
                 visited.push([x, y]);
 
                 // skip if not empty
-                if (this.getInGamePiece(x, y)) {
+                if (this.getZOverWithColor(x, y) !== 0) {
                     continue;
                 }
 
@@ -403,8 +418,8 @@ export default class Board {
                     if (ignore_x === x2 && ignore_y === y2) {
                         return false;
                     }
-                    const p = this.getInGamePiece(x2, y2);
-                    return p && p.color !== color;
+                    const z = this.getZOverWithColor(x2, y2);
+                    return z > 0 && color === BLACK || z < 0 && color === WHITE;
                 });
                 if (!differentColorPieceAround) {
                     ret.push([x, y]);

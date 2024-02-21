@@ -243,21 +243,20 @@ export default class HiveCanvas {
             this.ctx.stroke(path);
         }
     }
-    *#getEmptySpaces() {
-        const emptyDrawn = [];
+    #getEmptySpaces() {
+        const ret = [];
         for (const p of this.board.inGameTopPieces) {
             for (const [x, y] of Board.coordsAround(p.x, p.y)) {
-                if (!this.board.getInGamePiece(x, y) &&
-                    !emptyDrawn.find(([ex, ey]) => ex === x && ey === y)) {
-                    emptyDrawn.push([x, y]);
-                    yield [x, y];
+                if (this.board.getZOverWithColor(x, y) === 0 &&
+                    !ret.find(([ex, ey]) => ex === x && ey === y)) {
+                    ret.push([x, y]);
                 }
             }
         }
-        if (emptyDrawn.length === 0) {
-            yield [0, 0];
+        if (ret.length === 0) {
+            ret.push([0, 0]);
         }
-
+        return ret;
     }
     #drawCoords() {
         if (this.#coords) {

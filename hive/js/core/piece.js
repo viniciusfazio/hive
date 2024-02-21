@@ -408,8 +408,8 @@ function moveAround(board, piece, n = null, color = null) {
                         newPaths.push(newPath);
                     }
                     const validColor = color === null || Board.coordsAround(x, y).find(([ax, ay]) => {
-                        const p = board.getInGamePiece(ax, ay);
-                        return p && p.color === color;
+                        const z = board.getZOverWithColor(ax, ay);
+                        return z > 0 && color === WHITE || z < 0 && color === BLACK;
                     });
                     const validMoveCount = n === null || path.length === n;
                     if (validColor && validMoveCount) {
