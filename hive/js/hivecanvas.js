@@ -97,13 +97,10 @@ export default class HiveCanvas {
         inAnimation.forEach(p => {
             if (p.transition < 1e-4) {
                 p.transition = 0;
+            } else if (p.transition <= PIECE_POINT_TOP_SPEED) {
+                p.transition -= PIECE_TOP_SPEED * p.transition / PIECE_POINT_TOP_SPEED;
             } else {
-                // p.transition -= PIECE_SPEED * p.transition;
-                if (p.transition <= PIECE_POINT_TOP_SPEED) {
-                    p.transition -= PIECE_TOP_SPEED * p.transition / PIECE_POINT_TOP_SPEED;
-                } else {
-                    p.transition -= PIECE_INITIAL_SPEED + (1 - p.transition) / (1 - PIECE_POINT_TOP_SPEED) * (PIECE_TOP_SPEED - PIECE_INITIAL_SPEED);
-                }
+                p.transition -= PIECE_INITIAL_SPEED + (PIECE_TOP_SPEED - PIECE_INITIAL_SPEED) * (1 - p.transition) / (1 - PIECE_POINT_TOP_SPEED);
             }
         });
 
@@ -1146,6 +1143,10 @@ class Camera {
             this.x += diffX;
             this.y += diffY;
             this.scale += diffScale;
+        } else {
+            this.x = this.#toX;
+            this.y = this.#toY;
+            this.scale = this.#toScale;
         }
     }
 }
