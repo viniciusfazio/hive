@@ -201,10 +201,10 @@ export default class Board {
         return onHive && noGate;
     }
 
-    #coordsToXY(x, y) {
+    coordsToXY(x, y) {
         return ((x - this.minX) << 8) | (y - this.minY);
     }
-    #XYToCoords(xy) {
+    XYToCoords(xy) {
         return [((xy >> 8) & 0xff) + this.minX, (xy & 0xff) + this.minY];
     }
     stillOneHiveAfterRemove(p, levels = 1) {
@@ -229,7 +229,7 @@ export default class Board {
                 groupsAround++;
             }
             if (piece !== 0) {
-                coordsWithPieceAround.push(this.#coordsToXY(ax, ay));
+                coordsWithPieceAround.push(this.coordsToXY(ax, ay));
             }
             lastPosition = piece;
         }
@@ -241,15 +241,15 @@ export default class Board {
             return true;
         }
         // try "paint the hive" in an edge. If all pieces around get painted, it is one hive
-        let marked = [this.#coordsToXY(p.x, p.y), coordsWithPieceAround[0]];
+        let marked = [this.coordsToXY(p.x, p.y), coordsWithPieceAround[0]];
         let edges = [coordsWithPieceAround[0]];
         while (edges.length > 0) {
             let newEdges = [];
             for (const edge of edges) {
-                const [ex, ey] = this.#XYToCoords(edge);
+                const [ex, ey] = this.XYToCoords(edge);
                 for (const [ax, ay] of Board.coordsAround(ex, ey)) {
                     if (this.getPieceEncoded(ax, ay) !== 0) {
-                        const axy = this.#coordsToXY(ax, ay);
+                        const axy = this.coordsToXY(ax, ay);
                         if (!marked.includes(axy)) {
                             marked.push(axy);
                             newEdges.push(axy);

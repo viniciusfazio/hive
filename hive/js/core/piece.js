@@ -393,11 +393,11 @@ function moveAround(board, piece, n = null, color = null) {
             const [fromX, fromY, fromZ] = path[path.length - 1];
             for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(fromX, fromY, piece.x, piece.y)) {
                 // if path repeats, continue
-                if (path.find(([cx, cy,]) => cx === x && cy === y) ||
-                    visitedInThisStep.find(([cx, cy]) => cx === x && cy === y)) {
+                const xy = board.coordsToXY(x, y);
+                if (visitedInThisStep.includes(xy) || path.find(([cx, cy,]) => cx === x && cy === y)) {
                     continue;
                 }
-                visitedInThisStep.push([x, y]);
+                visitedInThisStep.push(xy);
                 const noPiece = z < 0;
                 if (noPiece && Board.onHiveAndNoGate(fromZ, z, z1, z2)) {
                     // new step with no repetition
@@ -436,15 +436,16 @@ function moveOver(board, piece, n = null, color = null) {
             const [fromX, fromY, fromZ] = path[path.length - 1];
             for (const [x, y, z, z1, z2] of board.coordsAroundWithNeighbor(fromX, fromY, piece.x, piece.y)) {
                 // if path repeats, continue
-                if (visitedEver.find(([cx, cy]) => cx === x && cy === y) ||
-                    path.find(([cx, cy, ]) => cx === x && cy === y) ||
-                    visitedInThisStep.find(([cx, cy]) => cx === x && cy === y)) {
+                const xy = board.coordsToXY(x, y);
+                if (visitedEver.includes(xy) ||
+                    visitedInThisStep.includes(xy) ||
+                    path.find(([cx, cy, ]) => cx === x && cy === y)) {
                     continue;
                 }
                 if (n !== null) {
-                    visitedInThisStep.push([x, y]);
+                    visitedInThisStep.push(xy);
                 }  else if (path.length > 1) {
-                    visitedEver.push([x, y]);
+                    visitedEver.push(xy);
                 }
                 const pBelow = board.getPieceEncoded(x, y);
                 const canGoUp = z >= 0 && ((pBelow >> 16) & 0xff) !== SCORPION &&
