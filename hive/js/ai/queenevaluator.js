@@ -85,7 +85,7 @@ function queenEval(board, color) {
         }
     }
 
-    const myPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => ((p >> 8) & 0xff) === color);
+    const qtyMyPiecesAroundHisQueen = piecesAroundHisQueen.reduce((qty, p) => ((p >> 8) & 0xff) === color ? qty + 1 : qty, 0);
 
     const hisPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => ((p >> 8) & 0xff) !== color);
 
@@ -106,7 +106,7 @@ function queenEval(board, color) {
     const score100 =
         hisPiecesAroundHisQueen.length +
         (myPieceAboveHisQueen ? 2 : 0) +
-        myPiecesAroundHisQueen.length * 2 +
+        qtyMyPiecesAroundHisQueen * 2 +
         (pillBugDefense ? -1 : 0) +
         (scorpionDefense ? -1 : 0) +
         (mosquitoPillBugDefense ? -1 : 0) +

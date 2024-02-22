@@ -16,11 +16,10 @@ export default class Board {
     allPieces;
 
     pieces;
-    inGamePieces;
+    #inGamePieces;
     inGameTopPieces;
-    hudTopPieces;
-    passRound;
     #piecesOnBoard;
+    passRound;
 
     queens;
     qtyMoves;
@@ -129,13 +128,13 @@ export default class Board {
         return ret;
     }
     #computePieces() {
-        this.inGamePieces = this.allPieces.filter(p => p.inGame);
-        this.inGameTopPieces = this.inGamePieces.filter(p => !this.inGamePieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
+        this.#inGamePieces = this.allPieces.filter(p => p.inGame);
+        this.inGameTopPieces = this.#inGamePieces.filter(p => !this.#inGamePieces.find(p2 => p2.z > p.z && p2.x === p.x && p2.y === p.y));
         this.pieces = this.allPieces.filter(p =>
             // keep only usable pieces. For example, if wasp1 was played, ant1 will never be played, so it is removed
              (!this.standardRules || PIECE_STANDARD[p.type]) && (
                 this.standardRules || PIECE_LINK[p.type] === 0 || p.inGame ||
-                !this.inGamePieces.find(l => // if linked piece is in game, can't play
+                !this.#inGamePieces.find(l => // if linked piece is in game, can't play
                     l.type === PIECE_LINK[p.type] && l.number === p.number && l.color === p.color
                 )
             ));
@@ -164,8 +163,7 @@ export default class Board {
         }
 
         this.queens = this.pieces.filter(p => p.type === QUEEN);
-        const notInGame = this.pieces.filter(p => !p.inGame);
-        this.hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type === p.type && p2.color === p.color));
+
     }
     // return z where 0 is no piece, 1 is white piece on z=0, 2 is white piece on z=1, -1 is black piece on z=0, and so on
     getPieceEncoded(x, y) {
@@ -202,10 +200,10 @@ export default class Board {
     }
 
     coordsToXY(x, y) {
-        return ((x - this.minX) << 8) | (y - this.minY);
+        return ((x - this.minX + 2) << 8) | (y - this.minY + 1);
     }
     XYToCoords(xy) {
-        return [((xy >> 8) & 0xff) + this.minX, (xy & 0xff) + this.minY];
+        return [((xy >> 8) & 0xff) + this.minX - 2, (xy & 0xff) + this.minY - 1];
     }
     stillOneHiveAfterRemove(p, levels = 1) {
         if ((this.getPieceEncoded(p.x, p.y) & 0xff) - 1 > p.z) {
@@ -264,11 +262,11 @@ export default class Board {
     }
 
     stringfy(onlyLastMovesThatMatter = true) {
-        this.inGamePieces.sort((a, b) => a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
+        this.#inGamePieces.sort((a, b) => a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
         let lastP = null;
         const colorPlaying = this.getColorPlaying();
         let ret = colorPlaying === BLACK ? "!" : "";
-        for (const p of this.inGamePieces) {
+        for (const p of this.#inGamePieces) {
             if (lastP !== null) {
                 const diff = p.x - lastP.x;
                 if (diff === 0) {
@@ -341,7 +339,7 @@ export default class Board {
         if (p === 0) {
             return false;
         } else if (z !== null) {
-            return this.inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
+            return this.#inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
         } else {
             return this.inGameTopPiecesByColor[(p >> 8) & 0xff].find(p => p.x === x && p.y === y);
         }
@@ -370,33 +368,35 @@ export default class Board {
 
     #computePiecePlacements() {
         let colorPlaying = this.getColorPlaying();
-        let myHudTopPieces = this.hudTopPieces.filter(p => p.color === colorPlaying);
+        const notInGame = this.pieces.filter(p => !p.inGame && p.color === colorPlaying);
+        let hudTopPieces = notInGame.filter(p => !notInGame.find(p2 => p2.z > p.z && p2.type === p.type));
 
         // first and second moves are special cases
         if (this.round === 1) {
-            myHudTopPieces.forEach(p => p.insertTarget(0, 0, 0));
-            return myHudTopPieces.length;
+            hudTopPieces.forEach(p => p.insertTarget(0, 0, 0));
+            return hudTopPieces.length;
         }
         if (this.round === 2) {
-            Board.coordsAround(0, 0).forEach(([x, y]) => myHudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
-            return 6 * myHudTopPieces.length;
+            Board.coordsAround(0, 0).forEach(([x, y]) => hudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
+            return 6 * hudTopPieces.length;
         }
 
-        if (myHudTopPieces.length === 0) {
+        if (hudTopPieces.length === 0) {
             return 0;
         }
 
         // must place queen in 4th move
         if (this.round === 7 || this.round === 8) {
-            const queen = myHudTopPieces.find(p => p.type === QUEEN);
+            const queen = hudTopPieces.find(p => p.type === QUEEN);
             if (queen) {
-                myHudTopPieces = [queen];
+                hudTopPieces = [queen];
             }
         }
         const positions = this.piecePlacement(colorPlaying);
-        positions.forEach(([x, y]) => myHudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
-        return positions.length * myHudTopPieces.length;
+        positions.forEach(([x, y]) => hudTopPieces.forEach(p => p.insertTarget(x, y, 0)));
+        return positions.length * hudTopPieces.length;
     }
+
     piecePlacement(color = null, ignore_x = null, ignore_y = null) {
         let visited = [];
         let ret = [];
@@ -406,10 +406,11 @@ export default class Board {
             }
             for (const [x, y] of Board.coordsAround(p.x, p.y)) {
                 // skip if already visited
-                if (visited.find(([rx, ry]) => rx === x && ry === y)) {
+                const xy = this.coordsToXY(x, y);
+                if (visited.includes(xy)) {
                     continue;
                 }
-                visited.push([x, y]);
+                visited.push(xy);
 
                 // skip if not empty
                 if (this.getPieceEncoded(x, y) !== 0) {
@@ -417,11 +418,10 @@ export default class Board {
                 }
 
                 // check if empty space has only same color piece around
-                const differentColorPieceAround = color !== null && Board.coordsAround(x, y).find(([x2, y2]) => {
-                    const c = ((this.getPieceEncoded(x2, y2) >> 8) & 0xff);
-                    return (ignore_x !== x2 || ignore_y !== y2) && c !== 0 &&  color !== c;
-                });
-                if (!differentColorPieceAround) {
+                const differentColorAround = color !== null && Board.coordsAround(x, y).find(([x2, y2]) =>
+                    (ignore_x !== x2 || ignore_y !== y2) && ![0, color].includes(((this.getPieceEncoded(x2, y2) >> 8) & 0xff))
+                );
+                if (!differentColorAround) {
                     ret.push([x, y]);
                 }
             }
@@ -443,7 +443,7 @@ export default class Board {
         let p2 = null;
         if (p.type === MANTIS && fromZ === 0 && fromX !== null && fromY !== null && toZ === 1) {
             // mantis special move
-            p2 = this.getInGamePiece(toX, toY, 0);
+            p2 = this.getInGamePiece(toX, toY);
             callbackMove(p2, true);
             p2.play(fromX, fromY, 0);
             p.play(fromX, fromY, 1);
@@ -455,7 +455,7 @@ export default class Board {
             p.play(toX, toY, 1);
         } else if (fromX !== null && fromY !== null && p.type === CENTIPEDE && toZ > 0) {
             // centipede special move
-            p2 = this.getInGamePiece(toX, toY, 0);
+            p2 = this.getInGamePiece(toX, toY);
             callbackMove(p2, true);
             p2.play(fromX, fromY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [fromX, fromY, 0]]);
             p.play(toX, toY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [toX, toY, 0]]);
@@ -490,7 +490,7 @@ export default class Board {
             p.play(fromX, fromY, fromZ);
         } else if (p.type === CENTIPEDE && toZ > 0) {
             // centipede special move
-            p2 = this.getInGamePiece(fromX, fromY, 0);
+            p2 = this.getInGamePiece(fromX, fromY);
             callbackMove(p2, true);
             p2.play(toX, toY, 0, [[p2.x, p2.y, p2.z], [toX, toY, 0], [toX, toY, 0]]);
             p.play(fromX, fromY, 0, [[p.x, p.y, p.z], [toX, toY, 1], [fromX, fromY, 0]]);
