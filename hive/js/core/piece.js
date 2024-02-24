@@ -182,7 +182,7 @@ export default class Piece {
 
 
 export function computePieceMoves(pieceType, board, piece, standard) {
-    if (pieceType !== PILL_BUG && board.lastMovedPiecesId.includes(piece.id)) {
+    if (pieceType !== PILL_BUG && (!standard || pieceType !== MOSQUITO) && board.lastMovedPiecesId.includes(piece.id)) {
         return;
     }
     switch (pieceType) {
@@ -228,7 +228,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             break;
         case MOSQUITO:
             if (piece.z > 0) {
-                if (!board.stillOneHiveAfterRemove(piece)) {
+                if (!board.lastMovedPiecesId.includes(piece.id) && !board.stillOneHiveAfterRemove(piece)) {
                     return;
                 }
                 move1(board, piece);
