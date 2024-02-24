@@ -182,7 +182,7 @@ export default class Piece {
 
 
 export function computePieceMoves(pieceType, board, piece, standard) {
-    if (board.lastMovedPiecesId.includes(piece.id)) {
+    if (pieceType !== PILL_BUG && board.lastMovedPiecesId.includes(piece.id)) {
         return;
     }
     switch (pieceType) {
@@ -242,7 +242,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
             }
             break;
         case PILL_BUG:
-            if (board.stillOneHiveAfterRemove(piece)) {
+            if (!board.lastMovedPiecesId.includes(piece.id) && board.stillOneHiveAfterRemove(piece)) {
                 move1Around(board, piece);
             }
             // move preys
@@ -261,10 +261,8 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 }
                 for (const [x, y] of preys) {
                     const prey = board.getInGamePiece(x, y);
-                    const canMove = standard
-                        || ![PILL_BUG, CENTIPEDE, SCORPION].includes(prey.type);
-                    const notLastMove = !board.lastMovedPiecesId.includes(prey.id);
-                    if (canMove && notLastMove && board.stillOneHiveAfterRemove(prey)) {
+                    const canMove = standard || ![PILL_BUG, CENTIPEDE, SCORPION].includes(prey.type);
+                    if (canMove && !board.lastMovedPiecesId.includes(prey.id) && board.stillOneHiveAfterRemove(prey)) {
                         noPieces.forEach(([tx, ty]) => {
                             prey.insertTarget(tx, ty, prey.z, [[piece.x, piece.y, piece.z + 1]]);
                         });
