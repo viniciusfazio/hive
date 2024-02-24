@@ -426,7 +426,10 @@ function localCallbacks() {
                 } else {
                     $("#move-list > ul > li.round-" + (hive.board.round + 1)).remove();
                 }
-                if (hive.getPlayerPlaying() instanceof AIPlayer) {
+                if (hive.gameOver) {
+                    hive.undo();
+                    hive.undo();
+                } else if (hive.getPlayerPlaying() instanceof AIPlayer) {
                     hive.undo();
                 } else {
                     updateMoveList(hive.board.round, 0);
@@ -454,7 +457,7 @@ function localCallbacks() {
             gameOver();
         },
         setGameOver: (gameOver, isOnline) => {
-            if (gameOver || isOnline) {
+            if (isOnline) {
                 $("#undo").addClass("d-none");
             } else {
                 $("#undo").removeClass("d-none");

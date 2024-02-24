@@ -76,7 +76,7 @@ function queenEval(board, color) {
     if (!hisQueen) {
         return 0;
     }
-    const myPieceAboveHisQueen = ((board.getPieceEncoded(hisQueen.x, hisQueen.y) >> 8) & 0xff) === color;
+    const hisQueenCanMove = board.stillOneHiveAfterRemove(hisQueen);
     const piecesAroundHisQueen = [];
     for (const [x, y] of Board.coordsAround(hisQueen.x, hisQueen.y)) {
         const p = board.getPieceEncoded(x, y);
@@ -100,19 +100,18 @@ function queenEval(board, color) {
         );
     }
 
-    const score1 = board.inGameTopPiecesByColor[color].reduce((qty, p) =>
-        board.stillOneHiveAfterRemove(p) ? qty + 1 : qty
-    , 0);
+    const score1 = board.inGameTopPiecesByColor[color].reduce((s, p) => board.stillOneHiveAfterRemove(p) ? s + 1 : s, 0);
     const score100 =
         hisPiecesAroundHisQueen.length +
-        (myPieceAboveHisQueen ? 2 : 0) +
+        (hisQueenCanMove ? 0 : 2) +
         qtyMyPiecesAroundHisQueen * 2 +
-        (pillBugDefense ? -1 : 0) +
-        (scorpionDefense ? -1 : 0) +
-        (mosquitoPillBugDefense ? -1 : 0) +
         (board.getColorPlaying() === color ? 1 : 0);
+    const score25 =
+        (pillBugDefense ? -2 : 0) +
+        (mosquitoPillBugDefense ? -1 : 0) +
+        (scorpionDefense ? -1 : 0);
 
-    return score100 * 100 + score1;
+    return score100 * 100 + score25 * 25 + score1;
 }
 
 const PRIORITY = [

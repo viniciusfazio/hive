@@ -442,16 +442,16 @@ function moveOver(board, piece, n = null, color = null) {
                     path.find(([cx, cy, ]) => cx === x && cy === y)) {
                     continue;
                 }
-                if (n !== null) {
-                    visitedInThisStep.push(xy);
-                }  else if (path.length > 1) {
-                    visitedEver.push(xy);
-                }
                 const pBelow = board.getPieceEncoded(x, y);
                 const canGoUp = z >= 0 && ((pBelow >> 16) & 0xff) !== SCORPION &&
                     (color === null || ((pBelow >> 8) & 0xff) === color);
                 const canGoDown = z < 0 && path.length > 1 && (n === null || path.length === n);
                 if ((canGoUp || canGoDown) && Board.onHiveAndNoGate(fromZ, z, z1, z2)) {
+                    if (n !== null) {
+                        visitedInThisStep.push(xy);
+                    }  else if (path.length > 1) {
+                        visitedEver.push(xy);
+                    }
                     // new step with no repetition
                     if (canGoUp) {
                         let newPath = path.map(xyz => [...xyz]);

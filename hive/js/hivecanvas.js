@@ -991,6 +991,7 @@ export default class HiveCanvas {
         if (this.moveLists.length !== 1 || moveList.moves.length === 0) {
             this.#callbacks.undo(false);
         } else {
+            this.gameOver = false;
             this.getPlayerPlaying().reset();
             this.#goTo(moveList.moves.length, (p, ) => p.transition = 1, 0);
             moveList.removeMove();
