@@ -397,9 +397,9 @@ function moveAround(board, piece, n = null, color = null) {
                 if (visitedInThisStep.includes(xy) || path.find(([cx, cy,]) => cx === x && cy === y)) {
                     continue;
                 }
-                visitedInThisStep.push(xy);
                 const noPiece = z < 0;
                 if (noPiece && Board.onHiveAndNoGate(fromZ, z, z1, z2)) {
+                    visitedInThisStep.push(xy);
                     // new step with no repetition
                     if (n === null || path.length < n) {
                         let newPath = [...path];
