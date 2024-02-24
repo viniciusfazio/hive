@@ -182,6 +182,9 @@ export default class Piece {
 
 
 export function computePieceMoves(pieceType, board, piece, standard) {
+    if (board.lastMovedPiecesId.includes(piece.id)) {
+        return;
+    }
     switch (pieceType) {
         case QUEEN:
             if (!board.stillOneHiveAfterRemove(piece)) {
