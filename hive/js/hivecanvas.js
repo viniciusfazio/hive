@@ -124,7 +124,7 @@ export default class HiveCanvas {
         this.whitePlayer.reset();
         this.blackPlayer.reset();
         this.camera.reset();
-        this.setGameOver(false);
+        this.gameOver = false;
         this.standardRules = standardRules;
         this.flippedPieces = false;
         this.board.reset(standardRules);
@@ -137,7 +137,6 @@ export default class HiveCanvas {
     }
     setGameOver(gameOver) {
         this.gameOver = gameOver;
-        this.#callbacks.setGameOver(gameOver, this.whitePlayer instanceof OnlinePlayer || this.blackPlayer instanceof OnlinePlayer);
     }
     getPieceZ(piece) {
         if (piece.transition === 0) {
@@ -285,22 +284,34 @@ export default class HiveCanvas {
         if (this.#debug) {
             return;
         }
-        let aiPlayer = null;
-        if (this.whitePlayer instanceof AIPlayer) {
-            aiPlayer = this.whitePlayer;
-        } else if (this.blackPlayer instanceof AIPlayer) {
-            aiPlayer = this.blackPlayer;
-        } else {
-            return;
+        let white = this.whitePlayer instanceof AIPlayer;
+        let black = this.blackPlayer instanceof AIPlayer;
+        if (black) {
+            this.#drawAIImage(this.blackPlayer, "bai", white && black, false);
         }
+        if (white) {
+            this.#drawAIImage(this.whitePlayer, "wai", white && black, true);
+        }
+    }
+    #drawAIImage(aiPlayer, imagePrefix, both, white) {
         const evaluation = aiPlayer.getEvaluation5Levels();
         if (evaluation === null) {
             return;
         }
-        const [rx, ry, ] = this.getSize();
-        const r = (rx + ry) * 2 / 3;
-        const [x, y] = [this.canvas.width - r, this.getHudHeight() + r];
-        this.#drawImage("ai" + evaluation, r, x, y);
+        const [rx, ry, ] = this.getSize(1);
+        let r = (rx + ry) * 2 / 3;
+        let offset = r;
+        if (both) {
+            r *= .7;
+            if (white) {
+                offset = 3 * r;
+            } else {
+                offset = r;
+            }
+        }
+
+        const [x, y] = [this.canvas.width - offset, this.getHudHeight() + r];
+        this.#drawImage(imagePrefix + evaluation, r, x, y);
     }
     #drawGameTexts() {
         let texts = [];
@@ -865,7 +876,7 @@ export default class HiveCanvas {
         const lastMove = moveList.moves[moveList.moves.length - 1];
         const moveText = (this.board.round - 1) + ". " + Move.notation(lastMove, this.board, this.#shortOnTime);
         this.#callbacks.move(this.board.round, moveText, this.currentMoveListId);
-        this.setGameOver(this.gameOver || lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout);
+        this.gameOver = this.gameOver || lastMove.whiteLoses || lastMove.blackLoses || lastMove.draw || lastMove.resign || lastMove.timeout;
         this.#initRound(notifyOnlinePlayer);
     }
     pass(time = null) {

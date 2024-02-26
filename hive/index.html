@@ -26,11 +26,16 @@
     <link rel="icon" type="image/png" href="img/q.png" />
 </head>
 <body class="d-none">
-    <img src="img/ai-2.png" class="d-none" alt="ant" id="ai-2"/>
-    <img src="img/ai-1.png" class="d-none" alt="ant" id="ai-1"/>
-    <img src="img/ai0.png" class="d-none" alt="ant" id="ai0"/>
-    <img src="img/ai1.png" class="d-none" alt="ant" id="ai1"/>
-    <img src="img/ai2.png" class="d-none" alt="ant" id="ai2"/>
+    <img src="img/bai-2.png" class="d-none" alt="ant" id="bai-2"/>
+    <img src="img/bai-1.png" class="d-none" alt="ant" id="bai-1"/>
+    <img src="img/bai0.png" class="d-none" alt="ant" id="bai0"/>
+    <img src="img/bai1.png" class="d-none" alt="ant" id="bai1"/>
+    <img src="img/bai2.png" class="d-none" alt="ant" id="bai2"/>
+    <img src="img/wai-2.png" class="d-none" alt="ant" id="wai-2"/>
+    <img src="img/wai-1.png" class="d-none" alt="ant" id="wai-1"/>
+    <img src="img/wai0.png" class="d-none" alt="ant" id="wai0"/>
+    <img src="img/wai1.png" class="d-none" alt="ant" id="wai1"/>
+    <img src="img/wai2.png" class="d-none" alt="ant" id="wai2"/>
     <img src="img/a.png" class="d-none" alt="ant" id="pieceA"/>
     <img src="img/b.png" class="d-none" alt="beetle" id="pieceB"/>
     <img src="img/c.png" class="d-none" alt="centipede" id="pieceC"/>
@@ -90,13 +95,14 @@
                         <input class="form-check-input" type="checkbox" id="autoMove" checked="checked"/>
                         <label class="form-check-label" for="autoMove">Auto move first piece</label>
                     </div>
-                    <div class="form-check form-switch gameSettings">
-                        <input class="form-check-input" type="checkbox" id="ai" checked="checked"/>
-                        <label class="form-check-label" for="ai">Local game against AI</label>
+                    <div class="gameSettings">
+                        Time control:
                     </div>
-                    <div class="form-check form-switch gameSettings">
-                        <input class="form-check-input" type="checkbox" id="timer" onchange="$('#increment, #totalTime').prop('disabled', !$('#timer').prop('checked'))"/>
-                        <label class="form-check-label" for="timer">Time control</label>
+                    <div class="btn-group btn-group-lg gameSettings" role="group" aria-label="Time control">
+                        <input type="radio" class="btn-check" name="time" id="noTimer" autocomplete="off" checked="checked">
+                        <label class="btn btn-light" for="noTimer"><i class="bi bi-infinity"></i></label>
+                        <input type="radio" class="btn-check" name="time" id="timer" autocomplete="off">
+                        <label class="btn btn-light" for="timer"><i class="bi bi-clock-fill"></i></label>
                     </div>
                     <div class="form-floating mb-1 gameSettings">
                         <input type="number" class="form-control" min="1" max="3600" id="totalTime" value="5"/>
@@ -106,17 +112,38 @@
                         <input type="number" class="form-control" min="0" max="3600" id="increment" value="5"/>
                         <label for="increment">Increment per move (in seconds)</label>
                     </div>
-                    <input type="radio" class="btn-check gameSettings" name="piece" id="whitePiece" autocomplete="off" checked="checked"/>
-                    <label class="btn gameSettings" for="whitePiece"><i class="bi bi-bug"></i>&nbsp;Play as White</label>
+                    <div class="gameSettings">
+                    Color:
+                    </div>
+                    <div class="btn-group btn-group-lg gameSettings" role="group" aria-label="Piece color">
+                        <input type="radio" class="btn-check" name="piece" id="whitePiece" autocomplete="off" checked="checked">
+                        <label class="btn btn-light" for="whitePiece"><i class="bi bi-bug"></i></label>
 
-                    <input type="radio" class="btn-check gameSettings" name="piece" id="blackPiece" autocomplete="off" />
-                    <label class="btn gameSettings" for="blackPiece"><i class="bi bi-bug-fill"></i>&nbsp;Play as Black</label>
+                        <input type="radio" class="btn-check" name="piece" id="blackPiece" autocomplete="off">
+                        <label class="btn btn-light" for="blackPiece"><i class="bi bi-bug-fill"></i></label>
 
-                    <input type="radio" class="btn-check gameSettings" name="piece" id="randomPiece" autocomplete="off" value="random" />
-                    <label class="btn gameSettings" for="randomPiece"><i class="bi bi-bug"></i><i class="bi bi-bug-fill"></i>&nbsp;Play as Random</label>
-                    <div class="form-check form-switch gameSettings">
-                        <input class="form-check-input" type="checkbox" id="alternativeRules"/>
-                        <label class="form-check-label" for="alternativeRules">Use <a href="doc/Variant_Pieces_Rules_v1.2.pdf" target="_blank">variant</a> instead of <a href="https://en.wikipedia.org/wiki/Hive_(game)" target="_blank">standard</a> rules</label>
+                        <input type="radio" class="btn-check" name="piece" id="randomPiece" autocomplete="off">
+                        <label class="btn btn-light" for="randomPiece"><i class="bi bi-dice-6-fill"></i></label>
+                    </div>
+                    <div class="gameSettings">
+                        Opponent:
+                    </div>
+                    <div class="btn-group btn-group-lg gameSettings" role="group" aria-label="Rules">
+                        <input type="radio" class="btn-check" name="opponent" id="human" autocomplete="off">
+                        <label class="btn btn-light" for="human"><i class="bi bi-person-fill"></i>x<i class="bi bi-person-fill"></i></label>
+                        <input type="radio" class="btn-check" name="opponent" id="ai" autocomplete="off" checked="checked">
+                        <label class="btn btn-light" for="ai"><i class="bi bi-person-fill"></i>x <i class="bi bi-robot"></i></label>
+                        <input type="radio" class="btn-check" name="opponent" id="ai2" autocomplete="off">
+                        <label class="btn btn-light" for="ai2"><i class="bi bi-robot"></i> x <i class="bi bi-robot"></i></label>
+                    </div>
+                    <div class="gameSettings">
+                        Game rules (<a href="https://en.wikipedia.org/wiki/Hive_(game)" target="_blank">standard rules</a> or <a href="doc/Variant_Pieces_Rules_v1.2.pdf" target="_blank">variant rules</a>):
+                    </div>
+                    <div class="btn-group gameSettings" role="group" aria-label="Rules">
+                        <input type="radio" class="btn-check" name="rules" id="standardRules" autocomplete="off" checked="checked">
+                        <label class="btn btn-light" for="standardRules"><img src="img/a.png" width="24" alt="standard rules"/></label>
+                        <input type="radio" class="btn-check" name="rules" id="alternativeRules" autocomplete="off">
+                        <label class="btn btn-light" for="alternativeRules"><img src="img/w.png" width="24" alt="alternative rules"/></label>
                     </div>
 
                     <button type="button" class="text-nowrap btn btn-danger my-1" id="newGame"><i class="bi bi-play-fill"></i>&nbsp;New game</button>
