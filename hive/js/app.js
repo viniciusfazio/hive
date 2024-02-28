@@ -92,7 +92,7 @@ $(() => {
     window.onbeforeunload = () => "-";
     window.d = () => hive.toggleDebug();
 });
-function playerChanged() {
+function playerChanged(online = false) {
     hive.whitePlayer.reset();
     hive.blackPlayer.reset();
     const piece = $("[name='piece']:checked").val();
@@ -113,7 +113,12 @@ function playerChanged() {
         hive.whitePlayer = new AIPlayer(hive);
         hive.blackPlayer = new AIPlayer(hive);
     }
-    hive.board.computeLegalMoves(true);
+    if (online || $("#ai2").prop("checked")) {
+        $("#undo").addClass("d-none");
+    } else {
+        $("#undo").removeClass("d-none");
+    }
+    hive.board.computeLegalMoves(!hive.gameOver);
     hive.getPlayerPlaying().initPlayerTurn();
 
 }
@@ -428,7 +433,7 @@ function localCallbacks() {
             $("#move-list").html("");
             appendMoveList(1, "Start - " + timeControl);
             if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
-                $("#newGame, #newOnlineGame, .gameSettings").addClass("d-none");
+                $("#newGame, #newOnlineGame, .gameSettings, #undo").addClass("d-none");
                 $("#resign, #offerUndo, #draw").removeClass("d-none");
             }
         },
@@ -486,7 +491,7 @@ function localCallbacks() {
 function gameOver() {
     if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
         $("#newOnlineGame, .gameSettings").removeClass("d-none");
-        $("#resign, #offerUndo, #draw").addClass("d-none");
+        $("#resign, #offerUndo, #draw, .opponent").addClass("d-none");
     }
 }
 function onlineCallbacks() {
@@ -499,8 +504,10 @@ function onlineCallbacks() {
             new ClipboardJS("#user_id_button");
         },
         connected: () => {
-            $("#newGame, #waiting, #connecting, #received, #receive").addClass("d-none");
+            $("#newGame, #waiting, #connecting, #received, #receive, .opponent").addClass("d-none");
             $("#newOnlineGame, #disconnect").removeClass("d-none");
+            $("#human").prop("checked", true);
+            playerChanged();
             showMessage("Connected!");
         },
         opponentOffersNewGame: (colorTxt, totalTime, increment, standardRules) => {

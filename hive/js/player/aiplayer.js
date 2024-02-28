@@ -6,7 +6,7 @@ import QueenEvaluator from "../ai/queenevaluator.js";
 // number of workers. Too little yields slow iterations per second. Too much yields fewer alpha beta pruning.
 const QTY_WORKERS = 7;
 // evaluation that indicate white wins
-const MAX_EVALUATION = 999999;
+const MAX_EVALUATION = (1 << 30);
 // max depth to compute
 const MAX_DEPTH = 5;
 const COMPUTE_BEST_N_MOVES_FIRST = 4;
