@@ -22,12 +22,18 @@ export default class QueenEvaluator {
         const color = board.getColorPlaying();
         const enemyColor = color === WHITE ? BLACK : WHITE;
         const queen = board.queens.find(p => p.inGame && p.color !== color);
-        const queenZone = queen ? Board.coordsAround(queen.x, queen.y, true) : [];
+        const queenZone = [];
+        if (queen) {
+            for (const [x, y] of Board.coordsAround(queen.x, queen.y, true)) {
+                queenZone.push(board.coordsToXY(x, y));
+            }
+        }
         const enemyZone = [];
         for (const p of board.inGameTopPiecesByColor[enemyColor]) {
             for (const [x, y] of Board.coordsAround(p.x, p.y, true)) {
-                if (!enemyZone.find(([ex, ey]) => ex === x && ey === y)) {
-                    enemyZone.push([x, y]);
+                const xy = board.coordsToXY(x, y);
+                if (!enemyZone.includes(xy)) {
+                    enemyZone.push(xy);
                 }
             }
         }
@@ -36,8 +42,10 @@ export default class QueenEvaluator {
             const [from, to, p, ] = move;
             const [tx, ty, tz] = to;
             const [fx, fy, ] = from;
-            const enteringQueen = queenZone.find(([qx, qy]) => tx === qx && ty === qy);
-            const leavingQueen = p.inGame && queenZone.find(([qx, qy]) => fx === qx && fy === qy);
+            const txy = board.coordsToXY(tx, ty);
+            const fxy = p.inGame ? board.coordsToXY(fx, fy) : 0;
+            const enteringQueen = queenZone.includes(txy);
+            const leavingQueen = p.inGame && queenZone.includes(fxy);
             if (enteringQueen && !leavingQueen) {
                 score |= 2;
             } else if (enteringQueen || !leavingQueen) {
@@ -48,8 +56,8 @@ export default class QueenEvaluator {
             score |= !p.inGame ? 1 : 0;
 
             score <<= 2;
-            const enteringEnemy = enemyZone.find(([ex, ey]) => tx === ex && ty === ey);
-            const leavingEnemy = p.inGame && enemyZone.find(([ex, ey]) => fx === ex && fy === ey);
+            const enteringEnemy = enemyZone.includes(txy);
+            const leavingEnemy = p.inGame && enemyZone.includes(fxy);
             if (enteringEnemy && !leavingEnemy) {
                 score |= 2;
             } else if (enteringEnemy || !leavingEnemy) {
@@ -104,8 +112,7 @@ function queenEval(board, color) {
     const score100 =
         hisPiecesAroundHisQueen.length +
         (hisQueenCanMove ? 0 : 2) +
-        qtyMyPiecesAroundHisQueen * 2 +
-        (board.getColorPlaying() === color ? 1 : 0);
+        qtyMyPiecesAroundHisQueen * 2;
     const score25 =
         (pillBugDefense ? -2 : 0) +
         (mosquitoPillBugDefense ? -1 : 0) +

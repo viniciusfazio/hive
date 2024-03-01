@@ -57,6 +57,8 @@ export default class HiveCanvas {
 
     #callbacks;
 
+    #allBoards;
+
     constructor(callbacks, shortOnTime) {
         this.#callbacks = callbacks;
         this.#shortOnTime = shortOnTime;
@@ -119,6 +121,7 @@ export default class HiveCanvas {
         if (this.blackPlayer && !(this.blackPlayer instanceof OnlinePlayer)) {
             this.blackPlayer.reset();
         }
+        this.#allBoards = new Map();
         [this.bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.moveLists, this.currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
         this.whitePlayer.reset();
@@ -134,9 +137,6 @@ export default class HiveCanvas {
 
         this.#initRound();
         this.#callbacks.newGame(this.getMoveList().timeControlToText());
-    }
-    setGameOver(gameOver) {
-        this.gameOver = gameOver;
     }
     getPieceZ(piece) {
         if (piece.transition === 0) {
@@ -1034,6 +1034,18 @@ export default class HiveCanvas {
                 this.#callbacks.gameOver(null);
             }
             this.#playRound();
+        } else if (!this.gameOver) {
+            const boardStr = this.board.stringfy(false);
+            let qty = this.#allBoards.get(boardStr);
+            if (typeof qty === "undefined") {
+                this.#allBoards.set(boardStr, 1);
+            } else {
+                this.#allBoards.set(boardStr, ++qty);
+                if (qty >= 3 && this.whitePlayer instanceof AIPlayer && this.blackPlayer instanceof AIPlayer) {
+                    this.draw();
+                }
+            }
+
         }
     }
     #goTo(round, callbackMove, moveListId) {
