@@ -1,7 +1,7 @@
 import Player from "./player.js";
 import {WHITE} from "../core/piece.js";
 import Board from "../core/board.js";
-import QueenEvaluator from "../ai/queenevaluator.js";
+import Evaluator from "../ai/evaluator.js";
 
 // number of workers. Too little results in fewer iterations per second. Too much results in fewer alpha-beta pruning.
 const QTY_WORKERS = 7;
@@ -13,7 +13,7 @@ const MAX_DEPTH = 5;
 const COMPUTE_BEST_N_MOVES_FIRST = 4;
 
 export default class AIPlayer extends Player {
-    evaluatorId = "queenai";
+    evaluatorId = "XxQpZz";
 
     #initTurnTime = null;
     #totalTime = null;
@@ -77,7 +77,7 @@ export default class AIPlayer extends Player {
         }
         // start decision
         this.#initTurnTime = Date.now();
-        this.#evaluator = AIPlayer.getEvaluator(this.evaluatorId);
+        this.#evaluator = new Evaluator(this.evaluatorId);
         this.#board = new Board(this.hive.board);
 
         this.#moves = [];
@@ -110,7 +110,7 @@ export default class AIPlayer extends Player {
         if (this.#workers.length === 0) {
             // create all workers
             for (let i = 0; i < QTY_WORKERS; i++) {
-                const worker = new Worker("js/ai/aiminimax.js", {type: 'module'});
+                const worker = new Worker("js/ai/minimax_worker.js", {type: 'module'});
                 worker.onmessage = e => {
                     // the worker responded
                     const msg = e.data;
@@ -247,14 +247,18 @@ export default class AIPlayer extends Player {
         this.target = null;
     }
     getEvaluation5Levels() {
+        if (!this.#evaluator) {
+            return 0;
+        }
+        const sig = this.#evaluator.getEvaluationSignificance();
         let evaluation;
         if (this.#evaluation === null) {
             evaluation = 0;
         } else  if (this.#evaluation === -MAX_EVALUATION) {
             evaluation = -2;
-        } else if (this.#evaluation < -100) {
+        } else if (this.#evaluation < -sig) {
             evaluation = -1;
-        } else if (this.#evaluation <= 100) {
+        } else if (this.#evaluation <= sig) {
             evaluation = 0;
         } else if (this.#evaluation < MAX_EVALUATION) {
             evaluation = 1;
@@ -352,15 +356,6 @@ export default class AIPlayer extends Player {
     static evaluate(board, evaluator) {
         return Math.max(-MAX_EVALUATION + 1, Math.min(MAX_EVALUATION - 1, evaluator.evaluate(board)));
     }
-    static getEvaluator(evaluatorId) {
-        switch (evaluatorId) {
-            case "queenai":
-                return new QueenEvaluator();
-            default:
-                throw new Error('Invalid evaluator: ' + evaluatorId);
-        }
-    }
-
 }
 class WorkerMessage {
 
