@@ -2,22 +2,20 @@ import {BLACK, WHITE} from "../core/piece.js";
 import Board from "../core/board.js";
 import AIPlayer from "../player/aiplayer.js";
 
-// how many iterations until report iteration count
-const ITERATION_STEP = 1000;
+// after N iterations, it reports iteration count and time spent
+const REPORT_EVERY_N_ITERATIONS = 1000;
 
-// max depth to sort moves by computing board evaluation of the move. It is the best sort, but too slow
+// max depth to sort moves by computing board evaluation of the move. It is the best sort, but it is too slow
 const MAX_DEPTH_TO_PEEK_NEXT_MOVE = 2;
 
-// last moved pieces are reset on play back, so keep them saved
-let lastMovedPiecesId = null;
-// keep track of the evaluation of all visited moves, to rapidly respond if any repeat
-let visited = null
+let lastMovedPiecesId = null; // last moved pieces are reset on play back, so keep them saved
+let visited = null;  // keep track of the evaluation of all visited moves, to rapidly respond if any repeat
 let board = null;
 let initialMaximizing = null;
 let evaluator = null;
 let msg = null;
 let initialMoves = null;
-let initTime = null;
+let initialTime = null;
 onmessage = e => {
     msg = e.data;
     msg.iterations = 0;
@@ -44,9 +42,9 @@ onmessage = e => {
             throw Error("Invalid move on minimax");
         }
         visited = new Map();
-        initTime = Date.now();
+        initialTime = Date.now();
         alphaBeta(0, msg.alpha, msg.beta, initialMaximizing, [move]);
-        msg.time = Date.now() - initTime;
+        msg.time = Date.now() - initialTime;
         msg.done = true;
         postMessage(msg);
     }
@@ -54,8 +52,8 @@ onmessage = e => {
 
 function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     // count iterations
-    if (++msg.iterations % ITERATION_STEP === 0) {
-        msg.time = Date.now() - initTime;
+    if (++msg.iterations % REPORT_EVERY_N_ITERATIONS === 0) {
+        msg.time = Date.now() - initialTime;
         postMessage(msg);
         msg.iterations = 0;
     }

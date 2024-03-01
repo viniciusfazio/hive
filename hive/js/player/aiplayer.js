@@ -3,12 +3,13 @@ import {WHITE} from "../core/piece.js";
 import Board from "../core/board.js";
 import QueenEvaluator from "../ai/queenevaluator.js";
 
-// number of workers. Too little yields slow iterations per second. Too much yields fewer alpha beta pruning.
+// number of workers. Too little results in fewer iterations per second. Too much results in fewer alpha-beta pruning.
 const QTY_WORKERS = 7;
 // evaluation that indicate white wins
 const MAX_EVALUATION = (1 << 30);
 // max depth to compute
 const MAX_DEPTH = 5;
+// wait computation of first moves to set good alpha/beta before compute remaining moves
 const COMPUTE_BEST_N_MOVES_FIRST = 4;
 
 export default class AIPlayer extends Player {
