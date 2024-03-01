@@ -4,7 +4,7 @@ import Board from "../core/board.js";
 import Evaluator from "../ai/evaluator.js";
 
 // number of workers. Too little results in fewer iterations per second. Too much results in fewer alpha-beta pruning.
-const QTY_WORKERS = 7;
+const QTY_WORKERS = 6;
 // evaluation that indicate white wins
 const MAX_EVALUATION = (1 << 30);
 // max depth to compute
@@ -224,7 +224,10 @@ export default class AIPlayer extends Player {
         }
         this.#alpha = -MAX_EVALUATION;
         this.#beta = MAX_EVALUATION;
-        this.#moveIndex = Math.min(this.#moves.length, QTY_WORKERS, COMPUTE_BEST_N_MOVES_FIRST);
+        this.#moveIndex = Math.min(this.#moves.length, QTY_WORKERS);
+        if (COMPUTE_BEST_N_MOVES_FIRST > 0) {
+            this.#moveIndex = Math.min(this.#moveIndex, COMPUTE_BEST_N_MOVES_FIRST);
+        }
         this.#idle = QTY_WORKERS - this.#moveIndex;
         this.#evaluatedMoves = 0;
         for (let i = 0; i < Math.min(QTY_WORKERS, this.#moves.length); i++) {

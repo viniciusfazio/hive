@@ -1,12 +1,5 @@
 import Board from "../core/board.js";
-import {
-    BLACK,
-    MOSQUITO, PIECE_TXT,
-    PILL_BUG,
-    SCORPION,
-    WHITE
-} from "../core/piece.js";
-
+import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG} from "../core/piece.js";
 
 export default class Evaluator {
     #id;
@@ -63,7 +56,7 @@ function piecesInHud(board, color) {
 }
 function piecesInGamePlayable(board, color, type = 0) {
     return board.inGameTopPiecesByColor[color].reduce((s, p) => {
-        if (board.stillOneHiveAfterRemove(p) && (type === 0 || type === p.type)) {
+        if ((type === 0 || type === p.type) && board.stillOneHiveAfterRemove(p)) {
             return s + 1;
         }
         const tryPillBug = (type === 0 || p.type === type) && (
@@ -112,46 +105,5 @@ function piecesAroundHisQueen(board, color) {
     }
     return (board.getColorPlaying() === color ? 1 : 0) +
         Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) => board.getPieceEncoded(x, y) > 0 ? s + 1 : s, 0);
-}
-function evalColor(board, color) {
-    const hisQueen = board.queens.find(p => p.inGame && p.color !== color);
-    if (!hisQueen) {
-        return 0;
-    }
-    const hisQueenCanMove = board.stillOneHiveAfterRemove(hisQueen);
-    const piecesAroundHisQueen = [];
-    for (const [x, y] of Board.coordsAround(hisQueen.x, hisQueen.y)) {
-        const p = board.getPieceEncoded(x, y);
-        if (p !== 0) {
-            piecesAroundHisQueen.push(p);
-        }
-    }
-
-    const qtyMyPiecesAroundHisQueen = piecesAroundHisQueen.reduce((qty, p) => ((p >> 8) & 0xff) === color ? qty + 1 : qty, 0);
-
-    const hisPiecesAroundHisQueen = piecesAroundHisQueen.filter(p => ((p >> 8) & 0xff) !== color);
-
-    const pillBugDefense = hisPiecesAroundHisQueen.find(p => ((p >> 16) & 0xff) === PILL_BUG);
-    const scorpionDefense = hisPiecesAroundHisQueen.find(p => ((p >> 16) & 0xff) === SCORPION);
-
-    let mosquitoPillBugDefense = false;
-    if (board.standardRules) {
-        const mosquito = hisPiecesAroundHisQueen.find(p => ((p >> 8) & 0xff) === MOSQUITO && (p & 0xff) === 1);
-        mosquitoPillBugDefense = mosquito && Board.coordsAround(mosquito.x, mosquito.y).find(([x, y]) =>
-            ((board.getPieceEncoded(x, y) >> 16) & 0xff) === PILL_BUG
-        );
-    }
-
-    const score1 = board.inGameTopPiecesByColor[color].reduce((s, p) => board.stillOneHiveAfterRemove(p) ? s + 1 : s, 0);
-    const score100 =
-        hisPiecesAroundHisQueen.length +
-        (hisQueenCanMove ? 0 : 2) +
-        qtyMyPiecesAroundHisQueen * 2;
-    const score25 =
-        (pillBugDefense ? -2 : 0) +
-        (mosquitoPillBugDefense ? -1 : 0) +
-        (scorpionDefense ? -1 : 0);
-
-    return score100 * 100 + score25 * 25 + score1;
 }
 
