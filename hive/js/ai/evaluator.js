@@ -1,28 +1,30 @@
 import Board from "../core/board.js";
-import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG} from "../core/piece.js";
+import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG, CENTIPEDE} from "../core/piece.js";
 
 export default class Evaluator {
     #id;
+    #idSplit;
     constructor(id) {
         this.#id = id;
+        this.#idSplit = id.split("");
     }
     evaluate(board) {
         let evaluation = 0;
-        for (const g of this.#id.split("")) {
+        for (const g of this.#idSplit) {
             switch (g) {
-                case "z":
+                case 'z':
                     evaluation <<= 1;
-                    evaluation += normalize(piecesInHud(board, WHITE) - piecesInHud(board, BLACK));
+                    evaluation += normalize(piecesInHud(board));
                     break;
-                case "Z":
+                case 'Z':
                     evaluation <<= 1;
                     evaluation += normalize(piecesInGamePlayable(board, WHITE) - piecesInGamePlayable(board, BLACK));
                     break;
-                case "x":
+                case 'x':
                     evaluation <<= 1;
                     evaluation += normalize(myPiecesAroundHisQueen(board, WHITE) - myPiecesAroundHisQueen(board, BLACK));
                     break;
-                case "X":
+                case 'X':
                     evaluation <<= 1;
                     evaluation += normalize(piecesAroundHisQueen(board, WHITE) - piecesAroundHisQueen(board, BLACK));
                     break;
@@ -42,7 +44,7 @@ export default class Evaluator {
                     console.log("Invalid evaluator id: " + this.#id);
             }
         }
-        return evaluation; // evalColor(board, WHITE) - evalColor(board, BLACK);
+        return evaluation;
     }
     getEvaluationSignificance() {
         return 1 << Math.floor(this.#id.length / 2);
@@ -51,8 +53,8 @@ export default class Evaluator {
 function normalize(diff) {
     return diff > 0 ? 1 : (diff < 0 ? -1 : 0);
 }
-function piecesInHud(board, color) {
-    return board.pieces.reduce((s, p) => !p.inGame && p.color === color ? s + 1 : s, 0);
+function piecesInHud(board) {
+    return board.pieces.reduce((s, p) => p.inGame ? s : (p.color === WHITE ? s + 1 : s - 1), 0);
 }
 function piecesInGamePlayable(board, color, type = 0) {
     return board.inGameTopPiecesByColor[color].reduce((s, p) => {
@@ -71,8 +73,10 @@ function piecesInGamePlayable(board, color, type = 0) {
             );
             if (emptyMovableSpaces) {
                 const canMove = board.coordsAroundWithNeighbor(p.x, p.y).find(
-                    ([x, y, z, z1, z2]) => z >= 0 && Board.onHiveAndNoGate(z, p.z + 1, z1, z2) &&
-                                                     board.stillOneHiveAfterRemove(board.getInGamePiece(x, y)));
+                    ([x, y, z, z1, z2]) => z === 0 &&
+                        (board.standardRules || ![PILL_BUG, CENTIPEDE].includes((board.getPieceEncoded(x, y) >> 16) & 0xff)) &&
+                        Board.onHiveAndNoGate(z, p.z, z1, z2) &&
+                        board.stillOneHiveAfterRemove(board.getInGamePiece(x, y)));
                 return canMove ? s + 1 : s;
             }
         }
@@ -84,8 +88,7 @@ function myPiecesAroundHisQueen(board, color) {
     if (!queen) {
         return 0;
     }
-    return (board.getColorPlaying() === color ? 1 : 0) +
-        Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) =>
+    return Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) =>
             ((board.getPieceEncoded(x, y) >> 8) & 0xff) === color ? s + 1 : s, 0);
 }
 function myPiecesAroundMyQueen(board, color, type) {
@@ -93,17 +96,14 @@ function myPiecesAroundMyQueen(board, color, type) {
     if (!queen) {
         return 0;
     }
-    return Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) => {
-            const p = board.getPieceEncoded(x, y);
-            return ((p >> 16) & 0xff) === type && ((p >> 8) & 0xff) === color ? s + 1 : s;
-        }, 0);
+    return Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) =>
+            ((board.getPieceEncoded(x, y) >> 8) & 0xffff) === ((type << 8) | color) ? s + 1 : s, 0);
 }
 function piecesAroundHisQueen(board, color) {
     const queen = board.queens.find(q => q.color !== color && q.inGame);
     if (!queen) {
         return 0;
     }
-    return (board.getColorPlaying() === color ? 1 : 0) +
-        Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) => board.getPieceEncoded(x, y) > 0 ? s + 1 : s, 0);
+    return Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) => board.getPieceEncoded(x, y) > 0 ? s + 1 : s, 0);
 }
 

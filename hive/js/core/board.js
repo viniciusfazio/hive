@@ -289,24 +289,22 @@ export default class Board {
                         if (p2 === 0 || (p2 & 0xff) > 1 || ((p2 >> 8) & 0xff) !== colorPlaying) {
                             continue;
                         }
-                        const isPillBug = ((p2 >> 16) & 0xff) === PILL_BUG && (this.standardRules || p.type !== ((p2 >> 16) & 0xff)) ||
-                            this.standardRules && ((p2 >> 16) & 0xff) === MOSQUITO && Board.coordsAround(x2, y2).find(([x3, y3]) =>
-                                ((this.getPieceEncoded(x3, y3) >> 16) & 0xff) === PILL_BUG
-                            );
-                        if (isPillBug) {
-                            let hasDestiny = false;
-                            let validPrey = false;
+                        const pillBugCanMoveIt = (this.standardRules || ![PILL_BUG, CENTIPEDE].includes(p.type)) && p.z === 0 && (
+                                ((p2 >> 16) & 0xff) === PILL_BUG ||
+                                    this.standardRules && ((p2 >> 16) & 0xff) === MOSQUITO &&
+                                    Board.coordsAround(x2, y2).find(([x3, y3]) =>
+                                        ((this.getPieceEncoded(x3, y3) >> 16) & 0xff) === PILL_BUG)
+                        );
+                        if (pillBugCanMoveIt) {
+                            let hasFreeSpaceAroundPillBug = false;
+                            let canMoveToPillBug = false;
                             for (const [x, y, z, z1, z2] of this.coordsAroundWithNeighbor(x2, y2)) {
                                 const noPiece = z < 0;
-                                const isPrey = x === p.x && y === p.y;
-                                const isMovableTarget = noPiece && Board.onHiveAndNoGate((p2 & 0xff), z, z1, z2);
-                                if (isMovableTarget) {
-                                    hasDestiny = true;
-                                } else if (isPrey && Board.onHiveAndNoGate(z, (p2 & 0xff) - 1, z1, z2)) {
-                                    validPrey = true;
-                                }
+                                const itsMe = x === p.x && y === p.y;
+                                hasFreeSpaceAroundPillBug ||= noPiece && Board.onHiveAndNoGate((p2 & 0xff), z, z1, z2);
+                                canMoveToPillBug ||= itsMe && Board.onHiveAndNoGate(z, (p2 & 0xff) - 1, z1, z2);
                             }
-                            addMarker = hasDestiny && validPrey && this.stillOneHiveAfterRemove(p);
+                            addMarker = hasFreeSpaceAroundPillBug && canMoveToPillBug && this.stillOneHiveAfterRemove(p);
                         }
                         if ([MANTIS, CENTIPEDE].includes((p2 >> 16) & 0xff)) {
                             const hasEmptySpace = this.coordsAroundWithNeighbor(x2, y2).find(([x, y, , z1, z2]) => {
