@@ -147,7 +147,7 @@ function getSortedMoves(board) {
     const moves = board.getMoves();
     const color = board.getColorPlaying();
     const enemyColor = color === WHITE ? BLACK : WHITE;
-    const queen = board.getQueens().find(p => p.inGame && p.color !== color);
+    const queen = board.getQueens().find(p => p.inGame && p.color === enemyColor);
     const queenZone = [];
     if (queen) {
         for (const [x, y] of Board.coordsAround(queen.x, queen.y, true)) {

@@ -130,6 +130,15 @@ export default class Piece {
                 if (this.number > 0) {
                     this.txt += this.number;
                 }
+                /*
+            } else {
+                this.txt = COLOR_TXT[this.color];
+                this.txt += PIECE_TXT[this.type][0];
+                if (this.number > 0) {
+                    this.txt += this.number;
+                }
+                this.txt += "-" + this.subNumber;
+                 */
             }
             this.id = this.subNumber;
             this.id *= COLORS.length + 1;
@@ -166,6 +175,9 @@ export default class Piece {
             this.#targets.push(piece);
         }
         return piece;
+    }
+    resetTargets() {
+        this.#targets = [];
     }
     reset() {
         this.x = null;
@@ -238,7 +250,7 @@ export function computePieceMoves(pieceType, board, piece, standard) {
                 return Board.coordsAround(piece.x, piece.y).reduce((s, [x, y]) => {
                     const p = board.getPieceEncoded(x, y);
                     if (p !== 0 && ((p >> 16) & 0xff) !== MOSQUITO) {
-                        return s + computePieceMoves(((p >> 16) & 0xff), board, piece, standard);
+                        return s + computePieceMoves((p >> 16) & 0xff, board, piece, standard);
                     }
                     return s;
                 }, 0);

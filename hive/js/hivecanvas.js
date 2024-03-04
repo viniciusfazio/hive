@@ -265,6 +265,15 @@ export default class HiveCanvas {
                 const [px, py] = this.positionToPixel(x, y, 0);
                 this.#drawText([x + "," + y + ",0"], px, py, "middle", "center", h);
             }
+            /*
+            const p = this.board.getPieces().find(p => p.id === this.#canvasPlayer.hoverPieceId);
+            if (p) {
+                for (const t of p.getTargets()) {
+                    const [tx, ty] = this.positionToPixel(t.x, t.y, t.z);
+                    this.#drawText([t.x + "," + t.y + "," + t.z, t.txt], tx, ty, "middle", "center", h);
+                }
+            }
+             */
         }
     }
     #drawPassAlert() {

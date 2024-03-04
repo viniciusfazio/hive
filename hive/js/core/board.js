@@ -139,16 +139,22 @@ export default class Board {
         this.#maxX = null;
         this.#minY = null;
         this.#maxY = null;
-        for (const pieces of this.allPiecesByType) {
-            for (const p of pieces) {
-                if (p.inGame) {
-                    if (this.#maxX === null || this.#maxX < p.x) this.#maxX = p.x;
-                    if (this.#maxY === null || this.#maxY < p.y) this.#maxY = p.y;
-                    if (this.#minX === null || this.#minX > p.x) this.#minX = p.x;
-                    if (this.#minY === null || this.#minY > p.y) this.#minY = p.y;
-                    this.#inGamePieces.push(p);
-                }
-            }
+        for (const type of PIECES) {
+            // keep only usable pieces. For example, if wasp1 was played, ant1 will never be played, so it is removed
+            this.#piecesByType[type] = this.allPiecesByType[type].filter(p =>
+                (!this.standardRules || PIECE_STANDARD[p.type]) && (
+                    this.standardRules || PIECE_LINK[p.type] === 0 || p.inGame ||
+                    // if linked piece is in game, can't play
+                    !this.allPiecesByType[PIECE_LINK[p.type]].find(l => l.inGame && l.number === p.number && l.color === p.color)
+                ));
+        }
+        this.#pieces = this.#piecesByType.reduce((arr, pieces) => arr.concat(pieces), []);
+        this.#inGamePieces = this.#pieces.filter(p => p.inGame);
+        for (const p of this.#inGamePieces) {
+            if (this.#maxX === null || this.#maxX < p.x) this.#maxX = p.x;
+            if (this.#maxY === null || this.#maxY < p.y) this.#maxY = p.y;
+            if (this.#minX === null || this.#minX > p.x) this.#minX = p.x;
+            if (this.#minY === null || this.#minY > p.y) this.#minY = p.y;
         }
         this.#maxX += (this.#maxX - this.#minX) & 1;
 
@@ -160,21 +166,7 @@ export default class Board {
                 this.#piecesOnBoard[key] = (p.number << 24) | (p.type << 16) | (p.color << 8) | (p.z + 1);
             }
         }
-        for (const p of this.#inGamePieces) {
-            if (p.z + 1 === (this.getPieceEncoded(p.x, p.y) & 0xff)) {
-                this.#inGameTopPieces.push(p);
-            }
-        }
-        for (const type of PIECES) {
-            // keep only usable pieces. For example, if wasp1 was played, ant1 will never be played, so it is removed
-            this.#piecesByType[type] = this.allPiecesByType[type].filter(p =>
-                (!this.standardRules || PIECE_STANDARD[p.type]) && (
-                this.standardRules || PIECE_LINK[p.type] === 0 || p.inGame ||
-                // if linked piece is in game, can't play
-                !this.allPiecesByType[PIECE_LINK[p.type]].find(l => l.inGame && l.number === p.number && l.color === p.color)
-            ));
-        }
-        this.#pieces = this.#piecesByType.reduce((arr, pieces) => arr.concat(pieces), []);
+        this.#inGameTopPieces = this.#inGamePieces.filter(p => p.z + 1 === (this.getPieceEncoded(p.x, p.y) & 0xff));
     }
     getInGameTopPieces() {
         return this.#inGameTopPieces;
@@ -203,7 +195,8 @@ export default class Board {
             return 0;
         }
         const sizeX = ((this.#maxX - this.#minX) >> 1) + 1;
-        return this.#piecesOnBoard[sizeX * (y - this.#minY) + ((x - this.#minX) >> 1)];
+        const key = sizeX * (y - this.#minY) + ((x - this.#minX) >> 1);
+        return this.#piecesOnBoard[key];
     }
     coordsAroundWithNeighbor(cx, cy, ignoreX = null, ignoreY = null) {
         let xyz;
@@ -380,7 +373,7 @@ export default class Board {
         }
     }
     computeLegalMoves(canMove) {
-        this.#piecesByType.forEach(pieces => pieces.forEach(p => p.targets = []));
+        this.allPiecesByType.forEach(pieces => pieces.forEach(p => p.resetTargets()));
         this.qtyMoves = 0;
         if (this.isQueenDead(WHITE) || this.isQueenDead(BLACK)) {
             return;
@@ -447,6 +440,7 @@ export default class Board {
     piecePlacement(color = null, ignore_x = null, ignore_y = null) {
         let visited = [];
         let ret = [];
+        const otherColor = color === null ? null : (color === WHITE ? BLACK : WHITE);
         for (const p of this.#inGameTopPieces) {
             if (color !== null && color !== p.color || ignore_x === p.x && ignore_y === p.y) {
                 continue;
@@ -466,7 +460,7 @@ export default class Board {
 
                 // check if empty space has only same color piece around
                 const differentColorAround = color !== null && Board.coordsAround(x, y).find(([x2, y2]) =>
-                    (ignore_x !== x2 || ignore_y !== y2) && ![0, color].includes(((this.getPieceEncoded(x2, y2) >> 8) & 0xff))
+                    (ignore_x !== x2 || ignore_y !== y2) && ((this.getPieceEncoded(x2, y2) >> 8) & 0xff) === otherColor
                 );
                 if (!differentColorAround) {
                     ret.push([x, y]);
