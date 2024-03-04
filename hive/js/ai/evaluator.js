@@ -57,12 +57,12 @@ function normalize(diff) {
     return diff > MAX_PARAM ? MAX_PARAM : (diff < -MAX_PARAM ? -MAX_PARAM : diff);
 }
 function piecesInHud(board) {
-    return board.getPieces().reduce((s, p) => p.inGame ? s : (p.color === WHITE ? s + 1 : s - 1), 0);
+    return board.getInHudPieces().reduce((s, p) => p.color === WHITE ? s + 1 : s - 1, 0);
 }
 function piecesInGamePlayable(board, type = 0) {
     const pieces = type === 0 ?
         board.getInGameTopPieces() :
-        (board.getPiecesByType(type).filter(p => p.inGame && (board.getPieceEncoded(p.x, p.y) & 0xff) === p.z + 1));
+        (board.getInGamePiecesByType(type).filter(p => (board.getPieceEncoded(p.x, p.y) & 0xff) === p.z + 1));
     return pieces.reduce((s, p) => {
         if (board.stillOneHiveAfterRemove(p)) {
             return p.color === WHITE ? s + 1 : s - 1;

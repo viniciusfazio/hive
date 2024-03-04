@@ -18,9 +18,11 @@ export default class Board {
 
     // pre-calc
     #pieces;
-    #piecesByType;
     #inGamePieces;
+    #inHudPieces;
     #inGameTopPieces;
+    #piecesByType;
+    #inGamePiecesByType;
     #piecesOnBoard;
     #minX;
     #minY;
@@ -32,8 +34,10 @@ export default class Board {
 
     constructor(board = null) {
         this.#piecesByType = [[]];
+        this.#inGamePiecesByType = [[]];
         for (const type of PIECES) {
             this.#piecesByType[type] = [];
+            this.#inGamePiecesByType[type] = [];
         }
         if (board === null) {
             this.allPiecesByType = [[]];
@@ -133,28 +137,43 @@ export default class Board {
         return ret;
     }
     #computePieces() {
+        this.#pieces = [];
         this.#inGamePieces = [];
+        this.#inHudPieces = [];
         this.#inGameTopPieces = [];
         this.#minX = null;
         this.#maxX = null;
         this.#minY = null;
         this.#maxY = null;
+
         for (const type of PIECES) {
             // keep only usable pieces. For example, if wasp1 was played, ant1 will never be played, so it is removed
-            this.#piecesByType[type] = this.allPiecesByType[type].filter(p =>
-                (!this.standardRules || PIECE_STANDARD[p.type]) && (
-                    this.standardRules || PIECE_LINK[p.type] === 0 || p.inGame ||
-                    // if linked piece is in game, can't play
-                    !this.allPiecesByType[PIECE_LINK[p.type]].find(l => l.inGame && l.number === p.number && l.color === p.color)
-                ));
-        }
-        this.#pieces = this.#piecesByType.reduce((arr, pieces) => arr.concat(pieces), []);
-        this.#inGamePieces = this.#pieces.filter(p => p.inGame);
-        for (const p of this.#inGamePieces) {
-            if (this.#maxX === null || this.#maxX < p.x) this.#maxX = p.x;
-            if (this.#maxY === null || this.#maxY < p.y) this.#maxY = p.y;
-            if (this.#minX === null || this.#minX > p.x) this.#minX = p.x;
-            if (this.#minY === null || this.#minY > p.y) this.#minY = p.y;
+            this.#piecesByType[type] = [];
+            this.#inGamePiecesByType[type] = [];
+            for (const p of this.allPiecesByType[type]) {
+                const usable = (!this.standardRules || PIECE_STANDARD[p.type]) && // piece is usable if included in rules
+                    (
+                        this.standardRules ||         // for standard rule, it doesn't matter
+                        PIECE_LINK[p.type] === 0 ||   // if piece can't be flipped, it doesn't matter
+                        p.inGame ||                   // if it was played, pieced is usable
+                        !this.allPiecesByType[PIECE_LINK[p.type]].find(l => // if flipped piece is in game, it is not usable
+                            l.inGame && l.number === p.number && l.color === p.color)
+                    );
+                if (usable) {
+                    this.#piecesByType[type].push(p);
+                    this.#pieces.push(p);
+                    if (p.inGame) {
+                        this.#inGamePiecesByType[type].push(p);
+                        this.#inGamePieces.push(p);
+                        if (this.#maxX === null || this.#maxX < p.x) this.#maxX = p.x;
+                        if (this.#maxY === null || this.#maxY < p.y) this.#maxY = p.y;
+                        if (this.#minX === null || this.#minX > p.x) this.#minX = p.x;
+                        if (this.#minY === null || this.#minY > p.y) this.#minY = p.y;
+                    } else {
+                        this.#inHudPieces.push(p);
+                    }
+                }
+            }
         }
         this.#maxX += (this.#maxX - this.#minX) & 1;
 
@@ -177,14 +196,19 @@ export default class Board {
     getPieces() {
         return this.#pieces;
     }
+    getInHudPieces() {
+        return this.#inHudPieces;
+    }
     getPiecesByType(type) {
         return this.#piecesByType[type];
+    }
+    getInGamePiecesByType(type) {
+        return this.#inGamePiecesByType[type];
     }
 
     getMinMaxXY() {
         return [this.#minX, this.#maxX, this.#minY, this.#maxY];
     }
-
 
     /**
      * @return z where 0 is no piece, 1 is white piece on z=0, 2 is white piece on z=1, -1 is black piece on z=0, and so on
@@ -361,7 +385,7 @@ export default class Board {
             return false;
         } else {
             const z = (p & 0xff) - 1;
-            return this.#piecesByType[(p >> 16) & 0xff].find(p => p.inGame && p.x === x && p.y === y && p.z === z);
+            return this.#inGamePiecesByType[(p >> 16) & 0xff].find(p => p.x === x && p.y === y && p.z === z);
         }
     }
     getInGamePieceWithZ(x, y, z) {
@@ -369,7 +393,7 @@ export default class Board {
         if (p === 0) {
             return false;
         } else {
-            return this.#piecesByType[(p >> 16) & 0xff].find(p => p.inGame && p.x === x && p.y === y && p.z === z);
+            return this.#inGamePiecesByType[(p >> 16) & 0xff].find(p => p.x === x && p.y === y && p.z === z);
         }
     }
     computeLegalMoves(canMove) {
