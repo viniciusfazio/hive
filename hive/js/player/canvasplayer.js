@@ -30,7 +30,7 @@ export default class CanvasPlayer extends Player {
         const hover = !this.hive.standardRules &&
             (this.selectedPieceId === null || !this.dragging) &&
             this.selectedTargetId === null &&
-            !(this.hive.board.passRound && this.hive.getMoveList().moves.length < this.board.round) &&
+            !(this.hive.board.qtyMoves === 0 && this.hive.getMoveList().moves.length < this.board.round) &&
             this.mouseX >= x - r && this.mouseX <= x + r &&
             this.mouseY >= y - r && this.mouseY <= y + r;
 
@@ -56,9 +56,9 @@ export default class CanvasPlayer extends Player {
         }
         const path = this.hive.getPiecePath2D();
 
-        const pieceSelected = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
-        const targets = pieceSelected?.targets ?? [];
-        const allPieces = this.hive.board.pieces.filter(p => p.inGame || PIECE_LINK[p.type] === 0 || !PIECE_STANDARD[p.type] === this.hive.flippedPieces)
+        const pieceSelected = this.hive.board.getPieces().find(p => p.id === this.selectedPieceId);
+        const targets = pieceSelected?.getTargets() ?? [];
+        const allPieces = this.hive.board.getPieces().filter(p => p.inGame || PIECE_LINK[p.type] === 0 || !PIECE_STANDARD[p.type] === this.hive.flippedPieces)
             .concat(targets);
         let pieceHover = allPieces.find(p => {
             const [px, py] = this.hive.getPiecePixelPosition(p);
@@ -66,7 +66,7 @@ export default class CanvasPlayer extends Player {
         });
         if (pieceHover) {
             pieceHover = this.#getPieceOnTop(allPieces, pieceHover);
-            if (pieceHover.subNumber === 0 && (pieceHover.targets.length === 0 || this.dragging)) {
+            if (pieceHover.subNumber === 0 && (pieceHover.getTargets().length === 0 || this.dragging)) {
                 pieceHover = null;
             }
         }
@@ -113,7 +113,7 @@ export default class CanvasPlayer extends Player {
                     this.reset();
                 }
             }
-        } else if (this.hive.board.passRound) {
+        } else if (this.hive.board.qtyMoves === 0) {
             this.hoverPieceId = null;
             if (!mouseUp) {
                 this.selectedPieceId = null;
@@ -136,22 +136,22 @@ export default class CanvasPlayer extends Player {
                 }
             }
             this.hoverPieceId = null;
-        } else if (this.hive.board.pieces.find(p => p.id === this.hoverPieceId)) {
+        } else if (this.hive.board.getPieces().find(p => p.id === this.hoverPieceId)) {
             // clicked on piece when another piece was selected
             this.selectedPieceId = this.hoverPieceId;
             this.hoverPieceId = null;
         } else {
             // clicked on target
-            const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
-            this.selectedTargetId = piece.targets.findIndex(p => p.id === this.hoverPieceId);
+            const piece = this.hive.board.getPieces().find(p => p.id === this.selectedPieceId);
+            this.selectedTargetId = piece.getTargets().findIndex(p => p.id === this.hoverPieceId);
             if (!confirmMove || this.hive.gameOver) {
                 this.confirm(true, mouseUp);
             }
         }
     }
     confirm(autoConfirm = false, dragging = false) {
-        const piece = this.hive.board.pieces.find(p => p.id === this.selectedPieceId);
-        this.hive.play(piece.id, piece.targets[this.selectedTargetId], null, dragging, !autoConfirm);
+        const piece = this.hive.board.getPieces().find(p => p.id === this.selectedPieceId);
+        this.hive.play(piece.id, piece.getTargets()[this.selectedTargetId], null, dragging, !autoConfirm);
         this.reset();
     }
 }

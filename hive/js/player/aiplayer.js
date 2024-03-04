@@ -59,16 +59,16 @@ export default class AIPlayer extends Player {
         }
 
         // return if there is no decision to be made
-        if (this.hive.board.passRound) {
+        if (this.hive.board.qtyMoves === 0) {
             this.hive.pass();
             return;
         }
-        const playable = this.hive.board.pieces.filter(p => p.targets.length > 0);
+        const playable = this.hive.board.getPieces().filter(p => p.getTargets().length > 0);
         if (playable.length === 0) {
             return;
         }
-        if (playable.length === 1 && playable[0].targets.length === 1) {
-            this.hive.play(playable[0].id, playable[0].targets[0]);
+        if (playable.length === 1 && playable[0].getTargets().length === 1) {
+            this.hive.play(playable[0].id, playable[0].getTargets()[0]);
             return;
         }
 

@@ -78,7 +78,7 @@ export default class MoveList {
     addMove(pieceId, target, time = null) {
         const move = new Move();
         move.pieceId = pieceId;
-        move.moveSteps = target.moveSteps.map(xyz => [...xyz]);
+        move.moveSteps = target.getMoveSteps().map(xyz => [...xyz]);
         this.#pushMoveWithTime(move, time, true);
     }
     timeControlToText(totalTime = null, increment = null) {

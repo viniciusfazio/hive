@@ -1,6 +1,9 @@
 import Board from "../core/board.js";
 import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG, CENTIPEDE} from "../core/piece.js";
 
+const BITS_PER_PARAM = 1;
+const MAX_PARAM = (1 << BITS_PER_PARAM) - 1;
+
 export default class Evaluator {
     #id;
     #idSplit;
@@ -13,32 +16,32 @@ export default class Evaluator {
         for (const g of this.#idSplit) {
             switch (g) {
                 case 'z':
-                    evaluation <<= 1;
+                    evaluation <<= BITS_PER_PARAM;
                     evaluation += normalize(piecesInHud(board));
                     break;
                 case 'Z':
-                    evaluation <<= 1;
-                    evaluation += normalize(piecesInGamePlayable(board, WHITE) - piecesInGamePlayable(board, BLACK));
+                    evaluation <<= BITS_PER_PARAM;
+                    evaluation += normalize(piecesInGamePlayable(board));
                     break;
                 case 'x':
-                    evaluation <<= 1;
-                    evaluation += normalize(myPiecesAroundHisQueen(board, WHITE) - myPiecesAroundHisQueen(board, BLACK));
+                    evaluation <<= BITS_PER_PARAM;
+                    evaluation += normalize(myPiecesAroundHisQueen(board));
                     break;
                 case 'X':
-                    evaluation <<= 1;
-                    evaluation += normalize(piecesAroundHisQueen(board, WHITE) - piecesAroundHisQueen(board, BLACK));
+                    evaluation <<= BITS_PER_PARAM;
+                    evaluation += normalize(piecesAroundHisQueen(board));
                     break;
                 default:
                     const type = PIECE_TXT.findIndex(v => g === v[0]);
                     if (type > 0) {
-                        evaluation <<= 1;
-                        evaluation += normalize(piecesInGamePlayable(board, WHITE, type) - piecesInGamePlayable(board, BLACK, type));
+                        evaluation <<= BITS_PER_PARAM;
+                        evaluation += normalize(piecesInGamePlayable(board, type));
                         break;
                     }
-                    const typeAround = PIECE_TXT.findIndex(v => v.length === 2 && g === v[1]);
+                    const typeAround = PIECE_TXT.findIndex(v => g === v[1]);
                     if (typeAround > 0) {
-                        evaluation <<= 1;
-                        evaluation += normalize(myPiecesAroundMyQueen(board, WHITE, type) - myPiecesAroundMyQueen(board, BLACK, type));
+                        evaluation <<= BITS_PER_PARAM;
+                        evaluation += normalize(myPiecesAroundMyQueen(board, type));
                         break;
                     }
                     console.log("Invalid evaluator id: " + this.#id);
@@ -47,26 +50,27 @@ export default class Evaluator {
         return evaluation;
     }
     getEvaluationSignificance() {
-        return 1 << Math.floor(this.#id.length / 2);
+        return 1 << Math.floor(BITS_PER_PARAM * this.#id.length / 2);
     }
 }
 function normalize(diff) {
-    return diff > 0 ? 1 : (diff < 0 ? -1 : 0);
+    return diff > MAX_PARAM ? MAX_PARAM : (diff < -MAX_PARAM ? -MAX_PARAM : diff);
 }
 function piecesInHud(board) {
-    return board.pieces.reduce((s, p) => p.inGame ? s : (p.color === WHITE ? s + 1 : s - 1), 0);
+    return board.getPieces().reduce((s, p) => p.inGame ? s : (p.color === WHITE ? s + 1 : s - 1), 0);
 }
-function piecesInGamePlayable(board, color, type = 0) {
-    return board.inGameTopPiecesByColor[color].reduce((s, p) => {
-        if ((type === 0 || type === p.type) && board.stillOneHiveAfterRemove(p)) {
-            return s + 1;
+function piecesInGamePlayable(board, type = 0) {
+    const pieces = type === 0 ?
+        board.getInGameTopPieces() :
+        (board.getPiecesByType(type).filter(p => p.inGame && (board.getPieceEncoded(p.x, p.y) & 0xff) === p.z + 1));
+    return pieces.reduce((s, p) => {
+        if (board.stillOneHiveAfterRemove(p)) {
+            return p.color === WHITE ? s + 1 : s - 1;
         }
-        const tryPillBug = (type === 0 || p.type === type) && (
-                p.type === PILL_BUG ||
-                board.standardRules && p.type === MOSQUITO &&
-                Board.coordsAround(p.x, p.y).find(([x, y]) =>
-                    ((board.getPieceEncoded(x, y) >> 16) & 0xff) === PILL_BUG)
-            );
+        const tryPillBug = p.type === PILL_BUG ||
+                           board.standardRules && p.type === MOSQUITO &&
+                           Board.coordsAround(p.x, p.y).find(([x, y]) =>
+                           ((board.getPieceEncoded(x, y) >> 16) & 0xff) === PILL_BUG);
         if (tryPillBug) {
             let emptyMovableSpaces = board.coordsAroundWithNeighbor(p.x, p.y).find(([, , z, z1, z2]) =>
                 z < 0 && Board.onHiveAndNoGate(p.z + 1, z, z1, z2)
@@ -77,33 +81,43 @@ function piecesInGamePlayable(board, color, type = 0) {
                         (board.standardRules || ![PILL_BUG, CENTIPEDE].includes((board.getPieceEncoded(x, y) >> 16) & 0xff)) &&
                         Board.onHiveAndNoGate(z, p.z, z1, z2) &&
                         board.stillOneHiveAfterRemove(board.getInGamePiece(x, y)));
-                return canMove ? s + 1 : s;
+                if (canMove) {
+                    return p.color === WHITE ? s + 1 : s - 1;
+                }
             }
         }
         return s;
     }, 0);
 }
-function myPiecesAroundHisQueen(board, color) {
-    const queen = board.queens.find(q => q.color !== color && q.inGame);
-    if (!queen) {
-        return 0;
-    }
-    return Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) =>
-            ((board.getPieceEncoded(x, y) >> 8) & 0xff) === color ? s + 1 : s, 0);
+function myPiecesAroundHisQueen(board) {
+    return board.getQueens().reduce((s, q) => {
+        if (!q.inGame) {
+            return s;
+        }
+        const inc = q.color === BLACK ? 1 : -1;
+        const myColor = q.color === BLACK ? WHITE : BLACK;
+        return Board.coordsAround(q.x, q.y).reduce((s2, [x, y]) =>
+            ((board.getPieceEncoded(x, y) >> 8) & 0xff) === myColor ? s2 + inc : s2, s);
+    }, 0);
 }
-function myPiecesAroundMyQueen(board, color, type) {
-    const queen = board.queens.find(q => q.color === color && q.inGame);
-    if (!queen) {
-        return 0;
-    }
-    return Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) =>
-            ((board.getPieceEncoded(x, y) >> 8) & 0xffff) === ((type << 8) | color) ? s + 1 : s, 0);
+function myPiecesAroundMyQueen(board, type) {
+    return board.getQueens().reduce((s, q) => {
+        if (!q.inGame) {
+            return s;
+        }
+        const inc = q.color === WHITE ? 1 : -1;
+        const typeColor = (type << 8) | q.color;
+        return Board.coordsAround(q.x, q.y).reduce((s2, [x, y]) =>
+            ((board.getPieceEncoded(x, y) >> 8) & 0xffff) === typeColor ? s2 + inc : s2, s);
+    }, 0);
 }
-function piecesAroundHisQueen(board, color) {
-    const queen = board.queens.find(q => q.color !== color && q.inGame);
-    if (!queen) {
-        return 0;
-    }
-    return Board.coordsAround(queen.x, queen.y).reduce((s, [x, y]) => board.getPieceEncoded(x, y) > 0 ? s + 1 : s, 0);
+function piecesAroundHisQueen(board) {
+    return board.getQueens().reduce((s, q) => {
+        if (!q.inGame) {
+            return s;
+        }
+        const inc = q.color === BLACK ? 1 : -1;
+        return Board.coordsAround(q.x, q.y).reduce((s2, [x, y]) => board.getPieceEncoded(x, y) !== 0 ? s2 + inc : s2, s);
+    }, 0);
 }
 
