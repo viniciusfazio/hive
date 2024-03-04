@@ -144,7 +144,7 @@ export default class AIPlayer extends Player {
                         // saves the evaluation and the move
                         this.#evaluation = msg.evaluation;
                         this.#evaluationDepth = msg.maxDepth;
-                        if (this.#evaluationDepth > 2) {
+                        if (this.#evaluationDepth > 3) {
                             this.pieceId = move.pieceId;
                             this.target = move.target;
                         }
@@ -220,6 +220,7 @@ export default class AIPlayer extends Player {
             this.#moves.forEach(move => {
                 move.time = 0;
                 move.iterations = 0;
+                move.evaluation = null;
             });
         }
         this.#alpha = -MAX_EVALUATION;

@@ -19,7 +19,7 @@ import Evaluator from "./evaluator.js";
 const REPORT_EVERY_N_ITERATIONS = 1000;
 
 // max depth to sort moves by computing board evaluation of the move. It is the best sort, but it is too slow
-const MAX_DEPTH_TO_PEEK_NEXT_MOVE = 2;
+const MAX_DEPTH_TO_PEEK_NEXT_MOVE = 3;
 
 let lastMovedPiecesId = null; // last moved pieces are reset on play back, so keep them saved
 let visited = null;  // keep track of the evaluation of all visited moves, to rapidly respond if any repeat
