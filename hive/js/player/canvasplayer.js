@@ -113,7 +113,7 @@ export default class CanvasPlayer extends Player {
                     this.reset();
                 }
             }
-        } else if (this.hive.board.qtyMoves === 0) {
+        } else if (this.hive.board.qtyMoves === 0 && !this.hive.gameOver) {
             this.hoverPieceId = null;
             if (!mouseUp) {
                 this.selectedPieceId = null;

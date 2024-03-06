@@ -393,7 +393,7 @@ export default class Board {
         if (p === 0) {
             return false;
         } else {
-            return this.#inGamePiecesByType[(p >> 16) & 0xff].find(p => p.x === x && p.y === y && p.z === z);
+            return this.#inGamePieces.find(p => p.x === x && p.y === y && p.z === z);
         }
     }
     computeLegalMoves(canMove) {

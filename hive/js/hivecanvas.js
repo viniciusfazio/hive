@@ -278,7 +278,7 @@ export default class HiveCanvas {
     }
     #drawPassAlert() {
         const isLastRound = this.getMoveList().moves.length < this.board.round;
-        if (this.board.qtyMoves === 0 && isLastRound && this.getPlayerPlaying() instanceof CanvasPlayer) {
+        if (this.board.qtyMoves === 0 && !this.gameOver && isLastRound && this.getPlayerPlaying() instanceof CanvasPlayer) {
             const [w2, h2] = [this.canvas.width / 2, this.canvas.height / 2];
             const fh = Math.round(w2 / 6);
             this.ctx.fillStyle = "rgb(0, 0, 0, 0.5)";
