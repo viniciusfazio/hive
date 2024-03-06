@@ -30,7 +30,7 @@ export default class CanvasPlayer extends Player {
         const hover = !this.hive.standardRules &&
             (this.selectedPieceId === null || !this.dragging) &&
             this.selectedTargetId === null &&
-            !(this.hive.board.qtyMoves === 0 && this.hive.getMoveList().moves.length < this.board.round) &&
+            !(this.hive.board.qtyMoves === 0 && this.hive.getMoveList().moves.length < this.hive.board.round) &&
             this.mouseX >= x - r && this.mouseX <= x + r &&
             this.mouseY >= y - r && this.mouseY <= y + r;
 
