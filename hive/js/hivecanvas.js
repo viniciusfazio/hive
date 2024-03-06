@@ -1005,14 +1005,15 @@ export default class HiveCanvas {
     undo() {
         const moveList = this.getMoveList();
         if (this.moveLists.length !== 1 || moveList.moves.length === 0) {
-            this.#callbacks.undo(false);
+            this.#callbacks.undo(false, this.gameOver);
         } else {
+            const gameOver = this.gameOver;
             this.gameOver = false;
             this.getPlayerPlaying().reset();
             this.#goTo(moveList.moves.length, (p, ) => p.transition = 1, 0);
             moveList.removeMove();
             this.#initRound();
-            this.#callbacks.undo(true);
+            this.#callbacks.undo(true, gameOver);
         }
     }
     play(pieceId, target, time = null, dragging = false, confirming = false) {

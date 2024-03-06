@@ -1,5 +1,5 @@
 import Player from "./player.js";
-import {WHITE} from "../core/piece.js";
+import {BLACK, WHITE} from "../core/piece.js";
 import Board from "../core/board.js";
 import Evaluator from "../ai/evaluator.js";
 
@@ -55,6 +55,9 @@ export default class AIPlayer extends Player {
     initPlayerTurn() {
         if (this.#initTurnTime !== null) {
             // already running
+            return;
+        }
+        if (this.hive.board.isQueenDead(WHITE) || this.hive.board.isQueenDead(BLACK)) {
             return;
         }
 

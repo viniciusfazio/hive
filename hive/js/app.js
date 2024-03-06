@@ -449,17 +449,14 @@ function localCallbacks() {
             showMessage("Draw by agreement!");
             gameOver();
         },
-        undo: ok => {
+        undo: (ok, gameOver) => {
             if (ok) {
                 if ((hive.board.round & 1) === 1) {
                     $("#move-list > ul:last-child").remove();
                 } else {
                     $("#move-list > ul > li.round-" + (hive.board.round + 1)).remove();
                 }
-                if (hive.gameOver) {
-                    hive.undo();
-                    hive.undo();
-                } else if (hive.getPlayerPlaying() instanceof AIPlayer) {
+                if (gameOver || hive.getPlayerPlaying() instanceof AIPlayer) {
                     hive.undo();
                 } else {
                     updateMoveList(hive.board.round, 0);
