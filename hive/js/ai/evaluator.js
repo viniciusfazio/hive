@@ -1,47 +1,49 @@
 import Board from "../core/board.js";
 import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG, CENTIPEDE} from "../core/piece.js";
 
-const BITS_PER_PARAM = 1;
-const MAX_PARAM = (1 << BITS_PER_PARAM) - 1;
 
 export default class Evaluator {
     #id;
-    #idSplit;
+    #priority;
+    #maxParam;
+    #bitsPerParam;
     constructor(id) {
         this.#id = id;
-        this.#idSplit = id.split("");
+        [this.#priority, this.#maxParam, this.#bitsPerParam] = extractEvaluatorId(id);
     }
+
     evaluate(board) {
+        const bits = this.#bitsPerParam;
         let evaluation = 0;
-        for (const g of this.#idSplit) {
+        for (const g of this.#priority) {
             switch (g) {
                 case 'z':
-                    evaluation <<= BITS_PER_PARAM;
-                    evaluation += normalize(piecesInHud(board));
+                    evaluation <<= bits;
+                    evaluation += this.#normalize(piecesInHud(board));
                     break;
                 case 'Z':
-                    evaluation <<= BITS_PER_PARAM;
-                    evaluation += normalize(piecesInGamePlayable(board));
+                    evaluation <<= bits;
+                    evaluation += this.#normalize(piecesInGamePlayable(board));
                     break;
                 case 'x':
-                    evaluation <<= BITS_PER_PARAM;
-                    evaluation += normalize(myPiecesAroundHisQueen(board));
+                    evaluation <<= bits;
+                    evaluation += this.#normalize(myPiecesAroundHisQueen(board));
                     break;
                 case 'X':
-                    evaluation <<= BITS_PER_PARAM;
-                    evaluation += normalize(piecesAroundHisQueen(board));
+                    evaluation <<= bits;
+                    evaluation += this.#normalize(piecesAroundHisQueen(board));
                     break;
                 default:
                     const type = PIECE_TXT.findIndex(v => g === v[0]);
                     if (type > 0) {
-                        evaluation <<= BITS_PER_PARAM;
-                        evaluation += normalize(piecesInGamePlayable(board, type));
+                        evaluation <<= bits;
+                        evaluation += this.#normalize(piecesInGamePlayable(board, type));
                         break;
                     }
                     const typeAround = PIECE_TXT.findIndex(v => g === v[1]);
                     if (typeAround > 0) {
-                        evaluation <<= BITS_PER_PARAM;
-                        evaluation += normalize(myPiecesAroundMyQueen(board, type));
+                        evaluation <<= bits;
+                        evaluation += this.#normalize(myPiecesAroundMyQueen(board, type));
                         break;
                     }
                     console.log("Invalid evaluator id: " + this.#id);
@@ -50,11 +52,24 @@ export default class Evaluator {
         return evaluation;
     }
     getEvaluationSignificance() {
-        return 1 << Math.floor(BITS_PER_PARAM * this.#id.length / 2);
+        return 1 << Math.floor(this.#bitsPerParam * this.#id.length / 2);
+    }
+    #normalize(diff) {
+        return diff > this.#maxParam ? this.#maxParam : (diff < -this.#maxParam ? -this.#maxParam : diff);
     }
 }
-function normalize(diff) {
-    return diff > MAX_PARAM ? MAX_PARAM : (diff < -MAX_PARAM ? -MAX_PARAM : diff);
+export function extractEvaluatorId(id) {
+    const priority = id.split("");
+    const maxParam = parseInt(priority.shift());
+    const bitsPerParam = Math.floor(Math.log2(maxParam)) + 1;
+    return [priority, maxParam, bitsPerParam];
+}
+export function packEvaluatorId(priority, maxParam) {
+    const bitsPerParam = Math.floor(Math.log2(maxParam)) + 1;
+    if (bitsPerParam * priority.length > 28) {
+        return null;
+    }
+    return maxParam + priority.join("");
 }
 function piecesInHud(board) {
     return board.getInHudPieces().reduce((s, p) => p.color === WHITE ? s + 1 : s - 1, 0);

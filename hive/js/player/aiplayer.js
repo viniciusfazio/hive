@@ -13,7 +13,7 @@ const MAX_DEPTH = 5;
 const COMPUTE_BEST_N_MOVES_FIRST = 4;
 
 export default class AIPlayer extends Player {
-    evaluatorId = "XxQpZz";
+    evaluatorId = "1XxQpZz";
 
     #initTurnTime = null;
     #totalTime = null;

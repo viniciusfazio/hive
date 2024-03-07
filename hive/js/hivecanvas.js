@@ -13,6 +13,7 @@ import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
 import OnlinePlayer from "./player/onlineplayer.js";
 import AIPlayer from "./player/aiplayer.js";
+import Tournament from "./ai/tournament.js";
 
 const CAMERA_SPEED = .2;   // between 0 and 1, >0, higher is faster
 const PIECE_TOP_SPEED = .11;// between 0 and 1, >0, the top speed
@@ -58,6 +59,8 @@ export default class HiveCanvas {
     #callbacks;
 
     #allBoards;
+
+    #tournament = null;
 
     constructor(callbacks, shortOnTime) {
         this.#callbacks = callbacks;
@@ -839,6 +842,9 @@ export default class HiveCanvas {
         });
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.globalAlpha = 1;
+    }
+    newTournament(standardRules) {
+        this.#tournament = new Tournament(this, standardRules);
     }
     #drawText(texts, x = 0, y = 0, valign = "middle", align = "center",
              height, color = "rgb(255, 255, 255)", borderColor = "rgb(0, 0, 0)") {

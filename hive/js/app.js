@@ -20,6 +20,7 @@ $(() => {
     $("#resign").click(resign);
     $("#offerUndo").click(offerUndo);
     $("#newGame").click(newGame);
+    $("#newTournament").click(() => hive.newTournament(!$('#alternativeRules').prop('checked')));
     $("#undo").click(() => hive.undo());
     $("#newOnlineGame").click(newOnlineGame);
     $("#download").click(download);
