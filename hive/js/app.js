@@ -455,7 +455,7 @@ function uploadTournament() {
 function updateTournamentPlayers(whiteDead, blackDead) {
     if (hive.tournament.game === 0) {
         const $tournament = $("#tournament_tables");
-        let table = "<table class='table tournament-" + hive.tournament.generation + " d-none'>";
+        let table = "<table class='table table-striped table-sm tournament-" + hive.tournament.generation + " d-none'>";
         hive.tournament.players.forEach((p, idx) => {
             table += "<tr>";
             table += "<td><b>" + (idx + 1) + ".</b></td>";
@@ -472,20 +472,20 @@ function updateTournamentPlayers(whiteDead, blackDead) {
                 table += "<tr>";
                 for (let col = 0; col <= hive.tournament.players.length; col++) {
                     if (col === 0) {
-                        table += "<th class='border-1 fw-bold table-dark'>Score</th>";
+                        table += "<th class='border-1 fw-bold table-warning'>Score</th>";
                     } else {
-                        table += "<th class='border-1 fw-bold table-secondary'>" + col + ".<i class='bi bi-bug-fill'></i></th>";
+                        table += "<th style='cursor: help' class='border-1 fw-bold table-dark' title='Player " + col + " plays as Black'>" + col + ".<i class='bi bi-bug'></i></th>";
                     }
                 }
             } else {
                 table += "<tr class='player-" + row + "'>";
                 for (let col = 0; col <= hive.tournament.players.length; col++) {
                     if (col === 0) {
-                        table += "<th class='border-1 fw-bold'>" + row + ".<i class='bi bi-bug'></i></th>"
+                        table += "<th style='cursor: help' class='border-1 fw-bold' title='Player " + row + " plays as White'>" + row + ".<i class='bi bi-bug'></i></th>"
                     } else if (col === row) {
-                        table += "<td class='border-1 player-" + col + " table-dark'>0</td>";
+                        table += "<td style='cursor: help' class='border-1 player-" + col + " table-warning' title='Win: 2 points, Draw: 1 point, Lose: 0 points'>0</td>";
                     } else {
-                        table += "<td class='border-1 player-" + col + " table-dark'>&nbsp;</td>";
+                        table += "<td style='cursor: help' class='border-1 player-" + col + "' title='Game not finished yet'>&nbsp;</td>";
                     }
                 }
             }
@@ -500,11 +500,11 @@ function updateTournamentPlayers(whiteDead, blackDead) {
         const $p1 = $("#tournament_tables > table.tournament-" + hive.tournament.generation + " tr.player-" + (p1 + 1) + " > td.player-" + (p1 + 1));
         const $p2 = $("#tournament_tables > table.tournament-" + hive.tournament.generation + " tr.player-" + (p2 + 1) + " > td.player-" + (p2 + 1));
         if (whiteDead && blackDead) {
-            $t.html("<i class='bi bi-emoji-sunglasses'></i>").addClass("table-warning").removeClass("table-dark");
+            $t.html("<i class='bi bi-emoji-sunglasses'></i>").addClass("table-secondary").prop("title", "Draw");
         } else if (whiteDead) {
-            $t.html("<i class='bi bi-bug-fill'></i>").addClass("table-secondary").removeClass("table-dark");
+            $t.html("<i class='bi bi-bug'></i>").addClass("table-dark").prop("title", "Black wins");
         } else {
-            $t.html("<i class='bi bi-bug'></i>").removeClass("table-dark");
+            $t.html("<i class='bi bi-bug'></i>").prop("title", "White wins");
         }
         $p1.html(hive.tournament.players[p1].score);
         $p2.html(hive.tournament.players[p2].score);
@@ -783,7 +783,6 @@ function newTournament(startNow = true) {
     hive.tournament = new Tournament(hive, !$('#alternativeRules').prop('checked'), tournamentCallbacks());
     $("#tournament_tables").html("");
     if (startNow) {
-        updateTournamentPlayers();
         addTournamentLine("New tournament with " + (hive.standardRules ? "standard" : "variant") + " rules!");
         hive.tournament.start();
     }

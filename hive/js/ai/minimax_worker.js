@@ -35,12 +35,13 @@ onmessage = e => {
     msg.evaluation = null;
     msg.done = false;
     if (msg.board !== null) {
-        // new board received
-        evaluator = new Evaluator(msg.evaluatorId);
         board = new Board(msg.board);
         lastMovedPiecesId = [...board.lastMovedPiecesId];
         initialMoves = board.getMoves();
         initialMaximizing = board.getColorPlaying() === WHITE;
+
+        evaluator = new Evaluator(msg.evaluatorId, board.standardRules);
+
         // clean board to not send it back
         msg.board = null;
         msg.evaluatorId = null;

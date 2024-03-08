@@ -73,7 +73,7 @@ export default class AIPlayer extends Player {
 
         // start decision
         this.#initTurnTime = Date.now();
-        this.#evaluator = new Evaluator(this.evaluatorId);
+        this.#evaluator = new Evaluator(this.evaluatorId, this.hive.board.standardRules);
         this.#board = new Board(this.hive.board);
 
         this.#moves = [];

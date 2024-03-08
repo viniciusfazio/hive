@@ -1,15 +1,15 @@
 import Board from "../core/board.js";
-import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG, CENTIPEDE, PIECE_STANDARD} from "../core/piece.js";
+import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG, CENTIPEDE, PIECE_STANDARD, QUEEN} from "../core/piece.js";
 
 
 export default class Evaluator {
-    #id;
-    #priority;
-    #maxParam;
-    #bitsPerParam;
-    constructor(id) {
-        this.#id = id;
-        [this.#priority, this.#maxParam, this.#bitsPerParam] = extractEvaluatorId(id);
+    #priority = [];
+    #maxParam = 0;
+    #bitsPerParam = 0;
+    constructor(id, standardRules) {
+        if (checkEvaluatorId(id, standardRules)) {
+            [this.#priority, this.#maxParam, this.#bitsPerParam] = extractEvaluatorId(id);
+        }
     }
 
     evaluate(board) {
@@ -46,13 +46,12 @@ export default class Evaluator {
                         evaluation += this.#normalize(myPiecesAroundMyQueen(board, type));
                         break;
                     }
-                    console.log("Invalid evaluator id: " + this.#id);
             }
         }
         return evaluation;
     }
     getEvaluationSignificance() {
-        return 1 << Math.floor(this.#bitsPerParam * this.#id.length / 2);
+        return 1 << Math.floor(this.#bitsPerParam * this.#priority.length / 2);
     }
     #normalize(diff) {
         return diff > this.#maxParam ? this.#maxParam : (diff < -this.#maxParam ? -this.#maxParam : diff);
@@ -76,7 +75,8 @@ export function checkEvaluatorId(evaluatorId, standardRules) {
 }
 export function extractEvaluatorId(evaluatorId) {
     const priority = evaluatorId.split("");
-    const maxParam = parseInt(priority.shift());
+    const maxParam = parseInt(priority[0]);
+    priority.shift();
     const bitsPerParam = Math.floor(Math.log2(maxParam)) + 1;
     return [priority, maxParam, bitsPerParam];
 }
@@ -137,6 +137,9 @@ function myPiecesAroundMyQueen(board, type) {
             return s;
         }
         const inc = q.color === WHITE ? 1 : -1;
+        if (type === QUEEN) {
+            return (board.getPieceEncoded(q.x, q.y) & 0xff) === q.z + 1 ? s + inc : s;
+        }
         const typeColor = (type << 8) | q.color;
         return Board.coordsAround(q.x, q.y).reduce((s2, [x, y]) =>
             ((board.getPieceEncoded(x, y) >> 8) & 0xffff) === typeColor ? s2 + inc : s2, s);
