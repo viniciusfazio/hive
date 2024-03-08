@@ -110,7 +110,7 @@ async function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
             board.pass();
         }
         // if it is a repeated move, it is already computed
-        const boardStr = depth + board.stringfy();
+        const boardStr = depth + board.toString();
         let childEvaluation = visited.get(boardStr);
         if (typeof childEvaluation === "undefined") {
             // if not, compute it and save it for later

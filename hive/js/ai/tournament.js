@@ -151,7 +151,7 @@ export function getPlayersIndex(game, players) {
 function mutate(evaluatorId, standardRules) {
     const [priority, maxParam, ] = extractEvaluatorId(evaluatorId);
     let newEvaluatorId = null;
-    if (Math.random() < .2) { // change maxparam
+    if (Math.random() < .2) { // change maxParam
         let newMaxParam = maxParam;
         if (maxParam <= MIN_QTD_PARAM) {
             newMaxParam++;

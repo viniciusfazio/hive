@@ -389,7 +389,7 @@ export default class HiveCanvas {
                 "Round: " + this.board.round + " / " + moveList.moves.length,
                 "Moves available: " + this.board.qtyMoves,
                 "FPS: " + this.#framesPerSecond,
-                "board: " + this.board.stringfy(),
+                "board: " + this.board.toString(),
             ];
             if (onlinePlayer !== null) {
                 text.push("Ping: " + onlinePlayer.ping);
@@ -1053,7 +1053,7 @@ export default class HiveCanvas {
                 setTimeout(() => this.tournament.proceed(whiteLoses, blackLoses), 500);
             }
         } else if (!this.gameOver) {
-            const boardStr = this.board.stringfy(false);
+            const boardStr = this.board.toString(false);
             let qty = this.#allBoards.get(boardStr);
             if (typeof qty === "undefined") {
                 this.#allBoards.set(boardStr, 1);

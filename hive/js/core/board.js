@@ -309,7 +309,7 @@ export default class Board {
         return !coordsWithPieceAround.find(p => !marked.includes(p));
     }
 
-    stringfy(onlyLastMovesThatMatter = true) {
+    toString(onlyLastMovesThatMatter = true) {
         this.#inGamePieces.sort((a, b) => a.y !== b.y ? a.y - b.y : (a.x !== b.x ? a.x - b.x : (a.z - b.z)));
         let lastP = null;
         const colorPlaying = this.getColorPlaying();
