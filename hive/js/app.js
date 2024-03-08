@@ -3,6 +3,8 @@ import CanvasPlayer from "./player/canvasplayer.js";
 import {BLACK, COLOR_TXT, WHITE} from "./core/piece.js";
 import OnlinePlayer from "./player/onlineplayer.js";
 import AIPlayer from "./player/aiplayer.js";
+import Tournament, {getPlayersIndex} from "./ai/tournament.js";
+import {checkEvaluatorId} from "./ai/evaluator.js";
 
 const SHORT_ON_TIME = 20; // time to be short on time, in s
 
@@ -20,13 +22,17 @@ $(() => {
     $("#resign").click(resign);
     $("#offerUndo").click(offerUndo);
     $("#newGame").click(newGame);
-    $("#newTournament").click(() => hive.newTournament(!$('#alternativeRules').prop('checked')));
+    $("#newTournament").click(newTournament);
     $("#undo").click(() => hive.undo());
     $("#newOnlineGame").click(newOnlineGame);
     $("#download").click(download);
+    $("#downloadTournament").click(downloadTournament);
     $("#upload").change(upload);
+    $("#uploadTournament").change(uploadTournament);
     $("#receive").click(receive);
     $("#draw").click(draw);
+    $("#nextGeneration").click(() => addGeneration(1));
+    $("#previousGeneration").click(() => addGeneration(-1));
     $("#nextMove").click(() => addRound(1));
     $("#previousMove").click(() => addRound(-1));
     $("#firstMove").click(() => setRound(1, 0));
@@ -224,7 +230,7 @@ function updateMoveList(round, moveListId) {
 }
 function upload() {
     const $file = $("#upload");
-    if (!hive.gameOver && !confirm("The ongoing game will be gone. Are you sure?")) {
+    if (!confirmKillGame()) {
         $file.val(null);
         return;
     }
@@ -265,6 +271,7 @@ function upload() {
 }
 function tryParseFile(fileContent, standardRules, color) {
     let error = null;
+    $(".tournament-running").addClass("d-none");
     hive.newGame(color, canvasPlayer, canvasPlayer, 0, 0, standardRules);
     let timeControl = false;
     fileContent.find(move => {
@@ -318,6 +325,201 @@ function tryParseFile(fileContent, standardRules, color) {
     }
     return error;
 }
+function confirmKillGame() {
+    return hive.gameOver || hive.getMoveList().moves.length <= 1 || confirm("The ongoing game will be gone. Are you sure?");
+}
+
+function uploadTournament() {
+    const $file = $("#uploadTournament");
+    if (!confirmKillGame()) {
+        $file.val(null);
+        return;
+    }
+    const files = $file.prop("files");
+    if (files.length === 1) {
+        const piece = $("[name='piece']:checked").val();
+        const color = piece === COLOR_TXT[BLACK] || piece !== COLOR_TXT[WHITE] && Math.random() < .5 ? BLACK : WHITE;
+        $("[name='piece']").val(COLOR_TXT[color]);
+        const fileReader = new FileReader();
+        fileReader.onload = e => {
+            let error = null;
+            hive.tournament = null;
+            const fileContent = (e.target.result ?? "").split("\n");
+            let standardRules = true;
+            for (let i = 0; i < fileContent.length && error === null; i++) {
+                const text = fileContent[i];
+                if (i === 0) {
+                    if (text.match(/standard rules/)) {
+                        $("#standardRules").prop("checked", true);
+                    } else if (text.match(/variant rules/)) {
+                        $("#alternativeRules").prop("checked", true);
+                        standardRules = false;
+                    } else {
+                        error = "Invalid file: no rule definition at '" + text + "'";
+                        break;
+                    }
+                    newTournament(false);
+                    hive.tournament.game = 0;
+                    hive.tournament.players = [];
+                    hive.tournament.generation = 0;
+                    continue;
+                }
+                if (hive.tournament.game + 1 >= hive.tournament.players.length * hive.tournament.players.length) {
+                    const match = text.match(/^Generation (\d+):/);
+                    if (!match) {
+                        continue;
+                    }
+                    if (parseInt(match[1]) !== hive.tournament.generation + 1) {
+                        error = "Invalid file: inconsistent generation at '" + text + "'";
+                        break;
+                    }
+                    hive.tournament.generation++;
+                    hive.tournament.game = 0;
+                    hive.tournament.players = [];
+                    for (i++; i < fileContent.length; i++) {
+                        const subText = fileContent[i];
+                        const split = subText.split(" - ");
+                        if (split.length !== 2) {
+                            break;
+                        }
+                        if (!checkEvaluatorId(split[0], standardRules)) {
+                            error = "Invalid file: inconsistent evaluator ID at '" + subText + "'";
+                            break;
+                        }
+                        if (hive.tournament.players.find(p => p.evaluatorId === split[0])) {
+                            error = "Invalid file: repeated evaluator ID at '" + subText + "'";
+                            break;
+                        }
+                        hive.tournament.players.push({
+                            evaluatorId: split[0],
+                            score: 0,
+                            origin: split[1],
+                        });
+                    }
+                    updateTournamentPlayers();
+                } else {
+                    const match = text.match(/^White ([0-9A-Za-z]+) (draws to|wins|loses to) Black ([0-9A-Za-z]+)/);
+                    if (!match) {
+                        continue;
+                    }
+                    const p1 = hive.tournament.players.findIndex(p => p.evaluatorId === match[1]);
+                    const p2 = hive.tournament.players.findIndex(p => p.evaluatorId === match[3]);
+                    if (p1 < 0 || p2 < 0) {
+                        error = "Invalid file: invalid game result at '" + text + "'";
+                        break;
+                    }
+                    let [expectedP1, expectedP2] = getPlayersIndex(hive.tournament.game, hive.tournament.players);
+                    if (expectedP1 === expectedP2) {
+                        [expectedP1, expectedP2] = getPlayersIndex(++hive.tournament.game, hive.tournament.players);
+                    }
+                    if (expectedP1 !== p1 || expectedP2 !== p2) {
+                        error = "Invalid file: invalid player at '" + text + "'. Expected " + hive.tournament.players[expectedP1].evaluatorId + " vs " + hive.tournament.players[expectedP2].evaluatorId + ".";
+                        break;
+                    }
+                    switch (match[2]) {
+                        case "wins":
+                            hive.tournament.players[p1].score += 2;
+                            updateTournamentPlayers(false, true);
+                            break;
+                        case "loses to":
+                            hive.tournament.players[p2].score += 2;
+                            updateTournamentPlayers(true, false);
+                            break;
+                        case "draws to":
+                            hive.tournament.players[p1].score++;
+                            hive.tournament.players[p2].score++;
+                            updateTournamentPlayers(true, true);
+                            break;
+                    }
+                    hive.tournament.game++;
+                }
+            }
+            if (error === null && hive.tournament.players.length > 0) {
+                fileContent.forEach(text => addTournamentLine(text));
+                hive.tournament.game--;
+                hive.tournament.proceed();
+            } else {
+                showMessage(error);
+                hive.tournament = null;
+                $(".tournament-running").addClass("d-none");
+            }
+        };
+        fileReader.readAsText(files[0]);
+    } else if (files.length === 0) {
+        showMessage("Choose a file...");
+    } else {
+        showMessage("Choose only 1 file.");
+    }
+    $file.val("");
+}
+function updateTournamentPlayers(whiteDead, blackDead) {
+    if (hive.tournament.game === 0) {
+        const $tournament = $("#tournament_tables");
+        let table = "<table class='table tournament-" + hive.tournament.generation + " d-none'>";
+        hive.tournament.players.forEach((p, idx) => {
+            table += "<tr>";
+            table += "<td><b>" + (idx + 1) + ".</b></td>";
+            table += "<td>" + p.evaluatorId + "</td>";
+            table += "<td>" + p.origin + "</td>";
+            table += "</tr>";
+        });
+        table += "</table>";
+        $tournament.append(table);
+
+        table = "<table class='text-center tournament-" + hive.tournament.generation + " table d-none'>";
+        for (let row = 0; row <= hive.tournament.players.length; row++) {
+            if (row === 0) {
+                table += "<tr>";
+                for (let col = 0; col <= hive.tournament.players.length; col++) {
+                    if (col === 0) {
+                        table += "<th class='border-1 fw-bold table-dark'>Score</th>";
+                    } else {
+                        table += "<th class='border-1 fw-bold table-secondary'>" + col + ".<i class='bi bi-bug-fill'></i></th>";
+                    }
+                }
+            } else {
+                table += "<tr class='player-" + row + "'>";
+                for (let col = 0; col <= hive.tournament.players.length; col++) {
+                    if (col === 0) {
+                        table += "<th class='border-1 fw-bold'>" + row + ".<i class='bi bi-bug'></i></th>"
+                    } else if (col === row) {
+                        table += "<td class='border-1 player-" + col + " table-dark'>0</td>";
+                    } else {
+                        table += "<td class='border-1 player-" + col + " table-dark'>&nbsp;</td>";
+                    }
+                }
+            }
+            table += "</tr>";
+        }
+        table += "</table>";
+        $tournament.append(table);
+        setGeneration(hive.tournament.generation);
+    } else {
+        const [p1, p2] = getPlayersIndex(hive.tournament.game, hive.tournament.players);
+        const $t = $("#tournament_tables > table.tournament-" + hive.tournament.generation + " tr.player-" + (p1 + 1) + " > td.player-" + (p2 + 1));
+        const $p1 = $("#tournament_tables > table.tournament-" + hive.tournament.generation + " tr.player-" + (p1 + 1) + " > td.player-" + (p1 + 1));
+        const $p2 = $("#tournament_tables > table.tournament-" + hive.tournament.generation + " tr.player-" + (p2 + 1) + " > td.player-" + (p2 + 1));
+        if (whiteDead && blackDead) {
+            $t.html("<i class='bi bi-emoji-sunglasses'></i>").addClass("table-warning").removeClass("table-dark");
+        } else if (whiteDead) {
+            $t.html("<i class='bi bi-bug-fill'></i>").addClass("table-secondary").removeClass("table-dark");
+        } else {
+            $t.html("<i class='bi bi-bug'></i>").removeClass("table-dark");
+        }
+        $p1.html(hive.tournament.players[p1].score);
+        $p2.html(hive.tournament.players[p2].score);
+    }
+}
+function setGeneration(generation) {
+    $("#tournament_generation_text").html("Generation " + generation);
+    $("#tournament_tables table").addClass("d-none");
+    $("#tournament_tables table.tournament-" + generation).removeClass("d-none");
+    $("#tournament_generation").val(generation);
+}
+function addGeneration(add) {
+    setGeneration(Math.max(1, Math.min(hive.tournament.generation, parseInt($("#tournament_generation").val()) + add)));
+}
+
 function download() {
     let text = "Ruleset: " + (hive.standardRules ? "standard" : "variant") + "\n";
     hive.moveLists.forEach((moveList, id) => {
@@ -328,17 +530,31 @@ function download() {
             text += $(v).text() + "\n";
         });
     });
+    saveToFile(text, "hive_game");
+}
+function downloadTournament() {
+    let text = "";
+    $("#tournament_log > li").each((i, v) => {
+        text += $(v).text() + "\n";
+    });
+    saveToFile(text, "hive_tournament");
+}
+function saveToFile(text, filenamePrefix) {
+    const date = new Date();
+    let filename = filenamePrefix + "_" + date.getFullYear() + "-";
+    filename += (date.getMonth() < 9 ? "0" : "") + (date.getMonth() + 1) + "-";
+    filename += (date.getDate() < 10 ? "0" : "") + date.getDate() + ".txt";
 
     const pom = document.createElement('a');
     pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-    const date = new Date();
-    let filename = "hive_" + date.getFullYear() + "-";
-    filename += (date.getMonth() < 9 ? "0" : "") + (date.getMonth() + 1) + "-";
-    filename += (date.getDate() < 10 ? "0" : "") + date.getDate() + ".txt";
     pom.setAttribute('download', filename);
     pom.click();
 }
 function newGame() {
+    if (!confirmKillGame()) {
+        return;
+    }
+    $(".tournament-running").addClass("d-none");
     const piece = $("[name='piece']:checked").val();
     const color = piece === COLOR_TXT[BLACK] || piece !== COLOR_TXT[WHITE] && Math.random() < .5 ? BLACK : WHITE;
     $("[name='piece']").val(COLOR_TXT[color]);
@@ -430,7 +646,11 @@ function localCallbacks() {
     return {
         move: appendMoveList,
         newGame: timeControl => {
-            $("#undo").removeClass("d-none");
+            if ($("#ai2").prop("checked")) {
+                $("#undo").addClass("d-none");
+            } else {
+                $("#undo").removeClass("d-none");
+            }
             $("#move-list").html("");
             appendMoveList(1, "Start - " + timeControl);
             if (hive.whitePlayer instanceof OnlinePlayer || hive.blackPlayer instanceof OnlinePlayer) {
@@ -502,7 +722,7 @@ function onlineCallbacks() {
             new ClipboardJS("#user_id_button");
         },
         connected: () => {
-            $("#newGame, #waiting, #connecting, #received, #receive, .opponent").addClass("d-none");
+            $("#newGame, #waiting, #connecting, #received, #receive, .opponent, .tournament").addClass("d-none");
             $("#newOnlineGame, #disconnect").removeClass("d-none");
             $("#human").prop("checked", true);
             playerChanged();
@@ -523,6 +743,7 @@ function onlineCallbacks() {
             const whitePlayer = bottomColor === WHITE ? canvasPlayer : onlinePlayer;
             const blackPlayer = bottomColor === BLACK ? canvasPlayer : onlinePlayer;
             $("#undo").removeClass("d-none");
+            $(".tournament-running").addClass("d-none");
             hive.newGame(bottomColor, whitePlayer, blackPlayer, totalTime, increment, standardRules);
         },
         disconnect: () => showMessage("Disconnected"),
@@ -544,11 +765,67 @@ function connectionBroken(showNotification) {
         showMessage("Connection broken")
     }
     $(".connection, #openGame, #newOnlineGame, #resign, #offerUndo, #draw, #disconnect").addClass("d-none");
-    $("#receive, #newGame, #openGame, .gameSettings").removeClass("d-none");
+    $("#receive, #newGame, #openGame, .gameSettings, .tournament").removeClass("d-none");
     if (hive.whitePlayer instanceof OnlinePlayer) {
         hive.whitePlayer = canvasPlayer;
     }
     if (hive.blackPlayer instanceof OnlinePlayer) {
         hive.blackPlayer = canvasPlayer;
     }
+}
+function newTournament(startNow = true) {
+    $("#ai2").prop("checked", true);
+    $("#noTimer").prop("checked", true).change();
+    $("#whitePiece").prop("checked", true);
+    $("#tournament_log").html("");
+    $(".tournament-running").removeClass("d-none");
+    $("#undo").addClass("d-none");
+    hive.tournament = new Tournament(hive, !$('#alternativeRules').prop('checked'), tournamentCallbacks());
+    $("#tournament_tables").html("");
+    if (startNow) {
+        updateTournamentPlayers();
+        addTournamentLine("New tournament with " + (hive.standardRules ? "standard" : "variant") + " rules!");
+        hive.tournament.start();
+    }
+}
+function tournamentCallbacks() {
+    return {
+        gameResult: (whiteDead, blackDead, time) => {
+            let result;
+            if (whiteDead && blackDead) {
+                result = " draws to ";
+            } else if (whiteDead) {
+                result = " loses to ";
+            } else {
+                result = " wins ";
+            }
+            addTournamentLine("White " + hive.whitePlayer.evaluatorId + result + "Black " + hive.blackPlayer.evaluatorId + " in " + time + "s.");
+            hive.moveLists.forEach((moveList, id) => {
+                $("#move-list > ul.move-list-" + id + " > li").each((i, v) => {
+                    addTournamentLine($(v).text());
+                });
+            });
+            addTournamentLine();
+            updateTournamentPlayers(whiteDead, blackDead);
+        },
+        generationResult: (players, generation) => {
+            addTournamentLine("Generation " + generation + " results:");
+            players.forEach((p, idx) => {
+                addTournamentLine((idx + 1) + ". " + p.evaluatorId + ": " + p.score);
+            });
+            addTournamentLine();
+        },
+        generationStart: (players, generation) => {
+            addTournamentLine();
+            addTournamentLine("Generation " + generation + ":");
+            players.forEach(p => {
+                addTournamentLine(p.evaluatorId + " - " + p.origin);
+            });
+            addTournamentLine();
+            updateTournamentPlayers();
+        },
+    };
+}
+function addTournamentLine(s = "") {
+    $("#tournament_log").append("<li class='text-nowrap'>" + s + "</li>");
 }

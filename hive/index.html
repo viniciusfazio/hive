@@ -59,6 +59,19 @@
             </div>
             <div class="col">
                 <div class="d-grid">
+                    <div class="row tournament-running d-none">
+                        <div class="row text-center">
+                            <div class="col">
+                                <button id="previousGeneration" type="button" class="btn btn-sm btn-primary my-1"><i class="bi bi-chevron-left"></i></button>
+                            </div>
+                            <div id="tournament_generation_text" class="fw-bold col pt-2"></div>
+                            <input id="tournament_generation" value="1" type="hidden"/>
+                            <div class="col">
+                                <button id="nextGeneration" type="button" class="btn btn-sm btn-primary my-1"><i class="bi bi-chevron-right"></i></button>
+                            </div>
+                        </div>
+                        <div id="tournament_tables"></div>
+                    </div>
                     <div class="row text-center">
                         <div class="col">
                             <button id="firstMove" type="button" class="btn btn-primary my-1"><i class="bi bi-skip-backward-fill"></i></button>
@@ -104,13 +117,19 @@
                         <input type="radio" class="btn-check" name="time" id="timer" autocomplete="off">
                         <label class="btn btn-light" for="timer"><i class="bi bi-clock-fill"></i></label>
                     </div>
-                    <div class="form-floating mb-1 gameSettings">
-                        <input type="number" class="form-control" min="1" max="3600" id="totalTime" value="5"/>
-                        <label for="totalTime">Time (in minutes)</label>
-                    </div>
-                    <div class="form-floating mb-1 gameSettings">
-                        <input type="number" class="form-control" min="0" max="3600" id="increment" value="5"/>
-                        <label for="increment">Increment per move (in seconds)</label>
+                    <div class="row g-1">
+                        <div class="col">
+                            <div class="form-floating mb-1 gameSettings">
+                                <input type="number" class="form-control" min="1" max="3600" id="totalTime" value="5"/>
+                                <label for="totalTime">Time (in minutes)</label>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-floating mb-1 gameSettings">
+                                <input type="number" class="form-control" min="0" max="3600" id="increment" value="5"/>
+                                <label for="increment">Increment (in seconds)</label>
+                            </div>
+                        </div>
                     </div>
                     <div class="gameSettings">
                     Color:
@@ -170,15 +189,17 @@
                         <label for="upload" class="form-label"><strong><i class="bi bi-folder-fill"></i>&nbsp;Open game from file</strong></label>
                         <input class="form-control form-control-sm" type="file" id="upload">
                     </div>
-                    <hr>
+                    <button type="button" class="text-nowrap btn btn-danger my-1 tournament" id="newTournament"><i class="bi bi-trophy-fill"></i>&nbsp;New tournament</button>
+                    <button id="downloadTournament" type="button" class="text-nowrap btn btn-primary my-1 tournament"><i class="bi bi-cloud-download-fill"></i>&nbsp;Download tournament</button>
+                    <div class="mb-1" id="openTournament">
+                        <label for="uploadTournament" class="form-label"><strong><i class="bi bi-folder-fill"></i>&nbsp;Open tournament from file</strong></label>
+                        <input class="form-control form-control-sm" type="file" id="uploadTournament">
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div id="tournament">
-        <button type="button" class="text-nowrap btn btn-danger my-1" id="newTournament"><i class="bi bi-trophy-fill"></i>&nbsp;New tournament</button>
-
-    </div>
+    <ul id="tournament_log" class="d-none"></ul>
     <div class="toast-container position-fixed top-0 start-0 p-3">
         <div id="challengeToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">

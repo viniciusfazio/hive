@@ -13,7 +13,6 @@ import CanvasPlayer from "./player/canvasplayer.js";
 import MoveList, {Move} from "./core/movelist.js";
 import OnlinePlayer from "./player/onlineplayer.js";
 import AIPlayer from "./player/aiplayer.js";
-import Tournament from "./ai/tournament.js";
 
 const CAMERA_SPEED = .2;   // between 0 and 1, >0, higher is faster
 const PIECE_TOP_SPEED = .11;// between 0 and 1, >0, the top speed
@@ -60,7 +59,7 @@ export default class HiveCanvas {
 
     #allBoards;
 
-    #tournament = null;
+    tournament = null;
 
     constructor(callbacks, shortOnTime) {
         this.#callbacks = callbacks;
@@ -117,13 +116,14 @@ export default class HiveCanvas {
         this.#tooSlow = waitTime < 1;
         setTimeout(() => this.#update(), Math.max(1, waitTime));
     }
-    newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment, standardRules) {
+    newGame(bottomPlayerColor, whitePlayer, blackPlayer, totalTime, increment, standardRules, tournament = null) {
         if (this.whitePlayer && !(this.whitePlayer instanceof OnlinePlayer)) {
             this.whitePlayer.reset();
         }
         if (this.blackPlayer && !(this.blackPlayer instanceof OnlinePlayer)) {
             this.blackPlayer.reset();
         }
+        this.tournament = tournament;
         this.#allBoards = new Map();
         [this.bottomPlayerColor, this.whitePlayer, this.blackPlayer] = [bottomPlayerColor, whitePlayer, blackPlayer];
         [this.moveLists, this.currentMoveListId] = [[new MoveList(totalTime, increment)], 0];
@@ -843,9 +843,6 @@ export default class HiveCanvas {
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.globalAlpha = 1;
     }
-    newTournament(standardRules) {
-        this.#tournament = new Tournament(this, standardRules);
-    }
     #drawText(texts, x = 0, y = 0, valign = "middle", align = "center",
              height, color = "rgb(255, 255, 255)", borderColor = "rgb(0, 0, 0)") {
         this.ctx.font = height + "px Sans-serif";
@@ -1037,6 +1034,12 @@ export default class HiveCanvas {
         const whiteLoses = this.board.isQueenDead(WHITE);
         const blackLoses = this.board.isQueenDead(BLACK);
         if (whiteLoses || blackLoses) {
+            if (this.whitePlayer instanceof AIPlayer) {
+                this.whitePlayer.reset();
+            }
+            if (this.blackPlayer instanceof AIPlayer) {
+                this.blackPlayer.reset();
+            }
             moveList.addGameOver(whiteLoses, blackLoses, 0);
             if (whiteLoses && !blackLoses) {
                 this.#callbacks.gameOver(BLACK);
@@ -1046,6 +1049,9 @@ export default class HiveCanvas {
                 this.#callbacks.gameOver(null);
             }
             this.#playRound();
+            if (this.tournament !== null) {
+                setTimeout(() => this.tournament.proceed(whiteLoses, blackLoses), 500);
+            }
         } else if (!this.gameOver) {
             const boardStr = this.board.stringfy(false);
             let qty = this.#allBoards.get(boardStr);
@@ -1054,7 +1060,12 @@ export default class HiveCanvas {
             } else {
                 this.#allBoards.set(boardStr, ++qty);
                 if (qty >= 3 && this.whitePlayer instanceof AIPlayer && this.blackPlayer instanceof AIPlayer) {
+                    this.whitePlayer.reset();
+                    this.blackPlayer.reset();
                     this.draw();
+                    if (this.tournament !== null) {
+                        setTimeout(() => this.tournament.proceed(true, true), 500);
+                    }
                 }
             }
 

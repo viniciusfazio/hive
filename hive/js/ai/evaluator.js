@@ -1,5 +1,5 @@
 import Board from "../core/board.js";
-import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG, CENTIPEDE} from "../core/piece.js";
+import {BLACK, WHITE, MOSQUITO, PIECE_TXT, PILL_BUG, CENTIPEDE, PIECE_STANDARD} from "../core/piece.js";
 
 
 export default class Evaluator {
@@ -58,8 +58,24 @@ export default class Evaluator {
         return diff > this.#maxParam ? this.#maxParam : (diff < -this.#maxParam ? -this.#maxParam : diff);
     }
 }
-export function extractEvaluatorId(id) {
-    const priority = id.split("");
+export function checkEvaluatorId(evaluatorId, standardRules) {
+    if (!evaluatorId.match(/^[1-9]/)) {
+        return false;
+    }
+    if (evaluatorId.length < 2) {
+        return false;
+    }
+    const [priority, maxParam, ] = extractEvaluatorId(evaluatorId);
+    const piecesTxt = standardRules ? PIECE_TXT.filter((v, i) => PIECE_STANDARD[i]) : PIECE_TXT.slice(1);
+    for (const letter of priority) {
+        if (!["X", "x", "Z", "z"].includes(letter) && !piecesTxt.find(txt => [txt[0], txt[1]].includes(letter))) {
+            return false;
+        }
+    }
+    return packEvaluatorId(priority, maxParam) !== null;
+}
+export function extractEvaluatorId(evaluatorId) {
+    const priority = evaluatorId.split("");
     const maxParam = parseInt(priority.shift());
     const bitsPerParam = Math.floor(Math.log2(maxParam)) + 1;
     return [priority, maxParam, bitsPerParam];

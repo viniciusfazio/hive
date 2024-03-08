@@ -7,13 +7,12 @@ import Evaluator from "../ai/evaluator.js";
 const QTY_WORKERS = 6;
 // evaluation that indicate white wins
 const MAX_EVALUATION = (1 << 30);
-// max depth to compute
-const MAX_DEPTH = 5;
 // wait computation of first moves to set good alpha/beta before compute remaining moves
 const COMPUTE_BEST_N_MOVES_FIRST = 4;
 
 export default class AIPlayer extends Player {
     evaluatorId = "1XxQpZz";
+    maxDepth = 5;
 
     #initTurnTime = null;
     #totalTime = null;
@@ -57,27 +56,21 @@ export default class AIPlayer extends Player {
             // already running
             return;
         }
-        if (this.hive.board.isQueenDead(WHITE) || this.hive.board.isQueenDead(BLACK)) {
+        if (this.hive.gameOver || this.hive.board.isQueenDead(WHITE) || this.hive.board.isQueenDead(BLACK)) {
             return;
         }
 
         // return if there is no decision to be made
         if (this.hive.board.qtyMoves === 0) {
-            this.hive.pass();
+            setTimeout(() => this.hive.pass(), 200);
             return;
         }
         const playable = this.hive.board.getPieces().filter(p => p.getTargets().length > 0);
-        if (playable.length === 0) {
-            return;
-        }
         if (playable.length === 1 && playable[0].getTargets().length === 1) {
-            this.hive.play(playable[0].id, playable[0].getTargets()[0]);
+            setTimeout(() => this.hive.play(playable[0].id, playable[0].getTargets()[0]), 200);
             return;
         }
 
-        if (!window.Worker) {
-            throw Error("Can't create thread for AI player");
-        }
         // start decision
         this.#initTurnTime = Date.now();
         this.#evaluator = new Evaluator(this.evaluatorId);
@@ -167,8 +160,8 @@ export default class AIPlayer extends Player {
                             if (msg.evaluation === -MAX_EVALUATION) {
                                 this.pieceId = move.pieceId;
                                 this.target = move.target;
-                                this.#play();
                                 this.#resetWorkers();
+                                this.#play();
                                 return;
                             } else {
                                 this.#beta = Math.min(this.#beta, msg.evaluation);
@@ -196,9 +189,10 @@ export default class AIPlayer extends Player {
                             ++this.#idle;
                         }
                     } else if (++this.#idle === QTY_WORKERS) {
-                        if (msg.maxDepth < MAX_DEPTH) {
+                        if (msg.maxDepth < this.maxDepth) {
                             this.#minimax(msg.maxDepth + 1);
                         } else {
+                            this.#resetWorkers();
                             this.#play();
                         }
                     }
@@ -278,10 +272,10 @@ export default class AIPlayer extends Player {
         const texts = [];
         if (this.#moves) {
             texts.push("Evaluation: " + this.#getEvaluation());
-            texts.push("Depth: " + this.#evaluationDepth + " / " + MAX_DEPTH);
+            texts.push("Depth: " + this.#evaluationDepth + " / " + this.maxDepth);
             texts.push("Iterations: " + this.#getIterations());
             texts.push("Moves: " + this.#evaluatedMoves + " / " + this.#moves.length);
-            if (this.#evaluationDepth === MAX_DEPTH) {
+            if (this.#evaluationDepth === this.maxDepth) {
                 const movesSorted = this.#getMovesSortedByTime();
                 const qty = Math.min(10, movesSorted.length);
                 if (movesSorted.length === qty) {

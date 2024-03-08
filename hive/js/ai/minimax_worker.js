@@ -51,9 +51,6 @@ onmessage = e => {
     if (msg.pieceId !== null && msg.targetCoords !== null) {
         const [x, y, z] = msg.targetCoords;
         const move = initialMoves.find(([, , p, t]) => p.id === msg.pieceId && t.x === x && t.y === y && t.z === z);
-        if (!move) {
-            throw Error("Invalid move on minimax");
-        }
         visited = new Map();
         initialTime = Date.now();
         alphaBeta(0, msg.alpha, msg.beta, initialMaximizing, [move]);
