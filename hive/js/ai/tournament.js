@@ -84,6 +84,7 @@ export default class Tournament {
             this.#whitePlayer.evaluatorId = this.players[p1].evaluatorId;
             this.#blackPlayer.evaluatorId = this.players[p2].evaluatorId;
             this.#timeStart = Date.now();
+            this.#callbacks.gameStarted();
             this.#hive.newGame(WHITE, this.#whitePlayer, this.#blackPlayer, 0, 0, this.#standardRules, this);
         }
     }
@@ -98,7 +99,11 @@ export default class Tournament {
             let origin = null;
             if (i < championCut) {
                 evaluatorId = this.players[i].evaluatorId;
-                origin = "champion";
+                if (this.players[i].origin.match(/^champion/)) {
+                    origin = this.players[i].origin + "+";
+                } else {
+                    origin = "champion";
+                }
             } else if (Math.random() < .5) {
                 const evaluatorIdToMutate = this.#selectEvaluatorId();
                 evaluatorId = mutate(evaluatorIdToMutate, this.#standardRules);

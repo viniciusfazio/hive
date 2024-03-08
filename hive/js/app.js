@@ -485,7 +485,7 @@ function updateTournamentPlayers(whiteDead, blackDead) {
                     } else if (col === row) {
                         table += "<td style='cursor: help' class='border-1 player-" + col + " table-warning' title='Win: 2 points, Draw: 1 point, Lose: 0 points'>0</td>";
                     } else {
-                        table += "<td style='cursor: help' class='border-1 player-" + col + "' title='Game not finished yet'>&nbsp;</td>";
+                        table += "<td style='cursor: help' class='border-1 player-" + col + "' title='Game not started yet'>&nbsp;</td>";
                     }
                 }
             }
@@ -503,8 +503,10 @@ function updateTournamentPlayers(whiteDead, blackDead) {
             $t.html("<i class='bi bi-emoji-sunglasses'></i>").addClass("table-secondary").prop("title", "Draw");
         } else if (whiteDead) {
             $t.html("<i class='bi bi-bug'></i>").addClass("table-dark").prop("title", "Black wins");
-        } else {
+        } else if (blackDead) {
             $t.html("<i class='bi bi-bug'></i>").prop("title", "White wins");
+        } else {
+            $t.html((p1 + 1) + " x " + (p2 + 1)).prop("title", "Game not finished yet");
         }
         $p1.html(hive.tournament.players[p1].score);
         $p2.html(hive.tournament.players[p2].score);
@@ -789,6 +791,9 @@ function newTournament(startNow = true) {
 }
 function tournamentCallbacks() {
     return {
+        gameStarted: () => {
+            updateTournamentPlayers();
+        },
         gameResult: (whiteDead, blackDead, time) => {
             let result;
             if (whiteDead && blackDead) {
