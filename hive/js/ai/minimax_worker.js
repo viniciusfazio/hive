@@ -29,12 +29,14 @@ let evaluator = null;
 let msg = null;
 let initialMoves = null;
 let initialTime = null;
-onmessage = e => {
+let slow = false;
+onmessage = async e => {
     msg = e.data;
     msg.iterations = 0;
     msg.evaluation = null;
     msg.done = false;
     if (msg.board !== null) {
+        slow = msg.slow;
         board = new Board(msg.board);
         lastMovedPiecesId = [...board.lastMovedPiecesId];
         initialMoves = board.getMoves();
@@ -54,19 +56,22 @@ onmessage = e => {
         const move = initialMoves.find(([, , p, t]) => p.id === msg.pieceId && t.x === x && t.y === y && t.z === z);
         visited = new Map();
         initialTime = Date.now();
-        alphaBeta(0, msg.alpha, msg.beta, initialMaximizing, [move]);
+        await alphaBeta(0, msg.alpha, msg.beta, initialMaximizing, [move]);
         msg.time = Date.now() - initialTime;
         msg.done = true;
         postMessage(msg);
     }
 };
 
-function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
+async function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
     // count iterations
     if (++msg.iterations % REPORT_EVERY_N_ITERATIONS === 0) {
         msg.time = Date.now() - initialTime;
         postMessage(msg);
         msg.iterations = 0;
+        if (slow) {
+            await new Promise(r => setTimeout(r, msg.time));
+        }
     }
     // check terminal state or max depth reached
     const whiteDead = board.isQueenDead(WHITE);
@@ -106,7 +111,7 @@ function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
         let childEvaluation = visited.get(boardStr);
         if (typeof childEvaluation === "undefined") {
             // if not, compute it and save it for later
-            childEvaluation = alphaBeta(depth + 1, alpha, beta, !maximizing);
+            childEvaluation = await alphaBeta(depth + 1, alpha, beta, !maximizing);
             visited.set(boardStr, childEvaluation);
         }
         // undo the move

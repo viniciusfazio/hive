@@ -13,6 +13,7 @@ const COMPUTE_BEST_N_MOVES_FIRST = 4;
 export default class AIPlayer extends Player {
     evaluatorId = "1XxQpZz";
     maxDepth = 5;
+    slow = false;
 
     #initTurnTime = null;
     #totalTime = null;
@@ -204,6 +205,7 @@ export default class AIPlayer extends Player {
     #minimax(maxDepth = null) {
         const msg = new WorkerMessage();
         msg.maxDepth = maxDepth;
+        msg.slow = this.slow;
         if (maxDepth === null) {
             msg.board = this.#board;
             msg.evaluatorId = this.evaluatorId;

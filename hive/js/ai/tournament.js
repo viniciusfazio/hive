@@ -31,6 +31,8 @@ export default class Tournament {
         this.#blackPlayer = new AIPlayer(hive);
         this.#whitePlayer.maxDepth = 4;
         this.#blackPlayer.maxDepth = 4;
+        this.#whitePlayer.slow = true;
+        this.#blackPlayer.slow = true;
     }
     start(qtyPlayers = 6) {
         this.players = [{
