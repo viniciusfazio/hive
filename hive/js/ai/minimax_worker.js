@@ -16,7 +16,7 @@ import AIPlayer from "../player/aiplayer.js";
 import Evaluator from "./evaluator.js";
 
 // after N iterations, it reports iteration count and time spent
-const REPORT_EVERY_N_ITERATIONS = 1000;
+const REPORT_EVERY_N_ITERATIONS = 500;
 
 // max depth to sort moves by computing board evaluation of the move. It is the best sort, but it is too slow
 const MAX_DEPTH_TO_PEEK_NEXT_MOVE = 3;
@@ -29,14 +29,15 @@ let evaluator = null;
 let msg = null;
 let initialMoves = null;
 let initialTime = null;
-let slow = false;
+let lastReportTime = null;
+let performance = null;
 onmessage = async e => {
     msg = e.data;
     msg.iterations = 0;
     msg.evaluation = null;
     msg.done = false;
     if (msg.board !== null) {
-        slow = msg.slow;
+        performance = msg.performance;
         board = new Board(msg.board);
         lastMovedPiecesId = [...board.lastMovedPiecesId];
         initialMoves = board.getMoves();
@@ -56,6 +57,7 @@ onmessage = async e => {
         const move = initialMoves.find(([, , p, t]) => p.id === msg.pieceId && t.x === x && t.y === y && t.z === z);
         visited = new Map();
         initialTime = Date.now();
+        lastReportTime = initialTime;
         await alphaBeta(0, msg.alpha, msg.beta, initialMaximizing, [move]);
         msg.time = Date.now() - initialTime;
         msg.done = true;
@@ -69,9 +71,10 @@ async function alphaBeta(depth, alpha, beta, maximizing, moves = null) {
         msg.time = Date.now() - initialTime;
         postMessage(msg);
         msg.iterations = 0;
-        if (slow) {
-            await new Promise(r => setTimeout(r, msg.time));
+        if (performance < 1) {
+            await new Promise(r => setTimeout(r, Math.ceil((1 - performance) * (Date.now() - lastReportTime) / performance)));
         }
+        lastReportTime = Date.now();
     }
     // check terminal state or max depth reached
     const whiteDead = board.isQueenDead(WHITE);

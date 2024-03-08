@@ -13,7 +13,7 @@ const COMPUTE_BEST_N_MOVES_FIRST = 4;
 export default class AIPlayer extends Player {
     evaluatorId = "1XxQpZz";
     maxDepth = 5;
-    slow = false;
+    performance = 1; // between 0 and 1, to indicate how fast to compute
 
     #initTurnTime = null;
     #totalTime = null;
@@ -205,7 +205,7 @@ export default class AIPlayer extends Player {
     #minimax(maxDepth = null) {
         const msg = new WorkerMessage();
         msg.maxDepth = maxDepth;
-        msg.slow = this.slow;
+        msg.performance = this.performance;
         if (maxDepth === null) {
             msg.board = this.#board;
             msg.evaluatorId = this.evaluatorId;
@@ -371,6 +371,7 @@ class WorkerMessage {
     maxDepth;
     pieceId = null;
     targetCoords = null;
+    performance = null;
 
     // output from minimax, and to the aiPlayer
     evaluation;
