@@ -100,6 +100,9 @@ $(() => {
     window.d = () => hive.toggleDebug();
 });
 function playerChanged(online = false) {
+    if (hive.tournament !== null) {
+        return;
+    }
     hive.whitePlayer.reset();
     hive.blackPlayer.reset();
     const piece = $("[name='piece']:checked").val();
